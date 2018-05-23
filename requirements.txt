@@ -1,0 +1,7 @@
+numpy
+matplotlib
+json
+torch
+torchvision
+mypy
+
