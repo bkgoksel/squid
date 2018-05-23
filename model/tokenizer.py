@@ -2,7 +2,8 @@
 Module to hold tokenizer logic
 """
 
-from typing import Any
+from typing import List
+
 
 class Tokenizer():
     """
