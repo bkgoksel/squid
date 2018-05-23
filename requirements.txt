@@ -3,3 +3,5 @@ matplotlib
 torch
 torchvision
 mypy
+allennlp
+nltk

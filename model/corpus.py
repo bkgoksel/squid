@@ -4,9 +4,22 @@ Module that deals with preparing QA corpora
 
 import json
 import pickle
-from typing import List, Set
+from typing import List, Set, NamedTuple
+
 from tokenizer import Tokenizer
-from qa import Answer, QuestionAnswer, ContextQuestionAnswer
+from qa import Answer, QuestionAnswer, ContextQuestionAnswer, EncodedContextQuestionAnswer, EncodedSample
+from wv import WordVectors
+
+CorpusStats = NamedTuple('CorpusStats', [
+    ('n_contexts', int),
+    ('n_questions', int),
+    ('n_answerable', int),
+    ('n_unanswerable', int),
+    ('max_context_len', int),
+    ('max_q_len', int),
+    ('max_answer_len', int),
+    ('vocab_size', int)
+])
 
 
 class Corpus():
@@ -18,7 +31,13 @@ class Corpus():
     """
     context_qas: List[ContextQuestionAnswer]
     vocab: Set[str]
-    tokenizer: Tokenizer
+    stats: CorpusStats
+
+    def __init__(self, context_qas: List[ContextQuestionAnswer],
+                 vocab: Set[str], stats: CorpusStats) -> None:
+        self.context_qas = context_qas
+        self.vocab = vocab
+        self.stats = stats
 
     @classmethod
     def from_disk(cls, serialized_file: str):
@@ -31,7 +50,14 @@ class Corpus():
             return pickle.load(f)
 
     @classmethod
-    def read_context_qas(cls, data_file: str, tokenizer: Tokenizer) -> List[ContextQuestionAnswer]:
+    def from_raw(cls, data_file: str, tokenizer: Tokenizer):
+        context_qas = cls.read_context_qas(data_file, tokenizer)
+        vocab = cls.compute_vocab(context_qas)
+        stats = cls.compute_stats(context_qas, vocab)
+        return cls(context_qas, vocab, stats)
+
+    @staticmethod
+    def read_context_qas(data_file: str, tokenizer: Tokenizer) -> List[ContextQuestionAnswer]:
         """
         Reads a SQUAD formattted JSON file into ContextQuestionAnswer objects
         :param data_file: filename of the JSON questions file
@@ -59,8 +85,8 @@ class Corpus():
                     contexts.append(tokenized_context)
         return contexts
 
-    @classmethod
-    def compute_vocab(cls, context_qas: List[ContextQuestionAnswer]) -> Set[str]:
+    @staticmethod
+    def compute_vocab(context_qas: List[ContextQuestionAnswer]) -> Set[str]:
         """
         Takes in a list of contexts and qas and returns the set of all words in them
         :param context_qas: List[ContextQuestionAnswer] all the context qa's
@@ -75,10 +101,34 @@ class Corpus():
                     vocab.update(set(answer.tokens))
         return vocab
 
-    def __init__(self, data_file: str, tokenizer: Tokenizer) -> None:
-        self.context_qas = Corpus.read_context_qas(data_file, tokenizer)
-        self.vocab = Corpus.compute_vocab(self.context_qas)
-        self.tokenizer = tokenizer
+    @staticmethod
+    def compute_stats(context_qas: List[ContextQuestionAnswer],
+                      vocab: Set[str]) -> CorpusStats:
+        """
+        Method that computes statistics given list of context qas and vocab
+        :param context_qas: List of contextQA objects
+        :param vocab: set of strings that contains all tokens in vocab
+        :returns: A CorpusStats object with stats of the corpus
+        """
+        n_contexts: int = len(context_qas)
+        n_questions: int = sum(len(ctx.qas) for ctx in context_qas)
+        n_answerable: int = sum(len([qa for qa in ctx.qas if qa.answers]) for ctx in context_qas)
+        n_unanswerable: int = sum(len([qa for qa in ctx.qas if not qa.answers]) for ctx in context_qas)
+        max_context_len: int = max(len(ctx.tokens) for ctx in context_qas)
+        max_q_len: int = max(len(qa.tokens) for ctx in context_qas for qa in ctx.qas)
+        max_answer_len: int = 0
+        for ctx in context_qas:
+            for qa in ctx.qas:
+                for ans in qa.answers:
+                    max_answer_len = max(max_answer_len, len(ans.tokens))
+        return CorpusStats(n_contexts=n_contexts,
+                           n_questions=n_questions,
+                           n_answerable=n_answerable,
+                           n_unanswerable=n_unanswerable,
+                           max_context_len=max_context_len,
+                           max_q_len=max_q_len,
+                           max_answer_len=max_answer_len,
+                           vocab_size=len(vocab))
 
     def save(self, file_name: str) -> None:
         """
@@ -88,3 +138,59 @@ class Corpus():
         """
         with open(file_name, 'wb') as f:
             pickle.dump(self, f)
+
+
+class EncodedCorpus(Corpus):
+    """
+    Class that holds a Corpus alongside
+    word vectors and token mappings
+    """
+
+    context_qas: List[ContextQuestionAnswer]
+    vocab: Set[str]
+    stats: CorpusStats
+    word_vectors: WordVectors
+    encoded_context_qas: List[EncodedContextQuestionAnswer]
+
+    def __init__(self, corpus: Corpus, word_vectors: WordVectors) -> None:
+        super().__init__(corpus.context_qas, corpus.vocab, corpus.stats)
+        self.word_vectors = word_vectors
+        self.encoded_context_qas = EncodedCorpus.encode(self.context_qas, self.word_vectors)
+
+    @staticmethod
+    def encode(context_qas: List[ContextQuestionAnswer], word_vectors: WordVectors) -> List[EncodedContextQuestionAnswer]:
+        """
+        Method that encodes all the given contextQA's using given word vectors
+        :param context_qas: List of ContextQA objects
+        :param word_vectors: a WordVectors objects used to encode
+        :returns: List of EncodedContextQuestionAnswer objects
+        """
+        return [EncodedContextQuestionAnswer(cqa, word_vectors.word_to_idx) for cqa in context_qas]
+
+
+class SampleCorpus(EncodedCorpus):
+    """
+    Class that stores a corpus of <context, question, answers> samples
+    """
+
+    context_qas: List[ContextQuestionAnswer]
+    vocab: Set[str]
+    stats: CorpusStats
+    word_vectors: WordVectors
+    encoded_context_qas: List[EncodedContextQuestionAnswer]
+    samples: List[EncodedSample]
+
+    def __init__(self, corpus: Corpus, word_vectors: WordVectors) -> None:
+        super().__init__(corpus, word_vectors)
+        self.samples = SampleCorpus.make_samples(self.encoded_context_qas)
+
+    @staticmethod
+    def make_samples(context_qas: List[EncodedContextQuestionAnswer]) -> List[EncodedSample]:
+        """
+        Method that converts a list of EncodedContextQA objects that store
+        a given context with all its methods into EncodedSample objects
+        that store each question with its context and answers
+        :param context_qas: List of EncodedContextQuestionAnswer objects
+        :returns: List of EncodedSample objects
+        """
+        return [EncodedSample(ctx.encoding, qa) for ctx in context_qas for qa in ctx.qas]

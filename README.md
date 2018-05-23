@@ -9,6 +9,15 @@
 
 
 ## Q-A Representation
-* Have some objects to represent the questions textually?
-* Have some encoder that takes these textual objects and encodes them numerically
-* Saveability to disk/reloadability
+* Have some objects to represent the questions textually [x]
+* Have some encoder that takes these textual objects and encodes them numerically [x]
+  * List[token_idx] ?
+  * List[List[token_idx]] ?
+* Saveability to disk/reloadability [x]
+* Random batching? <Context, Question, Answers> [x]
+* Tokenization [ ]
+
+## Model Architecture
+
+* Predictor model: encoded sample -> ((span_start, span_end), no_ans)
+* Evaluator model: ((span_start, span_end), no_ans) -> loss
