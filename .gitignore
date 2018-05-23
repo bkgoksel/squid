@@ -3,3 +3,7 @@ venv/
 *.sw*
 
 .ropeproject/
+
+data/
+
+*.json
