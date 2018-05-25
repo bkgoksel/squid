@@ -109,7 +109,7 @@ class WordVectors():
             vectors_list.append(unk_vector)
             vocab.append(WordVectors.UNK_TOKEN)
         vectors = np.stack(vectors_list)
-        idx_to_word: Dict[int, str] = dict({i+1: w for i,w in enumerate(vocab)})
+        idx_to_word: Dict[int, str] = dict(enumerate(vocab))
         word_to_idx: Dict[str, int] = {w: i for i, w in idx_to_word.items()}
         return vectors, word_to_idx, idx_to_word
 

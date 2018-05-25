@@ -5,6 +5,7 @@ Module that handles batching logic
 from typing import List, Iterable, Tuple, NamedTuple
 import numpy as np
 import torch as t
+from torch.nn.utils.rnn import pad_sequence
 from qa import EncodedSample
 
 QABatch = NamedTuple('QABatch', [
@@ -28,10 +29,11 @@ def collate_batch(batch: List[EncodedSample]) -> QABatch:
     answer_spans = [t.LongTensor(sample.answer_spans) for sample in batch]
 
     questions = [sample.question for sample in batch]
-    questions, question_lens = pad_sequence(questions)
-
     contexts = [sample.context for sample in batch]
-    contexts, context_lens = pad_sequence(contexts)
+
+    questions, question_lens = pad_and_sort(questions)
+    contexts, context_lens = pad_and_sort(contexts)
+
     return QABatch(questions=questions,
                    question_lens=question_lens,
                    contexts=contexts,
@@ -39,7 +41,7 @@ def collate_batch(batch: List[EncodedSample]) -> QABatch:
                    has_answers=has_answers,
                    answer_spans=answer_spans)
 
-def pad_sequence(seq: List[Iterable]) -> Tuple[t.LongTensor, t.LongTensor]:
+def pad_and_sort(seq: List[Iterable]) -> Tuple[t.LongTensor, t.LongTensor]:
     """
     Pads a list of sequences with 0's to make them all the same
     length as the longest sequence
@@ -48,11 +50,10 @@ def pad_sequence(seq: List[Iterable]) -> Tuple[t.LongTensor, t.LongTensor]:
         All sequences padded to maximum length and sorted by length
         and their respective unpadded lengths
     """
-    batch_size = len(seq)
-    lens = t.LongTensor([len(el) for el in seq])
-    batch = t.zeros((batch_size, lens.max()))
-    for idx, (el, el_len) in enumerate(zip(seq, lens)):
-        batch[idx, :el_len] = t.LongTensor(el)
+    lens = t.LongTensor([el.shape[0] for el in seq])
     lens, idxs = lens.sort(0, descending=True)
-    batch = batch[idxs]
+    seq = np.array(seq)
+    seq = seq[idxs]
+    seq = [t.LongTensor(el) for el in seq]
+    batch = pad_sequence(seq, batch_first=True)
     return batch, lens
