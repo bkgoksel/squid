@@ -3,6 +3,7 @@ venv/
 *.sw*
 
 .ropeproject/
+__pycache__/
 
 data/
 
