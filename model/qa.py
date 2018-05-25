@@ -3,8 +3,9 @@ Module that encapsulates the objects to represent contexts, questions and
 answers at various points of existence.
 """
 import numpy as np
-from typing import List, Any, Dict
+from typing import List, Any, Dict, Set
 from tokenizer import Tokenizer
+from wv import WordVectors
 
 
 class Tokenized():
@@ -32,6 +33,20 @@ class Answer(Tokenized):
         self.span_end = self.span_start + len(self.text)
         super().__init__(text, tokenizer)
 
+    def __eq__(self, other) -> bool:
+        """
+        Two answers are eqal if their spans and text are equal
+        """
+        return (self.span_start == other.span_start and
+                self.span_end == other.span_end and
+                self.text == other.text)
+
+    def __hash__(self):
+        """
+        Use the answer components to hash the answer
+        """
+        return hash("%d_%d_%s" % (self.span_start, self.span_end, self.text))
+
 
 class QuestionAnswer(Tokenized):
     """
@@ -39,10 +54,10 @@ class QuestionAnswer(Tokenized):
     Stores the question text and a list of answers
     """
     text: str
-    answers: List[Answer]
+    answers: Set[Answer]
     tokens: List[str]
 
-    def __init__(self, text: str, answers: List[Answer], tokenizer: Tokenizer) -> None:
+    def __init__(self, text: str, answers: Set[Answer], tokenizer: Tokenizer) -> None:
         self.text = text
         self.answers = answers
         super().__init__(text, tokenizer)
@@ -71,10 +86,10 @@ class EncodedAnswer():
     span_end: int
     encoding: Any  # numpy array
 
-    def __init__(self, answer: Answer, word_to_idx: Dict[str, int]) -> None:
+    def __init__(self, answer: Answer, word_vectors: WordVectors) -> None:
         self.span_start = answer.span_start
         self.span_end = answer.span_end
-        self.encoding = np.array([word_to_idx[tk] for tk in answer.tokens])
+        self.encoding = np.array([word_vectors[tk] for tk in answer.tokens])
 
 
 class EncodedQuestionAnswer():
@@ -85,9 +100,9 @@ class EncodedQuestionAnswer():
     encoding: Any  # numpy array
     answers: List[EncodedAnswer]
 
-    def __init__(self, qa: QuestionAnswer, word_to_idx: Dict[str, int]) -> None:
-        self.encoding = np.array([word_to_idx[tk] for tk in qa.tokens])
-        self.answers = [EncodedAnswer(ans, word_to_idx) for ans in qa.answers]
+    def __init__(self, qa: QuestionAnswer, word_vectors: WordVectors) -> None:
+        self.encoding = np.array([word_vectors[tk] for tk in qa.tokens])
+        self.answers = [EncodedAnswer(ans, word_vectors) for ans in qa.answers]
 
 
 class EncodedContextQuestionAnswer():
@@ -98,9 +113,9 @@ class EncodedContextQuestionAnswer():
     encoding: Any  # numpy array
     qas: List[EncodedQuestionAnswer]
 
-    def __init__(self, ctx: ContextQuestionAnswer, word_to_idx: Dict[str, int]) -> None:
-        self.encoding = np.array([word_to_idx[tk] for tk in ctx.tokens])
-        self.qas = [EncodedQuestionAnswer(qa, word_to_idx) for qa in ctx.qas]
+    def __init__(self, ctx: ContextQuestionAnswer, word_vectors: WordVectors) -> None:
+        self.encoding = np.array([word_vectors[tk] for tk in ctx.tokens])
+        self.qas = [EncodedQuestionAnswer(qa, word_vectors) for qa in ctx.qas]
 
 
 class EncodedSample():
@@ -115,27 +130,11 @@ class EncodedSample():
     def __init__(self, ctx_encoding: Any, qa: EncodedQuestionAnswer) -> None:
         self.context = ctx_encoding
         self.question = qa.encoding
-        self.has_answers = bool(qa.answers)
-        if self.has_answers:
+        self.has_answer = bool(qa.answers)
+        if self.has_answer:
             self.answer_spans = np.empty((len(qa.answers), 2), np.int32)
             for i, answer in enumerate(qa.answers):
                 self.answer_spans[i, 0] = answer.span_start
                 self.answer_spans[i, 1] = answer.span_end
         else:
             self.answer_spans = np.zeros((1, 2), np.int32)
-
-
-class SampleBatch():
-    """
-    Stores a batch of samples
-    """
-    questions: Any  # numpy array
-    contexts: Any  # numpy array
-    has_answers: bool
-    answer_spans: Any  # numpy array
-
-    def __init__(self, samples: List[EncodedSample]) -> None:
-        self.questions = np.stack([sample.question for sample in samples], axis=1)
-        self.contexts = np.stack([sample.context for sample in samples], axis=1)
-        self.has_answers = np.stack([sample.has_answer for sample in samples], axis=0)
-        self.answer_spans = np.stack([sample.answer_spans for sample in samples], axis=0)

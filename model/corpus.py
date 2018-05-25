@@ -5,6 +5,7 @@ Module that deals with preparing QA corpora
 import json
 import pickle
 from typing import List, Set, NamedTuple
+from torch.utils.data import Dataset
 
 from tokenizer import Tokenizer
 from qa import Answer, QuestionAnswer, ContextQuestionAnswer, EncodedContextQuestionAnswer, EncodedSample
@@ -73,12 +74,12 @@ class Corpus():
                     qas: List[QuestionAnswer] = []
                     for qa in paragraph['qas']:
                         q_text: str = qa['question']
-                        answers: List[Answer] = []
+                        answers: Set[Answer] = set()
                         for answer in qa['answers']:
                             text: str = answer['text']
                             span_start: int = answer['answer_start']
                             tokenized_answer = Answer(text, span_start, tokenizer)
-                            answers.append(tokenized_answer)
+                            answers.add(tokenized_answer)
                         tokenized_question = QuestionAnswer(q_text, answers, tokenizer)
                         qas.append(tokenized_question)
                     tokenized_context = ContextQuestionAnswer(context, qas, tokenizer)
@@ -165,7 +166,7 @@ class EncodedCorpus(Corpus):
         :param word_vectors: a WordVectors objects used to encode
         :returns: List of EncodedContextQuestionAnswer objects
         """
-        return [EncodedContextQuestionAnswer(cqa, word_vectors.word_to_idx) for cqa in context_qas]
+        return [EncodedContextQuestionAnswer(cqa, word_vectors) for cqa in context_qas]
 
 
 class SampleCorpus(EncodedCorpus):
@@ -179,10 +180,12 @@ class SampleCorpus(EncodedCorpus):
     word_vectors: WordVectors
     encoded_context_qas: List[EncodedContextQuestionAnswer]
     samples: List[EncodedSample]
+    n_samples: int
 
     def __init__(self, corpus: Corpus, word_vectors: WordVectors) -> None:
         super().__init__(corpus, word_vectors)
         self.samples = SampleCorpus.make_samples(self.encoded_context_qas)
+        self.n_samples = len(self.samples)
 
     @staticmethod
     def make_samples(context_qas: List[EncodedContextQuestionAnswer]) -> List[EncodedSample]:
@@ -194,3 +197,25 @@ class SampleCorpus(EncodedCorpus):
         :returns: List of EncodedSample objects
         """
         return [EncodedSample(ctx.encoding, qa) for ctx in context_qas for qa in ctx.qas]
+
+
+class QADataset(Dataset):
+    """
+    Class that turns a SampleCorpus into a PyTorch Dataset
+    Main difference is that __getitem__ returns a dict instead of an EncodedSample
+    """
+
+    corpus: SampleCorpus
+
+    def __init__(self, corpus: Corpus, word_vectors: WordVectors) -> None:
+        self.corpus = SampleCorpus(corpus, word_vectors)
+
+    def __len__(self):
+        return self.corpus.n_samples
+
+    def __getitem__(self, idx):
+        return self.corpus.samples[idx]
+
+    @property
+    def stats(self):
+        return self.corpus.stats

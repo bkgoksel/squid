@@ -5,7 +5,9 @@ Module that holds classes that can be used for answer prediction
 from corpus import CorpusStats
 from qa import SampleBatch
 from wv import WordVectors
-from typing import NamedTuple, Tuple, List
+from modules.attention import SimpleAttention
+
+from typing import NamedTuple, Tuple
 import torch as t
 import torch.nn as nn
 
@@ -52,6 +54,7 @@ class BasicPredictor(PredictorModel):
     q_hidden_state: t.Tensor
     ctx_gru: nn.GRU
     ctx_hidden_state: t.Tensor
+    attention: SimpleAttention
 
     def __init__(self, word_vectors: WordVectors, corpus_stats: CorpusStats, config: BasicPredictorConfig) -> None:
         super().__init__()
@@ -60,22 +63,34 @@ class BasicPredictor(PredictorModel):
         self.config = config
         self.embed = nn.Embedding.from_pretrained(self.word_vectors.vectors,
                                                   freeze=(not self.config.train_vecs))
-        self.q_gru = nn.GRU(self.corpus_stats.max_q_len,
+        self.q_gru = nn.GRU(self.word_vectors.dim,
                             self.config.gru.hidden_size,
                             self.config.gru.num_layers,
                             dropout=self.config.gru.dropout,
+                            batch_first=True,
                             bidirectional=self.config.gru.bidirectional)
-        self.ctx_gru = nn.GRU(self.corpus_stats.max_context_len,
+        self.ctx_gru = nn.GRU(self.word_vectors.dim,
                               self.config.gru.hidden_size,
                               self.config.gru.num_layers,
                               dropout=self.config.gru.dropout,
+                              batch_first=True,
                               bidirectional=self.config.gru.bidirectional)
+        self.attention = SimpleAttention()
 
     def forward(self, batch: SampleBatch) -> Tuple[t.Tensor, t.float32]:
         """
         Check base class method for docs
         """
-        questions = t.Tensor(batch.questions)
+        q_lens = t.LongTensor([len(q) for q in batch.questions])
+        q_lens, q_idx = q_lens.sort(0, descending=True)
+
+        ctx_lens = t.LongTensor[len(ctx) for ctx in batch.contexts])
+        ctx_lens, ctx_idx = ctx_lens.sort(0, descending=True)
+
+        questions = t.zeros((len(batch.questions), t.max(q_lens)))
+        for idx, (q, q_len) in enumerate(zip(batch.questions, q_lens)):
+            pass
+
         contexts = t.Tensor(batch.contexts)
 
         q_embedded = self.embed(questions)
@@ -83,5 +98,7 @@ class BasicPredictor(PredictorModel):
 
         q_processed, self.q_hidden_state = self.q_gru(q_embedded, self.q_hidden_state)
         ctx_processed, self.ctx_hidden_state = self.ctx_gru(ctx_embedded, self.ctx_hidden_state)
+
+        attended = self.attention(q_processed, ctx_processed)
 
         return None, None

@@ -28,7 +28,7 @@ class NltkTokenizer(Tokenizer):
     tokenizer: WordPunctTokenizer
 
     def __init__(self):
-        self.tokenizer = WordPunctTokenizer
+        self.tokenizer = WordPunctTokenizer()
 
     def tokenize(self, text: str) -> List[str]:
         return self.tokenizer.tokenize(text)
