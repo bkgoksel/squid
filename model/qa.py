@@ -18,24 +18,22 @@ class Tokenized():
         self.tokens = tokenizer.tokenize(text)
 
 
-class Answer(Tokenized):
+class Answer():
     """
     Base class for an Answer, stores the text and span boundaries
     """
     text: str
     span_start: int
     span_end: int
-    tokens: List[str]
 
-    def __init__(self, text: str, span_start: int, tokenizer: Tokenizer) -> None:
+    def __init__(self, text: str, span_start: int) -> None:
         self.text = text
         self.span_start = span_start
         self.span_end = self.span_start + len(self.text)
-        super().__init__(text, tokenizer)
 
     def __eq__(self, other) -> bool:
         """
-        Two answers are eqal if their spans and text are equal
+        Two answers are equal if their spans and text are equal
         """
         return (self.span_start == other.span_start and
                 self.span_end == other.span_end and
@@ -125,16 +123,19 @@ class EncodedSample():
     question: Any  # numpy array
     context: Any  # numpy array
     has_answer: bool
-    answer_spans: Any  # numpy array
+    span_starts: Any  # numpy array
+    span_ends: Any  # numpy array
 
     def __init__(self, ctx_encoding: Any, qa: EncodedQuestionAnswer) -> None:
         self.context = ctx_encoding
         self.question = qa.encoding
         self.has_answer = bool(qa.answers)
-        if self.has_answer:
-            self.answer_spans = np.empty((len(qa.answers), 2), np.int32)
-            for i, answer in enumerate(qa.answers):
-                self.answer_spans[i, 0] = answer.span_start
-                self.answer_spans[i, 1] = answer.span_end
-        else:
-            self.answer_spans = np.zeros((1, 2), np.int32)
+        self.span_starts = np.zeros_like(self.context)
+        self.span_ends = np.zeros_like(self.context)
+        """
+        for answer in qa.answers:
+            self.span_starts = answer.span_start
+            self.answer_spans[i, 1] = answer.span_end
+        """
+        # TODO: Implement answer idx -> ctx token matching
+        raise NotImplementedError

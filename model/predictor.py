@@ -15,6 +15,13 @@ from torch.nn.utils.rnn import (PackedSequence,
                                 pad_packed_sequence)
 
 
+ModelPredictions = NamedTuple('ModelPredictions', [
+    ('start_logits', t.Tensor),
+    ('end_logits', t.Tensor),
+    ('no_ans_logits', t.Tensor)
+])
+
+
 class PredictorModel(nn.Module):
     """
     Base class for any Predictor Model
@@ -22,11 +29,11 @@ class PredictorModel(nn.Module):
     def __init__(self):
         super().__init__()
 
-    def forward(self, batch: QABatch) -> Tuple[t.LongTensor, t.FloatTensor]:
+    def forward(self, batch: QABatch) -> ModelPredictions:
         """
-        Predicts ((span_start, span_end), has_ans_prob) for a batch of samples
+        Predicts (span_start_logits, span_end_logits, has_ans_logits) for a batch of samples
         :param batch: QABatch: a batch of samples returned from a batcher
-        :returns: Tuple of (LongTensor[span_start, span_end], ans_prob:float32)
+        :returns: A ModelPredictions object containing start_logits, end_logits, no_ans_prob
         """
         raise NotImplementedError
 
@@ -47,6 +54,7 @@ class BasicPredictorConfig():
     attention: AttentionConfig
     train_vecs: bool
     batch_size: int
+    n_directions: int
 
     def __init__(self,
                  gru: GRUConfig,
@@ -54,7 +62,8 @@ class BasicPredictorConfig():
                  train_vecs: bool,
                  batch_size: int) -> None:
         self.gru = gru
-        self.attention = AttentionConfig(input_size=2*self.gru.hidden_size,
+        self.n_directions = 1 + int(self.gru.bidirectional)
+        self.attention = AttentionConfig(input_size=self.n_directions*self.gru.hidden_size,
                                          hidden_size=attention_hidden_size)
         self.train_vecs = train_vecs
         self.batch_size = batch_size
@@ -74,6 +83,10 @@ class BasicPredictor(PredictorModel):
     ctx_gru: nn.GRU
     ctx_hidden_state: t.Tensor
     attention: SimpleAttention
+    start_predictor: nn.Linear
+    end_predictor: nn.Linear
+    no_answer_processor: nn.GRU
+    no_answer_predictor: nn.Linear
 
     def __init__(self, word_vectors: WordVectors, corpus_stats: CorpusStats, config: BasicPredictorConfig) -> None:
         super().__init__()
@@ -88,21 +101,30 @@ class BasicPredictor(PredictorModel):
                             dropout=self.config.gru.dropout,
                             batch_first=True,
                             bidirectional=self.config.gru.bidirectional)
-        self.q_hidden_state = t.zeros((self.config.gru.num_layers*(1 + int(self.config.gru.bidirectional)),
-                                            self.config.batch_size,
-                                            self.config.gru.hidden_size))
+        self.q_hidden_state = t.zeros(self.config.gru.num_layers * self.config.n_directions,
+                                      self.config.batch_size,
+                                      self.config.gru.hidden_size)
         self.ctx_gru = nn.GRU(self.word_vectors.dim,
                               self.config.gru.hidden_size,
                               self.config.gru.num_layers,
                               dropout=self.config.gru.dropout,
                               batch_first=True,
                               bidirectional=self.config.gru.bidirectional)
-        self.ctx_hidden_state = t.zeros((self.config.gru.num_layers*(1 + int(self.config.gru.bidirectional)),
-                                              self.config.batch_size,
-                                              self.config.gru.hidden_size))
+        self.ctx_hidden_state = t.zeros(self.config.gru.num_layers * self.config.n_directions,
+                                        self.config.batch_size,
+                                        self.config.gru.hidden_size)
         self.attention = SimpleAttention(self.config.attention)
+        self.start_predictor = MaskedLinear(self.config.gru.hidden_size, 1)
+        self.end_predictor = MaskedLinear(self.config.gru.hidden_size, 1)
+        self.no_answer_processor = nn.GRU(self.config.gru.hidden_size,
+                                          self.config.gru.hidden_size,
+                                          1,
+                                          dropout=self.config.gru.dropout,
+                                          batch_first=True,
+                                          bidirectional=self.config.gru.bidirectional)
+        self.no_answer_predictor = nn.Linear(self.config.gru.hidden_size*self.config.n_directions, 1)
 
-    def forward(self, batch: QABatch) -> Tuple[t.LongTensor, t.FloatTensor]:
+    def forward(self, batch: QABatch) -> ModelPredictions:
         """
         Check base class method for docs
         """
@@ -112,30 +134,9 @@ class BasicPredictor(PredictorModel):
                                                         batch.question_lens,
                                                         batch_first=True)
         # Don't update q_hidden_state as batches are independent
-        q_processed, q_out = self.q_gru(q_packed, self.q_hidden_state)
-
-        # Juggle with RNN output to get concatenated hidden states
-        q_out = q_out.transpose(0,1)
-        q_out = q_out[:, -(1 + int(self.config.gru.bidirectional)):,:]
-        q_out = q_out.contiguous().view((self.config.batch_size, self.config.gru.hidden_size*(1 + int(self.config.gru.bidirectional))))
-
-        q_processed, q_lens = pad_packed_sequence(q_processed, batch_first=True)
-        """
-        q_processed: [batch_sample, seq_elem, hidden*dirs]
-        q_out: [batch_sample, layers*dirs, hidden]
-            layer0dir0, layer0dir1, layer1dir0, layer1dir1
-
-        processed to :
-
-        q_processed: [batch_sample, seq_elem, hidden*dirs]
-        q_out: [batch_samples, dirs, hidden]
-
-        q_out[sample1, 0, 0]
-
-        q_out[s,2,0] = q_processed[s,(q_lens[s]-1),0]
-        q_out[s,3,0] = q_processed[s, 0, 256]
-
-        """
+        _, q_out = self.q_gru(q_packed, self.q_hidden_state)
+        q_out = self.get_last_hidden_states(q_out)
+        q_out = q_out[batch.question_idxs]
 
         ctx_embedded = self.embed(batch.questions)
         ctx_packed: PackedSequence = pack_padded_sequence(ctx_embedded,
@@ -143,8 +144,47 @@ class BasicPredictor(PredictorModel):
                                                        batch_first=True)
         # Don't update ctx_hidden_state as batches are independent
         ctx_processed, _ = self.ctx_gru(ctx_packed, self.ctx_hidden_state)
-        ctx_processed, ctx_lens = pad_packed_sequence(ctx_processed, batch_first=True)
+        ctx_processed, _ = pad_packed_sequence(ctx_processed, batch_first=True)
+        ctx_processed = ctx_processed[batch.context_idxs]
 
-        attended = self.attention(q_out, ctx_processed)
+        attended = self.attention(q_out, ctx_processed, batch.context_mask)
 
-        return None, None
+
+        start_predictions = self.start_predictor(attended, batch.context_mask)
+        end_predictions = self.end_predictor(attended, batch.context_mask)
+
+        _, no_answer_out = self.no_answer_processor(attended)
+        no_answer_out = self.get_last_hidden_states(no_answer_out)
+        no_answer_predictions = self.no_answer_predictor(no_answer_out)
+
+
+        return ModelPredictions(start_logits=start_predictions,
+                          end_logits=end_predictions,
+                          no_ans_logits=no_answer_predictions)
+
+    def get_last_hidden_states(self, out):
+        """
+        Do some juggling with the output of the RNNs to get the
+            final hidden states of the topmost layers of all the
+            directions to feed into attention
+        (should be in same tensor layout as the all hidden states of context)
+
+        'q_out' here is 'u' from the paper
+
+        q_processed: All hidden states, of shape:
+            [batch_size, max_seq_len, hidden_size*n_dirs]
+
+        q_out: Last hidden states for all layers and directions, of shape:
+            [n_layers*n_dirs, batch_size, hidden_size]:
+                The first dimension is laid out like:
+                    layer0dir0, layer0dir1, layer1dir0, layer1dir1
+
+        To get it in the same config as q_processed:
+            1. Make q_out batch first
+            2. Only keep the last layers for each direction
+            3. Concatenate the layer hidden states in one dimension
+        """
+        out = out.transpose(0,1)
+        out = out[:, -self.config.n_directions:,:]
+        out = out.contiguous().view(self.config.batch_size, self.config.gru.hidden_size*self.config.n_directions)
+        return out

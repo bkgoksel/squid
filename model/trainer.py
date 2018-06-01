@@ -8,8 +8,8 @@ from wv import WordVectors
 from corpus import Corpus, QADataset
 from tokenizer import Tokenizer, NltkTokenizer
 from batcher import QABatch, collate_batch
-from predictor import PredictorModel, BasicPredictor, BasicPredictorConfig, GRUConfig
-# from evaluator import EvaluatorModel, BasicEvaluator
+from predictor import PredictorModel, BasicPredictor, BasicPredictorConfig, GRUConfig, ModelPredictions
+from evaluator import EvaluatorModel, BasicEvaluator
 
 vector_file: str = 'data/wordvecs/fake.txt'
 data_file: str = 'data/original/tiny-dev.json'
@@ -36,7 +36,9 @@ vectors: WordVectors = WordVectors.from_disk(saved_vector_file)
 
 dataset: QADataset = QADataset(corpus, vectors)
 predictor: PredictorModel = BasicPredictor(vectors, dataset.stats, predictor_config)
-# evaluator: EvaluatorModel = BasicEvaluator()
+evaluator: EvaluatorModel = BasicEvaluator()
 loader: DataLoader = DataLoader(dataset, batch_size, shuffle=True, collate_fn=collate_batch)
+
 batch: QABatch = next(iter(loader))
-predictor(batch)
+predictions: ModelPredictions = predictor(batch)
+loss, preds = evaluator(predictions, batch)

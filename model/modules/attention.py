@@ -6,7 +6,9 @@ from typing import NamedTuple
 
 import torch as t
 import torch.nn as nn
-import torch.nn.functional as F
+from torch import Tensor as Tensor
+
+from masked import MaskTensor, MaskedLinear
 
 
 AttentionConfig = NamedTuple('AttentionConfig', [
@@ -22,48 +24,44 @@ class SimpleAttention(nn.Module):
     """
 
     config: AttentionConfig
-    tanh: nn.Tanh
-    Wym: nn.Parameter  # (input_size, hidden_size)
-    Wum: nn.Parameter  # (input_size, hidden_size)
-    Wms: nn.Parameter  # (hidden_size, 1)
+    softmax: MaskedSoftmax
+    Wcm: nn.Parameter  # (input_size, hidden_size)
+    Wqm: nn.Parameter  # (input_size, hidden_size)
+    attention: MaskedLinear
 
     def __init__(self, config: AttentionConfig):
         super().__init__()
         self.config = config
-        self.tanh = nn.Tanh()
-        self.Wym = nn.Parameter(t.Tensor(config.input_size, config.hidden_size))
-        self.Wum = nn.Parameter(t.Tensor(config.input_size, config.hidden_size))
-        self.Wms = nn.Parameter(t.Tensor(config.hidden_size, 1))
+        self.attention = MaskedLinear(config.hidden_size, config,input_size)
+        self.Wcm = nn.Parameter(t.empty(config.input_size, config.hidden_size))
+        self.Wqm = nn.Parameter(t.empty(config.input_:size, config.hidden_size))
 
-    def forward(self, question_out, context_enc):
+        nn.init.xavier_uniform(self.Wcm)
+        nn.init.xavier_uniform(self.Wqm)
+
+    def forward(self, question_u: Tensor, context_enc: Tensor, context_mask: MaskTensor):
         """
         Computes the final embedding for the context attended with the
         query encoding
 
-        1. Compute u: concatenation of final forward and backward outputs of question_enc
-            - (batch, 1, din)
-        2. Compute m:
-            - c@Wym -> (batch, seq_len, din) @ (din, dhid) -> (batch, seq_len, dhid)
-            - u@Wum -> (batch, 1, din) @ (din, dhid) -> (batch, 1, dhid)
-            - add: (batch, seq_len, dhid)
-            - tanh: (batch, seq_len, dhid)
-        3. Compute s:
-            - m@Wms -> (batch, seq_len, dhid) @ (dhid, 1) -> (batch, seq_len, 1)
-            - exp -> (batch, seq_len, 1)
-        4. Compute r:
-            - c*s -> (batch, seq_len, din) * (seq_len, 1) -> (batch, seq_len, din)
-            - sum(cs, 1) -> (batch, din)
+        1. Compute m:
+            - c@Wcm -> (batch, seq_len, din) @ (din, dhid) -> (batch, seq_len, dhid)
+            - q@Wqm -> (batch, 1, din) @ (din, dhid) -> (batch, 1, dhid)
+            - elem-wise: (batch, seq_len, dhid)
+        2. Compute attention weights:
+            - Linear(m) -> (batch_seq_len, dhid) -> (batch, seq_len, din)
 
         :param question_u: Output of question encoder:
             Tensor of shape [batch_size, 1, input_size]
         :param context_enc: All hidden states of context encoder:
             Tensor of shape [batch_size, max_context_len, input_size]
-        :returns: Question-attended Context encoding
-            Tensor of shape [batch_size, input_size]
+        :param context_mask: MaskTensor that is 0 for padding indices of contexts:
+            MaskTensor of shape: [batch_size, max_context_len]
+        :returns: Attended context
+            Tensor of shape [batch_size, max_context_len, din]
         """
-        __import__('pdb').set_trace()
-        context_enc = context_enc @ self.Wym
-        q_enc = question_out @ self.Wum
-        m = self.tanh(context_enc + q_enc.unsqueeze(1))
-        s = t.exp(m @ self.Wms)
-        r = t.sum(context_enc * s, 1)
+        context_enc = context_enc @ self.Wcm
+        q_enc = question_u @ self.Wqm
+        attended  = self.attention(context_enc * q_enc.expand_as(context_enc), context_mask)
+
+        return attended

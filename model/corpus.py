@@ -78,7 +78,7 @@ class Corpus():
                         for answer in qa['answers']:
                             text: str = answer['text']
                             span_start: int = answer['answer_start']
-                            tokenized_answer = Answer(text, span_start, tokenizer)
+                            tokenized_answer = Answer(text, span_start)
                             answers.add(tokenized_answer)
                         tokenized_question = QuestionAnswer(q_text, answers, tokenizer)
                         qas.append(tokenized_question)
