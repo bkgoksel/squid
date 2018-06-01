@@ -10,7 +10,6 @@ import torch.nn as nn
 
 from batcher import QABatch
 from predictor import ModelPredictions
-from qa import FinalPrediction
 
 
 class EvaluatorModel(nn.Module):
@@ -23,7 +22,7 @@ class EvaluatorModel(nn.Module):
 
     def forward(self,
                 batch: QABatch,
-                model_predictions: ModelPredictions) -> Tuple[t.Tensor, Optional[Iterable[FinalPrediction]]]:
+                model_predictions: ModelPredictions) -> Tuple[t.Tensor, Optional[Any]]:
             """
             Computes a Loss tensor given a Batch and model predictions
             Optionally outputs a list of FinalPrediction objects
@@ -40,7 +39,7 @@ class BasicEvaluator(EvaluatorModel):
 
     def __init__(self) -> None:
         super().__init__()
-        self.loss_op = BCEWithLogitsLoss()
+        self.loss_op = nn.BCEWithLogitsLoss()
 
     def forward(self,
                 batch: QABatch,

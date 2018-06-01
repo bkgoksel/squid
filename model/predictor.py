@@ -6,8 +6,9 @@ from corpus import CorpusStats
 from wv import WordVectors
 from batcher import QABatch
 from modules.attention import SimpleAttention, AttentionConfig
+from modules.masked import MaskedLinear
 
-from typing import NamedTuple, Tuple
+from typing import NamedTuple
 import torch as t
 import torch.nn as nn
 from torch.nn.utils.rnn import (PackedSequence,
@@ -45,6 +46,7 @@ GRUConfig = NamedTuple('GRUConfig', [
     ('bidirectional', bool)
 ])
 
+
 class BasicPredictorConfig():
     """
     Object that holds config values for a BasicPredictor model
@@ -63,7 +65,7 @@ class BasicPredictorConfig():
                  batch_size: int) -> None:
         self.gru = gru
         self.n_directions = 1 + int(self.gru.bidirectional)
-        self.attention = AttentionConfig(input_size=self.n_directions*self.gru.hidden_size,
+        self.attention = AttentionConfig(input_size=self.n_directions * self.gru.hidden_size,
                                          hidden_size=attention_hidden_size)
         self.train_vecs = train_vecs
         self.batch_size = batch_size
@@ -122,7 +124,7 @@ class BasicPredictor(PredictorModel):
                                           dropout=self.config.gru.dropout,
                                           batch_first=True,
                                           bidirectional=self.config.gru.bidirectional)
-        self.no_answer_predictor = nn.Linear(self.config.gru.hidden_size*self.config.n_directions, 1)
+        self.no_answer_predictor = nn.Linear(self.config.gru.hidden_size * self.config.n_directions, 1)
 
     def forward(self, batch: QABatch) -> ModelPredictions:
         """
@@ -140,15 +142,14 @@ class BasicPredictor(PredictorModel):
 
         ctx_embedded = self.embed(batch.questions)
         ctx_packed: PackedSequence = pack_padded_sequence(ctx_embedded,
-                                                       batch.question_lens,
-                                                       batch_first=True)
+                                                          batch.question_lens,
+                                                          batch_first=True)
         # Don't update ctx_hidden_state as batches are independent
         ctx_processed, _ = self.ctx_gru(ctx_packed, self.ctx_hidden_state)
         ctx_processed, _ = pad_packed_sequence(ctx_processed, batch_first=True)
         ctx_processed = ctx_processed[batch.context_idxs]
 
         attended = self.attention(q_out, ctx_processed, batch.context_mask)
-
 
         start_predictions = self.start_predictor(attended, batch.context_mask)
         end_predictions = self.end_predictor(attended, batch.context_mask)
@@ -157,10 +158,9 @@ class BasicPredictor(PredictorModel):
         no_answer_out = self.get_last_hidden_states(no_answer_out)
         no_answer_predictions = self.no_answer_predictor(no_answer_out)
 
-
         return ModelPredictions(start_logits=start_predictions,
-                          end_logits=end_predictions,
-                          no_ans_logits=no_answer_predictions)
+                                end_logits=end_predictions,
+                                no_ans_logits=no_answer_predictions)
 
     def get_last_hidden_states(self, out):
         """
@@ -184,7 +184,7 @@ class BasicPredictor(PredictorModel):
             2. Only keep the last layers for each direction
             3. Concatenate the layer hidden states in one dimension
         """
-        out = out.transpose(0,1)
-        out = out[:, -self.config.n_directions:,:]
-        out = out.contiguous().view(self.config.batch_size, self.config.gru.hidden_size*self.config.n_directions)
+        out = out.transpose(0, 1)
+        out = out[:, -self.config.n_directions:, :]
+        out = out.contiguous().view(self.config.batch_size, self.config.gru.hidden_size * self.config.n_directions)
         return out

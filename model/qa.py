@@ -3,7 +3,7 @@ Module that encapsulates the objects to represent contexts, questions and
 answers at various points of existence.
 """
 import numpy as np
-from typing import List, Any, Dict, Set
+from typing import List, Any, Set
 from tokenizer import Tokenizer
 from wv import WordVectors
 
@@ -87,7 +87,6 @@ class EncodedAnswer():
     def __init__(self, answer: Answer, word_vectors: WordVectors) -> None:
         self.span_start = answer.span_start
         self.span_end = answer.span_end
-        self.encoding = np.array([word_vectors[tk] for tk in answer.tokens])
 
 
 class EncodedQuestionAnswer():

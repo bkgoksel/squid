@@ -39,7 +39,6 @@ class WordVectors():
         token = token if token in self.word_to_idx else WordVectors.UNK_TOKEN
         return self.word_to_idx[token]
 
-
     @classmethod
     def from_disk(cls, file_name: str):
         """

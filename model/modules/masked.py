@@ -4,21 +4,20 @@ Module that deals with sequences that need masking
 from enum import Enum
 import torch as t
 import torch.nn as nn
-from typing import NewType, ClassVar
+from torch import Tensor as Tensor
 
 MaskMode = Enum('MaskMode', 'subtract multiply')
 MaskTime = Enum('MaskTime', 'pre post')
 
-MaskTensor = NewType('MaskTensor', t.LongTensor)
 
-def mask_sequence(input_batch: t.Tensor, mask_index: float=0) -> MaskTensor:
+def mask_sequence(input_batch: t.Tensor, mask_index: float=0) -> t.LongTensor:
     """
-    Returns a MaskTensor where masked indices are 0 and rest 1
+    Returns a LongTensor where masked indices are 0 and rest 1
     :param input_batch: Batch first tensor of padded sequences
     :param mask_index: Value that signifies an index that should be masked
-    :returns: A MaskTensor, same shape as input_batch
+    :returns: A LongTensor, same shape as input_batch
     """
-    return MaskTensor((input_batch != mask_index).long())
+    return t.LongTensor((input_batch != mask_index).long())
 
 
 class MaskedOp(nn.Module):
@@ -41,7 +40,7 @@ class MaskedOp(nn.Module):
         self.mask_time = mask_time
         self.mask_value = mask_value
 
-    def _apply_mask(self, inpt: t.Tensor, mask: MaskTensor) -> Tensor:
+    def _apply_mask(self, inpt: t.Tensor, mask: t.LongTensor) -> Tensor:
         """
         Applies the mask to inpt according to MaskMode
         :param inpt: Input tensor to apply mask to
@@ -55,7 +54,7 @@ class MaskedOp(nn.Module):
         else:
             raise Exception('Malformed mask_mode for MaskedOp: %s' % self.mask_mode)
 
-    def forward(self, input_batch: t.Tensor, mask: MaskTensor) -> t.Tensor:
+    def forward(self, input_batch: t.Tensor, mask: t.LongTensor) -> t.Tensor:
         """
         Subtracts mask from its input and applies op to it
         :param input_batch: Batch of variable length sequences to mask and apply op on
@@ -75,13 +74,11 @@ class MaskedSoftmax(MaskedOp):
     Module that runs softmax on a batch of variable-length sequences
     """
 
-    mask_value: ClassVar[float]=1e10
-
     def __init__(self, dim: int=1) -> None:
         super().__init__(nn.Softmax(dim=dim),
                          MaskMode.subtract,
                          MaskTime.pre,
-                         mask_value=MaskedSoftmax.mask_value)
+                         mask_value=1e10)
 
 
 class MaskedLogSoftmax(MaskedOp):
@@ -90,13 +87,11 @@ class MaskedLogSoftmax(MaskedOp):
     Wrapper around MaskedOp.
     """
 
-    mask_value: ClassVar[float]=1e10
-
     def __init__(self, dim: int=1) -> None:
         super().__init__(nn.LogSoftmax(dim=dim),
                          MaskMode.subtract,
                          MaskTime.pre,
-                         mask_value=MaskedLogSoftmax.mask_value)
+                         mask_value=1e10)
 
 
 class MaskedLinear(MaskedOp):

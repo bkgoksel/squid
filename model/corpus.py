@@ -18,7 +18,6 @@ CorpusStats = NamedTuple('CorpusStats', [
     ('n_unanswerable', int),
     ('max_context_len', int),
     ('max_q_len', int),
-    ('max_answer_len', int),
     ('vocab_size', int)
 ])
 
@@ -98,8 +97,6 @@ class Corpus():
             vocab.update(set(ctx.tokens))
             for qa in ctx.qas:
                 vocab.update(set(qa.tokens))
-                for answer in qa.answers:
-                    vocab.update(set(answer.tokens))
         return vocab
 
     @staticmethod
@@ -117,18 +114,12 @@ class Corpus():
         n_unanswerable: int = sum(len([qa for qa in ctx.qas if not qa.answers]) for ctx in context_qas)
         max_context_len: int = max(len(ctx.tokens) for ctx in context_qas)
         max_q_len: int = max(len(qa.tokens) for ctx in context_qas for qa in ctx.qas)
-        max_answer_len: int = 0
-        for ctx in context_qas:
-            for qa in ctx.qas:
-                for ans in qa.answers:
-                    max_answer_len = max(max_answer_len, len(ans.tokens))
         return CorpusStats(n_contexts=n_contexts,
                            n_questions=n_questions,
                            n_answerable=n_answerable,
                            n_unanswerable=n_unanswerable,
                            max_context_len=max_context_len,
                            max_q_len=max_q_len,
-                           max_answer_len=max_answer_len,
                            vocab_size=len(vocab))
 
     def save(self, file_name: str) -> None:

@@ -8,7 +8,7 @@ import torch as t
 import torch.nn as nn
 from torch import Tensor as Tensor
 
-from masked import MaskTensor, MaskedLinear
+from masked import MaskedLinear
 
 
 AttentionConfig = NamedTuple('AttentionConfig', [
@@ -24,22 +24,21 @@ class SimpleAttention(nn.Module):
     """
 
     config: AttentionConfig
-    softmax: MaskedSoftmax
     Wcm: nn.Parameter  # (input_size, hidden_size)
     Wqm: nn.Parameter  # (input_size, hidden_size)
     attention: MaskedLinear
 
-    def __init__(self, config: AttentionConfig):
+    def __init__(self, config: AttentionConfig) -> None:
         super().__init__()
         self.config = config
-        self.attention = MaskedLinear(config.hidden_size, config,input_size)
+        self.attention = MaskedLinear(config.hidden_size, config.input_size)
         self.Wcm = nn.Parameter(t.empty(config.input_size, config.hidden_size))
-        self.Wqm = nn.Parameter(t.empty(config.input_:size, config.hidden_size))
+        self.Wqm = nn.Parameter(t.empty(config.input_size, config.hidden_size))
 
         nn.init.xavier_uniform(self.Wcm)
         nn.init.xavier_uniform(self.Wqm)
 
-    def forward(self, question_u: Tensor, context_enc: Tensor, context_mask: MaskTensor):
+    def forward(self, question_u: Tensor, context_enc: Tensor, context_mask: t.LongTensor):
         """
         Computes the final embedding for the context attended with the
         query encoding
@@ -55,13 +54,13 @@ class SimpleAttention(nn.Module):
             Tensor of shape [batch_size, 1, input_size]
         :param context_enc: All hidden states of context encoder:
             Tensor of shape [batch_size, max_context_len, input_size]
-        :param context_mask: MaskTensor that is 0 for padding indices of contexts:
-            MaskTensor of shape: [batch_size, max_context_len]
+        :param context_mask: t.LongTensor that is 0 for padding indices of contexts:
+            t.LongTensor of shape: [batch_size, max_context_len]
         :returns: Attended context
             Tensor of shape [batch_size, max_context_len, din]
         """
         context_enc = context_enc @ self.Wcm
         q_enc = question_u @ self.Wqm
-        attended  = self.attention(context_enc * q_enc.expand_as(context_enc), context_mask)
+        attended = self.attention(context_enc * q_enc.expand_as(context_enc), context_mask)
 
         return attended

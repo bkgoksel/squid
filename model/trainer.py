@@ -24,8 +24,6 @@ predictor_config = BasicPredictorConfig(gru=GRUConfig(hidden_size=256,
                                         train_vecs=False,
                                         batch_size=batch_size)
 
-
-
 # tokenizer: Tokenizer = NltkTokenizer()
 # corpus: Corpus = Corpus.from_raw(data_file, tokenizer)
 corpus: Corpus = Corpus.from_disk(corpus_file)

@@ -2,26 +2,25 @@
 Module that handles batching logic
 """
 
-from typing import List, Iterable, Tuple, NamedTuple
+from typing import List, Any, Tuple, NamedTuple
 import numpy as np
 import torch as t
 from torch.nn.utils.rnn import pad_sequence
 
-from modules.masked import MaskTensor, mask_sequence
+from modules.masked import mask_sequence
 from qa import EncodedSample
 
 QABatch = NamedTuple('QABatch', [
     ('questions', t.LongTensor),
     ('question_lens', t.LongTensor),
     ('question_idxs', t.LongTensor),
-    ('question_mask', MaskTensor),
+    ('question_mask', t.LongTensor),
     ('contexts', t.LongTensor),
     ('context_lens', t.LongTensor),
     ('context_idxs', t.LongTensor),
-    ('context_mask', MaskTensor),
-    ('has_answers', t.LongTensor),
-    ('answer_spans', List[t.LongTensor])
+    ('context_mask', t.LongTensor)
 ])
+
 
 def collate_batch(batch: List[EncodedSample]) -> QABatch:
     """
@@ -29,11 +28,6 @@ def collate_batch(batch: List[EncodedSample]) -> QABatch:
     :param batch: List[EncodedSample] QA samples
     :returns: a QABatch
     """
-
-    batch_size = len(batch)
-    has_answers = t.LongTensor([sample.has_answer for sample in batch])
-    answer_spans = [t.LongTensor(sample.answer_spans) for sample in batch]
-
     questions = [sample.question for sample in batch]
     contexts = [sample.context for sample in batch]
 
@@ -49,10 +43,10 @@ def collate_batch(batch: List[EncodedSample]) -> QABatch:
                    contexts=contexts,
                    context_lens=context_lens,
                    context_idxs=context_idxs,
-                   context_mask=context_mask,
-                   answer_spans=answer_spans)
+                   context_mask=context_mask)
 
-def pad_and_sort(seq: List[Iterable]) -> Tuple[t.LongTensor, t.LongTensor]:
+
+def pad_and_sort(seq: List[Any]) -> Tuple[t.LongTensor, t.LongTensor, t.LongTensor]:
     """
     Pads a list of sequences with 0's to make them all the same
     length as the longest sequence
