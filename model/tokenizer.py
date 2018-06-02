@@ -37,6 +37,6 @@ class NltkTokenizer(Tokenizer):
         self.tokenizer = WordPunctTokenizer()
 
     def tokenize(self, text: str) -> List[Token]:
-        spans = self.tokenizer.span_tokenize(text)
+        spans = list(self.tokenizer.span_tokenize(text))
         words = [text[span_start:span_end] for span_start, span_end in spans]
         return [Token(word=word, span=span) for word, span in zip(words, spans)]
