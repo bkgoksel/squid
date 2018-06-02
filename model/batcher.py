@@ -18,7 +18,9 @@ QABatch = NamedTuple('QABatch', [
     ('contexts', t.LongTensor),
     ('context_lens', t.LongTensor),
     ('context_idxs', t.LongTensor),
-    ('context_mask', t.LongTensor)
+    ('context_mask', t.LongTensor),
+    ('answer_span_starts', t.LongTensor),
+    ('answer_span_ends', t.LongTensor)
 ])
 
 
@@ -28,13 +30,25 @@ def collate_batch(batch: List[EncodedSample]) -> QABatch:
     :param batch: List[EncodedSample] QA samples
     :returns: a QABatch
     """
-    questions = [sample.question for sample in batch]
-    contexts = [sample.context for sample in batch]
+    questions = []
+    contexts = []
+    answer_span_starts = []
+    answer_span_ends = []
+
+    for sample in batch:
+        questions.append(sample.question)
+        contexts.append(sample.context)
+        answer_span_starts.append(sample.span_starts)
+        answer_span_ends.append(sample.span_ends)
 
     questions, question_idxs, question_lens = pad_and_sort(questions)
     question_mask = mask_sequence(questions)
+
     contexts, context_idxs, context_lens = pad_and_sort(contexts)
     context_mask = mask_sequence(contexts)
+
+    answer_span_starts = np.array(answer_span_starts)
+    answer_span_ends = np.array(answer_span_ends)
 
     return QABatch(questions=questions,
                    question_lens=question_lens,
@@ -43,7 +57,9 @@ def collate_batch(batch: List[EncodedSample]) -> QABatch:
                    contexts=contexts,
                    context_lens=context_lens,
                    context_idxs=context_idxs,
-                   context_mask=context_mask)
+                   context_mask=context_mask,
+                   answer_span_starts=answer_span_starts,
+                   answer_span_ends=answer_span_ends)
 
 
 def pad_and_sort(seq: List[Any]) -> Tuple[t.LongTensor, t.LongTensor, t.LongTensor]:

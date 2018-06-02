@@ -3,8 +3,9 @@ Module that encapsulates the objects to represent contexts, questions and
 answers at various points of existence.
 """
 import numpy as np
+import bisect
 from typing import List, Any, Set
-from tokenizer import Tokenizer
+from tokenizer import Token, Tokenizer
 from wv import WordVectors
 
 
@@ -12,7 +13,7 @@ class Tokenized():
     """
     Base Class for any object that stores tokenized text
     """
-    tokens: List[str]
+    tokens: List[Token]
 
     def __init__(self, text: str, tokenizer: Tokenizer) -> None:
         self.tokens = tokenizer.tokenize(text)
@@ -53,7 +54,7 @@ class QuestionAnswer(Tokenized):
     """
     text: str
     answers: Set[Answer]
-    tokens: List[str]
+    tokens: List[Token]
 
     def __init__(self, text: str, answers: Set[Answer], tokenizer: Tokenizer) -> None:
         self.text = text
@@ -68,7 +69,7 @@ class ContextQuestionAnswer(Tokenized):
     """
     text: str
     qas: List[QuestionAnswer]
-    tokens: List[str]
+    tokens: List[Token]
 
     def __init__(self, text: str, qas: List[QuestionAnswer], tokenizer: Tokenizer) -> None:
         self.text = text
@@ -79,14 +80,20 @@ class ContextQuestionAnswer(Tokenized):
 class EncodedAnswer():
     """
     Class to store an Answer's encoding
+        - span_start: int mapping to the first context token that's part of the answer
+        - span_end: int mapping to the last context token that's part of the answer
     """
     span_start: int
     span_end: int
-    encoding: Any  # numpy array
 
-    def __init__(self, answer: Answer, word_vectors: WordVectors) -> None:
-        self.span_start = answer.span_start
-        self.span_end = answer.span_end
+    def __init__(self, answer: Answer, context_tokens: List[Token]) -> None:
+        """
+        We have List[Token]:
+            (word=word, span=(start, end))
+        """
+        token_starts, token_ends = zip(*[tok.span for tok in context_tokens])
+        self.span_start = bisect.bisect_right(token_starts, answer.span_start) - 1
+        self.span_end = bisect.bisect_left(token_ends, answer.span_end)
 
 
 class EncodedQuestionAnswer():
@@ -97,9 +104,9 @@ class EncodedQuestionAnswer():
     encoding: Any  # numpy array
     answers: List[EncodedAnswer]
 
-    def __init__(self, qa: QuestionAnswer, word_vectors: WordVectors) -> None:
-        self.encoding = np.array([word_vectors[tk] for tk in qa.tokens])
-        self.answers = [EncodedAnswer(ans, word_vectors) for ans in qa.answers]
+    def __init__(self, qa: QuestionAnswer, word_vectors: WordVectors, context_tokens: List[Token]) -> None:
+        self.encoding = np.array([word_vectors[tk.word] for tk in qa.tokens])
+        self.answers = [EncodedAnswer(ans, context_tokens) for ans in qa.answers]
 
 
 class EncodedContextQuestionAnswer():
@@ -111,13 +118,15 @@ class EncodedContextQuestionAnswer():
     qas: List[EncodedQuestionAnswer]
 
     def __init__(self, ctx: ContextQuestionAnswer, word_vectors: WordVectors) -> None:
-        self.encoding = np.array([word_vectors[tk] for tk in ctx.tokens])
-        self.qas = [EncodedQuestionAnswer(qa, word_vectors) for qa in ctx.qas]
+        self.encoding = np.array([word_vectors[tk.word] for tk in ctx.tokens])
+        self.qas = [EncodedQuestionAnswer(qa, word_vectors, ctx.tokens) for qa in ctx.qas]
 
 
 class EncodedSample():
     """
     Stores a single model sample (context, question, answers)
+        - span_starts and span_ends are the same shape as
+            context and are 1 at each valid start/end index
     """
     question: Any  # numpy array
     context: Any  # numpy array
@@ -131,10 +140,8 @@ class EncodedSample():
         self.has_answer = bool(qa.answers)
         self.span_starts = np.zeros_like(self.context)
         self.span_ends = np.zeros_like(self.context)
-        """
-        for answer in qa.answers:
-            self.span_starts = answer.span_start
-            self.answer_spans[i, 1] = answer.span_end
-        """
-        # TODO: Implement answer idx -> ctx token matching
-        raise NotImplementedError
+        if self.has_answer:
+            starts = np.array([ans.span_start for ans in qa.answers])
+            ends = np.array([ans.span_end for ans in qa.answers])
+            self.span_starts[starts] = 1
+            self.span_ends[ends] = 1

@@ -44,14 +44,6 @@ class BasicEvaluator(EvaluatorModel):
     def forward(self,
                 batch: QABatch,
                 model_predictions: ModelPredictions) -> t.Tensor:
-        """
-        """
-        pass
-
-    def compute_loss(logits, target, lens):
-        """
-        Computes masked cross entropy loss
-        :param logits: Prediction logits from model, of shape:
-            (batch_len, max_seq_len)
-        """
-        pass
+        start_loss = self.loss_op(model_predictions.start_logits, batch.answer_span_starts)
+        end_loss = self.loss_op(model_predictions.end_logits, batch.answer_span_ends)
+        return start_loss + end_loss
