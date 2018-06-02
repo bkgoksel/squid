@@ -91,7 +91,8 @@ class EncodedAnswer():
         We have List[Token]:
             (word=word, span=(start, end))
         """
-        token_starts, token_ends = zip(*[tok.span for tok in context_tokens])
+        spans = [tok.span for tok in context_tokens]
+        token_starts, token_ends = zip(*spans)
         self.span_start = bisect.bisect_right(token_starts, answer.span_start) - 1
         self.span_end = bisect.bisect_left(token_ends, answer.span_end)
 
