@@ -17,14 +17,12 @@ cl down squad_dev_tfidf_n2.json
 cl down train-nosent-neg.json
 cl down dev-nosent-neg.json
 
-mkdir data/original
+mkdir -p data/original
 mv train-v1.1.json data/original/train.json
 mv dev-v1.1.json data/original/dev.json
 mv tiny-dev.json data/original/tiny-dev.json
 
-mkdir data/negatives
-
-mkdir data/negatives/rule
+mkdir -p data/negatives/rule
 mv train-rule-unans-weighted.json data/negatives/rule/train.json
 mv dev-rule-unans.json data/negatives/rule/dev.json
 
