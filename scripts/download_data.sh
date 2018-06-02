@@ -5,11 +5,12 @@ ssh -N -f -n -L 12800:localhost:2800 -L 18000:localhost:8000 kerem@codalab.stanf
 cl alias nlp http://localhost:12800
 
 cl work nlp::bkgoksel-neg
+cl down glove/glove.6B.100d.txt
 cl down train-v1.1.json
 cl down dev-v1.1.json
 cl down tiny-dev.json
 cl down train-rule-unans-weighted.json
-l down dev-rule-unans.json
+cl down dev-rule-unans.json
 cl down train-v2.0.json
 cl down dev-v2.0.json
 cl down generate-tfidf-train-2
@@ -38,3 +39,6 @@ rm -rf generate-tfidf-train-2
 mkdir data/negatives/nosent
 mv train-nosent-neg.json data/negatives/nosent/train.json
 mv dev-nosent-neg.json data/negatives/nosent/dev.json
+
+mkdir -p data/word-vectors/glove
+mv glove.6B.100d.txt data/word-vectors/glove/
