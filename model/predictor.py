@@ -177,7 +177,8 @@ class BasicPredictor(PredictorModel):
             2. Only keep the last layers for each direction
             3. Concatenate the layer hidden states in one dimension
         """
+        batch_size = out.size(1)
         out = out.transpose(0, 1)
         out = out[:, -self.config.n_directions:, :]
-        out = out.contiguous().view(self.config.batch_size, self.config.total_hidden_size)
+        out = out.contiguous().view(batch_size, self.config.total_hidden_size)
         return out
