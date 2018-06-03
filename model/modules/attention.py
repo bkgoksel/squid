@@ -61,6 +61,6 @@ class SimpleAttention(nn.Module):
         """
         context_enc = context_enc @ self.Wcm
         q_enc = question_u @ self.Wqm
-        attended = self.attention(context_enc * q_enc.expand_as(context_enc), context_mask)
+        attended = self.attention(context_enc * q_enc.unsqueeze(1), context_mask)
 
         return attended

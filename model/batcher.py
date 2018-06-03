@@ -47,8 +47,11 @@ def collate_batch(batch: List[EncodedSample]) -> QABatch:
     contexts, context_idxs, context_lens = pad_and_sort(contexts)
     context_mask = mask_sequence(contexts)
 
-    answer_span_starts = np.array(answer_span_starts)
-    answer_span_ends = np.array(answer_span_ends)
+    answer_span_starts, _, _ = pad_and_sort(answer_span_starts)
+    answer_span_ends, _, _ = pad_and_sort(answer_span_ends)
+
+    answer_span_starts = answer_span_starts[context_idxs]
+    answer_span_ends = answer_span_ends[context_idxs]
 
     return QABatch(questions=questions,
                    question_lens=question_lens,

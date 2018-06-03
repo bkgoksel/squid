@@ -44,6 +44,6 @@ class BasicEvaluator(EvaluatorModel):
     def forward(self,
                 batch: QABatch,
                 model_predictions: ModelPredictions) -> t.Tensor:
-        start_loss = self.loss_op(model_predictions.start_logits, batch.answer_span_starts)
-        end_loss = self.loss_op(model_predictions.end_logits, batch.answer_span_ends)
+        start_loss = self.loss_op(model_predictions.start_logits, batch.answer_span_starts.float())
+        end_loss = self.loss_op(model_predictions.end_logits, batch.answer_span_ends.float())
         return start_loss + end_loss

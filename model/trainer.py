@@ -26,11 +26,12 @@ predictor_config = BasicPredictorConfig(gru=GRUConfig(hidden_size=256,
                                         train_vecs=False,
                                         batch_size=batch_size)
 
-print("Building corpus")
-tokenizer: Tokenizer = NltkTokenizer()
-corpus: Corpus = Corpus.from_raw(data_file, tokenizer)
-# print("Reading corpus from disk")
-# corpus: Corpus = Corpus.from_disk(corpus_file)
+# print("Building corpus")
+# tokenizer: Tokenizer = NltkTokenizer()
+# corpus: Corpus = Corpus.from_raw(data_file, tokenizer)
+# corpus.save(corpus_file)
+print("Reading corpus from disk")
+corpus: Corpus = Corpus.from_disk(corpus_file)
 print("Corpus done, stats: %s" % str(corpus.stats))
 
 # print("Building Word Vector representation")
@@ -42,14 +43,15 @@ vectors: WordVectors = WordVectors.from_disk(saved_vector_file)
 dataset: QADataset = QADataset(corpus, vectors)
 predictor: PredictorModel = BasicPredictor(vectors, dataset.stats, predictor_config)
 evaluator: EvaluatorModel = BasicEvaluator()
-optimizer: optim.Optimizer = optim.Adam(predictor.parameters())
+trainable_parameters = filter(lambda p: p.requires_grad, predictor.parameters())
+optimizer: optim.Optimizer = optim.Adam(trainable_parameters)
 loader: DataLoader = DataLoader(dataset, batch_size, shuffle=True, collate_fn=collate_batch)
 
 for epoch in range(num_epochs):
     for batch_num, batch in enumerate(loader):
         optimizer.zero_grad()
         predictions: ModelPredictions = predictor(batch)
-        loss = evaluator(predictions, batch)
+        loss = evaluator(batch, predictions)
         loss.backward()
         optimizer.step()
         running_loss = loss.item()
