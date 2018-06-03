@@ -104,18 +104,12 @@ class BasicPredictor(PredictorModel):
                             dropout=self.config.gru.dropout,
                             batch_first=True,
                             bidirectional=self.config.gru.bidirectional)
-        self.q_hidden_state = t.zeros(self.config.gru.num_layers * self.config.n_directions,
-                                      self.config.batch_size,
-                                      self.config.gru.hidden_size)
         self.ctx_gru = nn.GRU(self.word_vectors.dim,
                               self.config.gru.hidden_size,
                               self.config.gru.num_layers,
                               dropout=self.config.gru.dropout,
                               batch_first=True,
                               bidirectional=self.config.gru.bidirectional)
-        self.ctx_hidden_state = t.zeros(self.config.gru.num_layers * self.config.n_directions,
-                                        self.config.batch_size,
-                                        self.config.gru.hidden_size)
         self.attention = SimpleAttention(self.config.attention)
         self.start_predictor = MaskedLinear(self.config.total_hidden_size, 1)
         self.end_predictor = MaskedLinear(self.config.total_hidden_size, 1)
@@ -136,8 +130,7 @@ class BasicPredictor(PredictorModel):
         q_packed: PackedSequence = pack_padded_sequence(q_embedded,
                                                         batch.question_lens,
                                                         batch_first=True)
-        # Don't update q_hidden_state as batches are independent
-        _, q_out = self.q_gru(q_packed, self.q_hidden_state)
+        _, q_out = self.q_gru(q_packed)
         q_out = self.get_last_hidden_states(q_out)
         q_out = q_out[batch.question_idxs]
 
@@ -145,8 +138,7 @@ class BasicPredictor(PredictorModel):
         ctx_packed: PackedSequence = pack_padded_sequence(ctx_embedded,
                                                           batch.context_lens,
                                                           batch_first=True)
-        # Don't update ctx_hidden_state as batches are independent
-        ctx_processed, _ = self.ctx_gru(ctx_packed, self.ctx_hidden_state)
+        ctx_processed, _ = self.ctx_gru(ctx_packed)
         ctx_processed, _ = pad_packed_sequence(ctx_processed, batch_first=True)
         ctx_processed = ctx_processed[batch.context_idxs]
 

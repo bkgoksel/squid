@@ -17,10 +17,10 @@ data_file: str = 'data/original/tiny-dev.json'
 corpus_file: str = 'data/saved/tiny-dev'
 saved_vector_file: str = 'data/saved/word-vectors/glove.6B.100d'
 batch_size = 32
-num_epochs = 1
-predictor_config = BasicPredictorConfig(gru=GRUConfig(hidden_size=256,
+num_epochs = 16
+predictor_config = BasicPredictorConfig(gru=GRUConfig(hidden_size=512,
                                                       num_layers=2,
-                                                      dropout=0.1,
+                                                      dropout=0.2,
                                                       bidirectional=True),
                                         attention_hidden_size=256,
                                         train_vecs=False,
