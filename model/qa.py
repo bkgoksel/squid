@@ -61,7 +61,7 @@ class QuestionAnswer(Tokenized):
     tokens: List[Token]
 
     def __init__(self, question_id: str, text: str, answers: Set[Answer], tokenizer: Tokenizer) -> None:
-        self.quesiton_id = cast(QuestionId, question_id)
+        self.question_id = cast(QuestionId, question_id)
         self.text = text
         self.answers = answers
         super().__init__(text, tokenizer)

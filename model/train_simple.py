@@ -1,5 +1,6 @@
 import argparse
 
+from pickle import UnpicklingError
 from trainer import train_model
 from predictor import BasicPredictorConfig, GRUConfig
 from tokenizer import Tokenizer, NltkTokenizer
@@ -41,7 +42,7 @@ def main() -> None:
 def load_vectors(filename: str) -> WordVectors:
     try:
         vectors = WordVectors.from_disk(filename)
-    except IOError:
+    except (IOError, UnpicklingError) as e:
         vectors = WordVectors.from_text_vectors(filename)
     return vectors
 
@@ -50,7 +51,7 @@ def load_dataset(filename: str, vectors: WordVectors) -> QADataset:
     corpus: Corpus
     try:
         corpus = Corpus.from_disk(filename)
-    except IOError:
+    except (IOError, UnpicklingError) as e:
         tokenizer: Tokenizer = NltkTokenizer()
         corpus = Corpus.from_raw(filename, tokenizer)
     return QADataset(corpus, vectors)
