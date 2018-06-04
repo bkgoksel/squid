@@ -124,39 +124,40 @@ class BasicPredictor(PredictorModel):
         """
 
         q_embedded = self.embed(batch.questions)
-        q_packed: PackedSequence = pack_padded_sequence(q_embedded,
+        q_len_sorted = q_embedded[batch.question_len_idxs]
+        q_packed: PackedSequence = pack_padded_sequence(q_len_sorted,
                                                         batch.question_lens,
                                                         batch_first=True)
-        _, q_out = self.q_gru(q_packed)
-        q_out = self.get_last_hidden_states(q_out)
+        _, q_out_len_sorted = self.q_gru(q_packed)
+        q_out_len_sorted = self.get_last_hidden_states(q_out_len_sorted)
         # Put the questions back in their pre-length-sort ordering so the
         # ordering matches with the context encoding
-        q_out = q_out[batch.question_orig_idxs]
+        q_out = q_out_len_sorted[batch.question_orig_idxs]
 
         ctx_embedded = self.embed(batch.contexts)
-        ctx_packed: PackedSequence = pack_padded_sequence(ctx_embedded,
+        ctx_len_sorted = ctx_embedded[batch.context_len_idxs]
+        ctx_packed: PackedSequence = pack_padded_sequence(ctx_len_sorted,
                                                           batch.context_lens,
                                                           batch_first=True)
-        ctx_processed, _ = self.ctx_gru(ctx_packed)
-        ctx_processed, _ = pad_packed_sequence(ctx_processed, batch_first=True)
+        ctx_processed_packed, _ = self.ctx_gru(ctx_packed)
+        ctx_processed_len_sorted, _ = pad_packed_sequence(ctx_processed_packed, batch_first=True)
         # Put the contexts back in their pre-length-sort ordering so the
         # ordering matches with the question encoding
-        ctx_processed = ctx_processed[batch.context_orig_idxs]
+        ctx_processed = ctx_processed_len_sorted[batch.context_orig_idxs]
 
-        original_sorted_context_mask = batch.context_mask[batch.context_orig_idxs]
-        attended = self.attention(q_out, ctx_processed, original_sorted_context_mask)
+        attended = self.attention(q_out, ctx_processed, batch.context_mask)
         attended_length_sorted = attended[batch.context_len_idxs]
         attended_packed: PackedSequence = pack_padded_sequence(attended_length_sorted,
                                                                batch.context_lens,
                                                                batch_first=True)
 
-        start_predictions = self.start_predictor(attended, original_sorted_context_mask).squeeze(2)
-        end_predictions = self.end_predictor(attended, original_sorted_context_mask).squeeze(2)
+        start_predictions = self.start_predictor(attended, batch.context_mask).squeeze(2)
+        end_predictions = self.end_predictor(attended, batch.context_mask).squeeze(2)
 
-        _, no_answer_out = self.no_answer_gru(attended_packed)
+        _, no_answer_out_len_sorted = self.no_answer_gru(attended_packed)
 
-        no_answer_out = self.get_last_hidden_states(no_answer_out)
-        no_answer_out = no_answer_out[batch.context_orig_idxs]
+        no_answer_out_len_sorted = self.get_last_hidden_states(no_answer_out_len_sorted)
+        no_answer_out = no_answer_out_len_sorted[batch.context_orig_idxs]
         no_answer_predictions = self.no_answer_predictor(no_answer_out)
 
         return ModelPredictions(start_logits=start_predictions,
