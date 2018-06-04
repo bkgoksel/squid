@@ -4,9 +4,12 @@ answers at various points of existence.
 """
 import numpy as np
 import bisect
-from typing import List, Any, Set
+from typing import cast, List, Any, Set, NewType
 from tokenizer import Token, Tokenizer
 from wv import WordVectors
+
+
+QuestionId = NewType('QuestionId', str)
 
 
 class Tokenized():
@@ -52,11 +55,13 @@ class QuestionAnswer(Tokenized):
     Base class for a question paired with its answer.
     Stores the question text and a list of answers
     """
+    question_id: QuestionId
     text: str
     answers: Set[Answer]
     tokens: List[Token]
 
-    def __init__(self, text: str, answers: Set[Answer], tokenizer: Tokenizer) -> None:
+    def __init__(self, question_id: str, text: str, answers: Set[Answer], tokenizer: Tokenizer) -> None:
+        self.quesiton_id = cast(QuestionId, question_id)
         self.text = text
         self.answers = answers
         super().__init__(text, tokenizer)
@@ -102,10 +107,12 @@ class EncodedQuestionAnswer():
     Class for a Question's encoding
     Paired with its encoded answers
     """
+    question_id: QuestionId
     encoding: Any  # numpy array
     answers: List[EncodedAnswer]
 
     def __init__(self, qa: QuestionAnswer, word_vectors: WordVectors, context_tokens: List[Token]) -> None:
+        self.question_id = qa.question_id
         self.encoding = np.array([word_vectors[tk.word] for tk in qa.tokens])
         self.answers = [EncodedAnswer(ans, context_tokens) for ans in qa.answers]
 
@@ -129,6 +136,7 @@ class EncodedSample():
         - span_starts and span_ends are the same shape as
             context and are 1 at each valid start/end index
     """
+    question_id: QuestionId
     question: Any  # numpy array
     context: Any  # numpy array
     has_answer: bool
@@ -136,6 +144,7 @@ class EncodedSample():
     span_ends: Any  # numpy array
 
     def __init__(self, ctx_encoding: Any, qa: EncodedQuestionAnswer) -> None:
+        self.question_id = qa.question_id
         self.context = ctx_encoding
         self.question = qa.encoding
         self.has_answer = bool(qa.answers)

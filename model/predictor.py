@@ -2,7 +2,6 @@
 Module that holds classes that can be used for answer prediction
 """
 
-from corpus import CorpusStats
 from wv import WordVectors
 from batcher import QABatch
 from modules.attention import SimpleAttention, AttentionConfig
@@ -77,7 +76,6 @@ class BasicPredictor(PredictorModel):
     A very simple Predictor for testing
     """
 
-    corpus_stats: CorpusStats
     word_vectors: WordVectors
     config: BasicPredictorConfig
     embed: nn.Embedding
@@ -91,9 +89,8 @@ class BasicPredictor(PredictorModel):
     no_answer_gru: nn.GRU
     no_answer_predictor: nn.Linear
 
-    def __init__(self, word_vectors: WordVectors, corpus_stats: CorpusStats, config: BasicPredictorConfig) -> None:
+    def __init__(self, word_vectors: WordVectors, config: BasicPredictorConfig) -> None:
         super().__init__()
-        self.corpus_stats = corpus_stats
         self.word_vectors = word_vectors
         self.config = config
         self.embed = nn.Embedding.from_pretrained(t.Tensor(self.word_vectors.vectors),
@@ -132,7 +129,9 @@ class BasicPredictor(PredictorModel):
                                                         batch_first=True)
         _, q_out = self.q_gru(q_packed)
         q_out = self.get_last_hidden_states(q_out)
-        q_out = q_out[batch.question_idxs]
+        # Put the questions back in their pre-length-sort ordering so the
+        # ordering matches with the context encoding
+        q_out = q_out[batch.question_orig_idxs]
 
         ctx_embedded = self.embed(batch.contexts)
         ctx_packed: PackedSequence = pack_padded_sequence(ctx_embedded,
@@ -140,15 +139,24 @@ class BasicPredictor(PredictorModel):
                                                           batch_first=True)
         ctx_processed, _ = self.ctx_gru(ctx_packed)
         ctx_processed, _ = pad_packed_sequence(ctx_processed, batch_first=True)
-        ctx_processed = ctx_processed[batch.context_idxs]
+        # Put the contexts back in their pre-length-sort ordering so the
+        # ordering matches with the question encoding
+        ctx_processed = ctx_processed[batch.context_orig_idxs]
 
-        attended = self.attention(q_out, ctx_processed, batch.context_mask)
+        original_sorted_context_mask = batch.context_mask[batch.context_orig_idxs]
+        attended = self.attention(q_out, ctx_processed, original_sorted_context_mask)
+        attended_length_sorted = attended[batch.context_len_idxs]
+        attended_packed: PackedSequence = pack_padded_sequence(attended_length_sorted,
+                                                               batch.context_lens,
+                                                               batch_first=True)
 
-        start_predictions = self.start_predictor(attended, batch.context_mask).squeeze(2)
-        end_predictions = self.end_predictor(attended, batch.context_mask).squeeze(2)
+        start_predictions = self.start_predictor(attended, original_sorted_context_mask).squeeze(2)
+        end_predictions = self.end_predictor(attended, original_sorted_context_mask).squeeze(2)
 
-        _, no_answer_out = self.no_answer_gru(attended)
+        _, no_answer_out = self.no_answer_gru(attended_packed)
+
         no_answer_out = self.get_last_hidden_states(no_answer_out)
+        no_answer_out = no_answer_out[batch.context_orig_idxs]
         no_answer_predictions = self.no_answer_predictor(no_answer_out)
 
         return ModelPredictions(start_logits=start_predictions,

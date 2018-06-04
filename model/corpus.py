@@ -4,11 +4,11 @@ Module that deals with preparing QA corpora
 
 import json
 import pickle
-from typing import List, Set, NamedTuple
+from typing import List, Set, NamedTuple, cast
 from torch.utils.data import Dataset
 
 from tokenizer import Tokenizer
-from qa import Answer, QuestionAnswer, ContextQuestionAnswer, EncodedContextQuestionAnswer, EncodedSample
+from qa import Answer, QuestionAnswer, ContextQuestionAnswer, EncodedContextQuestionAnswer, EncodedSample, QuestionId
 from wv import WordVectors
 
 CorpusStats = NamedTuple('CorpusStats', [
@@ -73,13 +73,14 @@ class Corpus():
                     qas: List[QuestionAnswer] = []
                     for qa in paragraph['qas']:
                         q_text: str = qa['question']
+                        q_id: QuestionId = cast(QuestionId, qa['id'])
                         answers: Set[Answer] = set()
                         for answer in qa['answers']:
                             text: str = answer['text']
                             span_start: int = answer['answer_start']
                             tokenized_answer = Answer(text, span_start)
                             answers.add(tokenized_answer)
-                        tokenized_question = QuestionAnswer(q_text, answers, tokenizer)
+                        tokenized_question = QuestionAnswer(q_id, q_text, answers, tokenizer)
                         qas.append(tokenized_question)
                     tokenized_context = ContextQuestionAnswer(context, qas, tokenizer)
                     contexts.append(tokenized_context)
@@ -94,9 +95,9 @@ class Corpus():
         """
         vocab: Set[str] = set()
         for ctx in context_qas:
-            vocab.update(set(ctx.tokens))
+            vocab.update(set(tok.word for tok in ctx.tokens))
             for qa in ctx.qas:
-                vocab.update(set(qa.tokens))
+                vocab.update(set(tok.word for tok in qa.tokens))
         return vocab
 
     @staticmethod
