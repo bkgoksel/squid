@@ -17,7 +17,8 @@ of the respective texts i.e.
 questions[question_len_idxs] = length_sorted_questions
 length_sorted_questions[question_orig_idxs] = questions
 
-masks, lengths and question_ids come in original ordering
+masks, and question_ids come in original ordering
+lengths come sorted
 """
 QABatch = NamedTuple('QABatch', [
     ('questions', t.LongTensor),
@@ -57,12 +58,10 @@ def collate_batch(batch: List[EncodedSample]) -> QABatch:
 
     questions, question_len_idxs, question_orig_idxs, question_lens = pad_and_sort(questions)
     questions = questions[question_orig_idxs]
-    question_lens = question_lens[question_orig_idxs]
     question_mask = mask_sequence(questions)
 
     contexts, context_len_idxs, context_orig_idxs, context_lens = pad_and_sort(contexts)
     contexts = contexts[context_orig_idxs]
-    context_lens = context_lens[context_orig_idxs]
     context_mask = mask_sequence(contexts)
 
     answer_span_starts, _, _, _ = pad_and_sort(answer_span_starts)

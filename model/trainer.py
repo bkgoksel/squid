@@ -32,8 +32,8 @@ def train_model(train_dataset: QADataset,
             optimizer.step()
             running_loss = loss.item()
             print('[%d, %5d] loss: %.3f' % (epoch + 1, batch_num + 1, running_loss))
-        print('Epoch %d over, evaluating on dev set' % (epoch + 1))
-        eval_model(dev_dataset, predictor)
+        # print('Epoch %d over, evaluating on dev set' % (epoch + 1))
+        # eval_model(dev_dataset, predictor)
 
 
 def eval_model(dataset: QADataset,
