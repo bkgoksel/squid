@@ -3,34 +3,18 @@ Module that describes evaluator classes. In general these take
 ModelPredictions logits from Predictor classes and output final predictions
 as well as losses for training.
 """
-from typing import Any, Optional, Tuple
+from typing import Any, Dict, Tuple
 
+import numpy as np
 import torch as t
 import torch.nn as nn
 
 from batcher import QABatch
 from predictor import ModelPredictions
+from qa import QuestionId
 
 
-class EvaluatorModel(nn.Module):
-    """
-    Base class for any Evaluator Model
-    """
-
-    def __init__(self):
-        super().__init__()
-
-    def forward(self,
-                batch: QABatch,
-                model_predictions: ModelPredictions) -> Tuple[t.Tensor, Optional[Any]]:
-            """
-            Computes a Loss tensor given a Batch and model predictions
-j           Optionally outputs a list of FinalPrediction objects
-            """
-            raise NotImplementedError
-
-
-class LossEvaluator(EvaluatorModel):
+class LossEvaluator(nn.Module):
     """
     Simple Evaluator that outputs masked cross entropy loss
     """
@@ -49,26 +33,14 @@ class LossEvaluator(EvaluatorModel):
         return start_loss + end_loss
 
 
-class AnswerEvaluator(EvaluatorModel):
+def get_qid_to_answer(batch: QABatch,
+                      model_predictions: ModelPredictions) -> Dict[QuestionId, Tuple[Any, ...]]:
     """
-    Evaluator that generates answers from predictions and computes F1 and EM scores
+    Given a ModelPredictions object and text QABatch object for the batch that the predictions
+    are from, return a QuestionId -> (answer span start token idx, answe span end token idx) mapping.
     """
-
-    def __init__(self) -> None:
-        super().__init__()
-
-    def forward(self,
-                batch: QABatch,
-                model_predictions: ModelPredictions) -> t.Tensor:
-        span_start, span_end = self.get_answer(model_predictions)
-        return 0
-
-    def get_answers(self, model_predictions: ModelPredictions) -> Any:
-        """
-        Returns the most likely answer spans given the predictions for each question
-        :param model_predictions: A ModelPredictions object
-        :returns: A Torch LongTensor of shape [batch_size,1,1]
-        """
-        _, answer_starts = t.max(model_predictions.start_logits, 1)
-        _, answer_ends = t.max(model_predictions.end_logits, 1)
-        return answer_starts, answer_ends
+    _, answer_starts = t.max(model_predictions.start_logits, 1).numpy()
+    _, answer_ends = t.max(model_predictions.end_logits, 1).numpy()
+    answers = np.column_stack([answer_starts, answer_ends]).tolist()
+    qid_to_answer = {qid: tuple(answer) for qid, answer in zip(batch.question_ids, answers)}
+    return qid_to_answer

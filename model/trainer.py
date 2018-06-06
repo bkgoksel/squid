@@ -9,7 +9,7 @@ from wv import WordVectors
 from corpus import QADataset
 from batcher import QABatch, collate_batch
 from predictor import PredictorModel, BasicPredictor, BasicPredictorConfig, ModelPredictions
-from evaluator import LossEvaluator, AnswerEvaluator
+from evaluator import LossEvaluator, get_qid_to_answer
 
 
 def train_model(train_dataset: QADataset,
@@ -40,9 +40,8 @@ def eval_model(dataset: QADataset,
                predictor: PredictorModel,
                batch_size: int=16) -> None:
     loader: DataLoader = DataLoader(dataset, batch_size, collate_fn=collate_batch)
-    answer_evaluator: AnswerEvaluator = AnswerEvaluator()
     batch: QABatch
+    qid_to_answer = dict()
     for batch_num, batch in enumerate(loader):
         predictions: ModelPredictions = predictor(batch)
-        evaluation = answer_evaluator(predictions, batch)
-        print(evaluation)
+        qid_to_answer.update(get_qid_to_answer(batch, predictions))

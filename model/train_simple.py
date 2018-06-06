@@ -14,7 +14,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument('--train-file', type=str, default='data/original/train.json')
     parser.add_argument('--dev-file', type=str, default='data/original/dev.json')
     parser.add_argument('--word-vector-file', type=str, default='data/word-vectors/glove/glove.6B.100d.txt')
-    parser.add_argument('--batch-size', type=int, default=32)
+    parser.add_argument('--batch-size', type=int, default=256)
     parser.add_argument('--num-epochs', type=int, default=25)
     parser.add_argument('--lstm-hidden-size', type=int, default=512)
     parser.add_argument('--lstm-num-layers', type=int, default=2)
