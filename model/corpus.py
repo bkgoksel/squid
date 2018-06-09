@@ -4,7 +4,7 @@ Module that deals with preparing QA corpora
 
 import json
 import pickle
-from typing import List, Set, NamedTuple, cast
+from typing import Any, List, Dict, Set, Tuple, NamedTuple, cast
 from torch.utils.data import Dataset
 
 from tokenizer import Tokenizer
@@ -30,12 +30,16 @@ class Corpus():
         - the word vocab
     """
     context_qas: List[ContextQuestionAnswer]
+    quids_to_context_qas: Dict[QuestionId, ContextQuestionAnswer]
     vocab: Set[str]
     stats: CorpusStats
 
     def __init__(self, context_qas: List[ContextQuestionAnswer],
                  vocab: Set[str], stats: CorpusStats) -> None:
-        self.context_qas = context_qas
+        self.context_qas: List[ContextQuestionAnswer] = context_qas
+        self.quids_to_context_qas: Dict[QuestionId, ContextQuestionAnswer] = dict()
+        for cqa in context_qas:
+            self.quids_to_context_qas.update({qa.question_id: cqa for qa in cqa.qas})
         self.vocab = vocab
         self.stats = stats
 
@@ -123,6 +127,31 @@ class Corpus():
                            max_q_len=max_q_len,
                            vocab_size=len(vocab))
 
+    def get_single_answer_text(self, qid: QuestionId, span_start: int, span_end: int) -> str:
+        """
+        Turns a single qid, span_start, span_end triplet into a string
+        of concatenated tokens
+        :param qid: The QuestionId of the question
+        :param span_start: Model output index for answer start
+        :param span_end: Model output index for answer end
+        :returns: All tokens (inclusive) from the tokenized context,
+            space separated
+        """
+        tokens = self.quids_to_context_qas[qid].tokens[span_start: span_end + 1]
+        return ' '.join([tok.word for tok in tokens])
+
+    def get_answer_texts(self, answer_token_idxs: Dict[QuestionId, Tuple[Any, ...]]) -> Dict[QuestionId, str]:
+        """
+        Given a mapping from questions id's to answer token indices, returns
+        a SQuAD eval script readable version of the answer
+        :param answer_token_idxs: a Mapping from QuestionId's to tuples
+            of integers where the first elem is the span start
+            prediction of the model and the second elem is the span
+            end prediction of the model
+        :returns: A Mapping from QuestionId's to strings
+        """
+        return {qid: self.get_single_answer_text(qid, span_start, span_end) for qid, (span_start, span_end) in answer_token_idxs.items()}
+
     def save(self, file_name: str) -> None:
         """
         Serializes this corpus to file with file_name
@@ -139,7 +168,6 @@ class EncodedCorpus(Corpus):
     word vectors and token mappings
     """
 
-    context_qas: List[ContextQuestionAnswer]
     vocab: Set[str]
     stats: CorpusStats
     word_vectors: WordVectors
@@ -207,6 +235,18 @@ class QADataset(Dataset):
 
     def __getitem__(self, idx):
         return self.corpus.samples[idx]
+
+    def get_answer_texts(self, answer_token_idxs: Dict[QuestionId, Tuple[Any, ...]]) -> Dict[QuestionId, str]:
+        """
+        Given a mapping from questions id's to answer token indices, returns
+        a SQuAD eval script readable version of the answer
+        :param answer_token_idxs: a Mapping from QuestionId's to tuples
+            of integers where the first elem is the span start
+            prediction of the model and the second elem is the span
+            end prediction of the model
+        :returns: A Mapping from QuestionId's to strings
+        """
+        return self.corpus.get_answer_texts(answer_token_idxs)
 
     @property
     def stats(self):

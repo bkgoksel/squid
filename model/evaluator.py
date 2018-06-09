@@ -33,14 +33,14 @@ class LossEvaluator(nn.Module):
         return start_loss + end_loss
 
 
-def get_qid_to_answer(batch: QABatch,
-                      model_predictions: ModelPredictions) -> Dict[QuestionId, Tuple[Any, ...]]:
+def get_answer_token_idxs(batch: QABatch,
+                          model_predictions: ModelPredictions) -> Dict[QuestionId, Tuple[Any, ...]]:
     """
     Given a ModelPredictions object and text QABatch object for the batch that the predictions
     are from, return a QuestionId -> (answer span start token idx, answe span end token idx) mapping.
     """
-    _, answer_starts = t.max(model_predictions.start_logits, 1).numpy()
-    _, answer_ends = t.max(model_predictions.end_logits, 1).numpy()
+    _, answer_starts = t.max(model_predictions.start_logits, 1)[1].numpy()
+    _, answer_ends = t.max(model_predictions.end_logits, 1)[1].numpy()
     answers = np.column_stack([answer_starts, answer_ends]).tolist()
     qid_to_answer = {qid: tuple(answer) for qid, answer in zip(batch.question_ids, answers)}
     return qid_to_answer
