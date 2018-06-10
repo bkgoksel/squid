@@ -22,7 +22,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument('--answer-train-set', action='store_true', help='if specified generate answers to the train set')
 
     return parser.parse_known_args()[0]
-
+ij
 
 def main() -> None:
     args = parse_args()

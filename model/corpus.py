@@ -4,11 +4,24 @@ Module that deals with preparing QA corpora
 
 import json
 import pickle
-from typing import Any, List, Dict, Set, Tuple, NamedTuple, cast
+from typing import (Any,
+                    List,
+                    Dict,
+                    Set,
+                    Tuple,
+                    NamedTuple,
+                    cast)
+
 from torch.utils.data import Dataset
 
 from tokenizer import Tokenizer
-from qa import Answer, QuestionAnswer, ContextQuestionAnswer, EncodedContextQuestionAnswer, EncodedSample, QuestionId
+from qa import (Answer,
+                QuestionAnswer,
+                ContextQuestionAnswer,
+                EncodedContextQuestionAnswer,
+                EncodedSample,
+                QuestionId)
+
 from wv import WordVectors
 
 CorpusStats = NamedTuple('CorpusStats', [
