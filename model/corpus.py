@@ -14,15 +14,15 @@ from typing import (Any,
 
 from torch.utils.data import Dataset
 
-from tokenizer import Tokenizer
-from qa import (Answer,
-                QuestionAnswer,
-                ContextQuestionAnswer,
-                EncodedContextQuestionAnswer,
-                EncodedSample,
-                QuestionId)
+from model.tokenizer import Tokenizer
+from model.qa import (Answer,
+                      QuestionAnswer,
+                      ContextQuestionAnswer,
+                      EncodedContextQuestionAnswer,
+                      EncodedSample,
+                      QuestionId)
 
-from wv import WordVectors
+from model.wv import WordVectors
 
 CorpusStats = NamedTuple('CorpusStats', [
     ('n_contexts', int),

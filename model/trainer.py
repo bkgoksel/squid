@@ -8,15 +8,15 @@ from typing import Dict
 from torch.utils.data import DataLoader
 import torch.optim as optim
 
-from wv import WordVectors
-from corpus import Corpus, QADataset
-from qa import QuestionId
-from batcher import QABatch, collate_batch
-from predictor import PredictorModel, BasicPredictor, BasicPredictorConfig, ModelPredictions
-from tokenizer import Tokenizer, NltkTokenizer
+from model.wv import WordVectors
+from model.corpus import Corpus, QADataset
+from model.qa import QuestionId
+from model.batcher import QABatch, collate_batch
+from model.predictor import PredictorModel, BasicPredictor, BasicPredictorConfig, ModelPredictions
+from model.tokenizer import Tokenizer, NltkTokenizer
 
-import evaluator
-from evaluator import LossEvaluator
+import model.evaluator as evaluator
+from model.evaluator import MultiClassLossEvaluator
 
 
 def train_model(train_dataset: QADataset,
@@ -26,7 +26,7 @@ def train_model(train_dataset: QADataset,
                 batch_size: int,
                 predictor_config: BasicPredictorConfig) -> PredictorModel:
     predictor: PredictorModel = BasicPredictor(vectors, predictor_config)
-    train_evaluator: LossEvaluator = LossEvaluator()
+    train_evaluator: MultiClassLossEvaluator = MultiClassLossEvaluator()
     trainable_parameters = filter(lambda p: p.requires_grad, predictor.parameters())
     optimizer: optim.Optimizer = optim.Adam(trainable_parameters)
     loader: DataLoader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, collate_fn=collate_batch)
@@ -71,4 +71,3 @@ def load_dataset(filename: str, vectors: WordVectors) -> QADataset:
         tokenizer: Tokenizer = NltkTokenizer()
         corpus = Corpus.from_raw(filename, tokenizer)
     return QADataset(corpus, vectors)
-

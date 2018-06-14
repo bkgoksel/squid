@@ -7,8 +7,8 @@ import numpy as np
 import torch as t
 from torch.nn.utils.rnn import pad_sequence
 
-from modules.masked import mask_sequence
-from qa import EncodedSample, QuestionId
+from model.modules.masked import mask_sequence
+from model.qa import EncodedSample, QuestionId
 
 """
 Holds a batch of samples in a form that's easy for the model to use

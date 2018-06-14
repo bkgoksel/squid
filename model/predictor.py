@@ -1,18 +1,17 @@
 """
 Module that holds classes that can be used for answer prediction
 """
-
-from wv import WordVectors
-from batcher import QABatch
-from modules.attention import SimpleAttention, AttentionConfig
-from modules.masked import MaskedLinear
-
 from typing import NamedTuple
 import torch as t
 import torch.nn as nn
 from torch.nn.utils.rnn import (PackedSequence,
                                 pack_padded_sequence,
                                 pad_packed_sequence)
+
+from model.wv import WordVectors
+from model.batcher import QABatch
+from model.modules.attention import SimpleAttention, AttentionConfig
+from model.modules.masked import MaskedLinear
 
 
 ModelPredictions = NamedTuple('ModelPredictions', [

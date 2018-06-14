@@ -5,8 +5,9 @@ answers at various points of existence.
 import numpy as np
 import bisect
 from typing import cast, List, Any, Set, NewType
-from tokenizer import Token, Tokenizer
-from wv import WordVectors
+
+from model.tokenizer import Token, Tokenizer
+from model.wv import WordVectors
 
 
 QuestionId = NewType('QuestionId', str)

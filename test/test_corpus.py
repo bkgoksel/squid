@@ -2,12 +2,8 @@
 Module for testing dataset representations
 """
 import unittest
-from unittest.mock import Mock, MagicMock
-import tempfile
+from unittest.mock import MagicMock
 
-import numpy as np
-
-from typing import List
 from model.tokenizer import Tokenizer, Token
 from model.qa import (Answer,
                       QuestionAnswer,

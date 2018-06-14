@@ -1,10 +1,10 @@
 import argparse
 import json
 
-import trainer
-from predictor import BasicPredictorConfig, GRUConfig, PredictorModel
-from corpus import Corpus, QADataset
-from wv import WordVectors
+import model.trainer as trainer
+from model.predictor import BasicPredictorConfig, GRUConfig, PredictorModel
+from model.corpus import QADataset
+from model.wv import WordVectors
 
 
 def parse_args() -> argparse.Namespace:
@@ -22,7 +22,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument('--answer-train-set', action='store_true', help='if specified generate answers to the train set')
 
     return parser.parse_known_args()[0]
-ij
+
 
 def main() -> None:
     args = parse_args()

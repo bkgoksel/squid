@@ -9,9 +9,9 @@ import numpy as np
 import torch as t
 import torch.nn as nn
 
-from batcher import QABatch
-from predictor import ModelPredictions
-from qa import QuestionId
+from model.batcher import QABatch
+from model.predictor import ModelPredictions
+from model.qa import QuestionId
 
 
 class SingleClassLossEvaluator(nn.Module):

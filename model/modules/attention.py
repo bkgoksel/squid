@@ -8,7 +8,7 @@ import torch as t
 import torch.nn as nn
 from torch import Tensor as Tensor
 
-from modules.masked import MaskedLinear
+from model.modules.masked import MaskedLinear
 
 
 AttentionConfig = NamedTuple('AttentionConfig', [
