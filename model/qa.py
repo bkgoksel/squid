@@ -102,6 +102,13 @@ class EncodedAnswer():
         self.span_start = bisect.bisect_right(token_starts, answer.span_start) - 1
         self.span_end = bisect.bisect_left(token_ends, answer.span_end)
 
+    def __eq__(self, other) -> bool:
+        """
+        Two answers are equal if their spans and text are equal
+        """
+        return (self.span_start == other.span_start and
+                self.span_end == other.span_end)
+
 
 class EncodedQuestionAnswer():
     """

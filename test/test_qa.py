@@ -22,7 +22,15 @@ from model.wv import WordVectors
 class EncodingTestCase(unittest.TestCase):
     def setUp(self):
         self.tokenizer = Mock(Tokenizer)
-        self.tokenizer.tokenize.side_effect = lambda txt: txt.split()
+
+        def split_tokenize(txt: str):
+            toks = txt.split()
+            starts = [3 * start for start in range(len(toks))]
+            ends = [(3 * end - 1) for end in range(1, len(toks) + 1)]
+            return [Token(word=tok[0], span=(tok[1], tok[2])) for tok in zip(toks, starts, ends)]
+
+        self.tokenizer = Mock(Tokenizer)
+        self.tokenizer.tokenize.side_effect = lambda txt: split_tokenize(txt)
         self.tempfile = tempfile.NamedTemporaryFile()
         self.vectors = MagicMock(WordVectors)
 
@@ -60,7 +68,7 @@ class EncodingTestCase(unittest.TestCase):
         qas: List[QuestionAnswer] = [QuestionAnswer('qa_%d' % i,
                                                     'question %d' % i,
                                                     [Answer('c%d' % i, 3 * i)],
-                                                    self.tokenizer.tokenize('qa_%d' % i))
+                                                    self.tokenizer)
                                      for i in range(2)]
         context_text = 'c0 c1 c2'
         context_tokens = self.tokenizer.tokenize(context_text)
@@ -98,7 +106,7 @@ class EncodingTestCase(unittest.TestCase):
         question_id = 'qid_0'
         question_text = 'c0 c1 c2'
         question_tokens = self.tokenizer.tokenize(question_text)
-        question_encoding = np.array([token_id_mapping[tok] for tok in question_tokens])
+        question_encoding = np.array([token_id_mapping[tok.word] for tok in question_tokens])
 
         question_obj: QuestionAnswer = QuestionAnswer(question_id, question_text, answers, self.tokenizer)
 
@@ -108,7 +116,7 @@ class EncodingTestCase(unittest.TestCase):
             question_obj, self.vectors, context_tokens)
 
         self.assertEqual(encoded_qa_obj.question_id, question_id)
-        self.assertEqual(encoded_qa_obj.encoding, question_encoding)
+        self.assertTrue(np.allclose(encoded_qa_obj.encoding, question_encoding))
         self.assertEqual(encoded_qa_obj.answers, encoded_answers)
 
     def test_encoded_cqa(self):
@@ -120,7 +128,7 @@ class EncodingTestCase(unittest.TestCase):
 
         context_text: str = "c0 c1 c2 a0 a1"
         context_tokens = self.tokenizer.tokenize(context_text)
-        context_encoding = np.array([token_id_mapping[tok] for tok in context_tokens])
+        context_encoding = np.array([token_id_mapping[tok.word] for tok in context_tokens])
 
         answers = [Answer('a0 a1', 9), Answer('a0', 9)]
 
@@ -135,8 +143,8 @@ class EncodingTestCase(unittest.TestCase):
         self.vectors.__getitem__.side_effect = lambda tok: token_id_mapping[tok]
 
         encoded_cqa_obj: EncodedContextQuestionAnswer = EncodedContextQuestionAnswer(
-            cqa_obj, [question_obj])
-        self.assertEqual(encoded_cqa_obj.encoding, context_encoding)
+            cqa_obj, self.vectors)
+        self.assertTrue(np.allclose(encoded_cqa_obj.encoding, context_encoding))
 
     def test_encoded_sample(self):
         """
@@ -148,7 +156,7 @@ class EncodingTestCase(unittest.TestCase):
 
         context_text: str = "c0 c1 c2 a0 a1"
         context_tokens = self.tokenizer.tokenize(context_text)
-        context_encoding = np.array([token_id_mapping[tok] for tok in context_tokens])
+        context_encoding = np.array([token_id_mapping[tok.word] for tok in context_tokens])
 
         answers = [Answer('a0 a1', 9), Answer('a0', 9)]
         answer_starts = np.array([0, 0, 0, 1, 0])
@@ -157,7 +165,7 @@ class EncodingTestCase(unittest.TestCase):
         question_id = 'qid_0'
         question_text = 'c0 c1 c2'
         question_tokens = self.tokenizer.tokenize(question_text)
-        question_encoding = np.array([token_id_mapping[tok] for tok in question_tokens])
+        question_encoding = np.array([token_id_mapping[tok.word] for tok in question_tokens])
 
         question_obj: QuestionAnswer = QuestionAnswer(question_id, question_text, answers, self.tokenizer)
 
@@ -168,8 +176,8 @@ class EncodingTestCase(unittest.TestCase):
         encoded_sample = EncodedSample(context_encoding, encoded_qa_obj)
 
         self.assertEqual(encoded_sample.question_id, question_id)
-        self.assertEqual(encoded_sample.question, question_encoding)
-        self.assertEqual(encoded_sample.context, context_encoding)
+        self.assertTrue(np.allclose(encoded_sample.question, question_encoding))
+        self.assertTrue(np.allclose(encoded_sample.context, context_encoding))
         self.assertTrue(encoded_sample.has_answer)
-        self.assertEqual(encoded_sample.span_starts, answer_starts)
-        self.assertEqual(encoded_sample.span_ends, answer_ends)
+        self.assertTrue(np.allclose(encoded_sample.span_starts, answer_starts))
+        self.assertTrue(np.allclose(encoded_sample.span_ends, answer_ends))

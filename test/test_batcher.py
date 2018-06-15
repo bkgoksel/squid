@@ -16,17 +16,24 @@ from model.qa import (Answer,
                       EncodedQuestionAnswer,
                       EncodedContextQuestionAnswer,
                       EncodedSample)
-from model.tokenizer import Tokenizer
+from model.tokenizer import Tokenizer, Token
 from model.wv import WordVectors
 
 
 class BatcherTestCase(unittest.TestCase):
     def setUp(self):
         token_id_mapping = dict(map(reversed, enumerate(['c0', 'c1', 'c2', 'c3', 'c4'])))
+
+        def split_tokenize(txt: str):
+            toks = txt.split()
+            starts = [3 * start for start in range(len(toks))]
+            ends = [(3 * end - 1) for end in range(1, len(toks) + 1)]
+            return [Token(word=tok[0], span=(tok[1], tok[2])) for tok in zip(toks, starts, ends)]
+
         self.tokenizer = Mock(Tokenizer)
-        self.tokenizer.tokenize.side_effect = lambda txt: txt.split()
+        self.tokenizer.tokenize.side_effect = lambda txt: split_tokenize(txt)
         self.vectors = MagicMock(WordVectors)
-        self.vectors.__getitem__.side_effect = lambda tok: token_id_mapping[tok]
+        self.vectors.__getitem__.side_effect = lambda tok: token_id_mapping[tok.word]
 
     def make_sample(self, context_text: str, answers: List[Answer], question_id: str, question_text: str) -> EncodedSample:
         context_tokens = self.tokenizer.tokenize(context_text)
