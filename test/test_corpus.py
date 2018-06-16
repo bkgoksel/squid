@@ -1,19 +1,17 @@
-"""
-Module for testing dataset representations
+""" Module for testing dataset representations
 """
 import unittest
-from unittest.mock import MagicMock
+from unittest.mock import Mock
+import json
+import tempfile
+from typing import List
 
 from model.tokenizer import Tokenizer, Token
 from model.qa import (Answer,
                       QuestionAnswer,
                       ContextQuestionAnswer,
-                      EncodedAnswer,
-                      EncodedContextQuestionAnswer,
-                      EncodedSample,
                       QuestionId)
 
-from model.wv import WordVectors
 from model.corpus import (Corpus,
                           CorpusStats,
                           EncodedCorpus,
@@ -23,7 +21,19 @@ from model.corpus import (Corpus,
 
 class RawCorpusTestCase(unittest.TestCase):
     def setUp(self):
-        pass
+        self.tempfile = tempfile.NamedTemporaryFile()
+
+        def split_tokenize(txt: str):
+            toks = txt.split()
+            starts = [3 * start for start in range(len(toks))]
+            ends = [(3 * end - 1) for end in range(1, len(toks) + 1)]
+            return [Token(word=tok[0], span=(tok[1], tok[2])) for tok in zip(toks, starts, ends)]
+
+        self.tokenizer = Mock(Tokenizer)
+        self.tokenizer.tokenize.side_effect = lambda txt: split_tokenize(txt)
+
+    def tearDown(self):
+        self.tempfile.close()
 
     def test_simple_single_question_answer(self):
         """
@@ -35,7 +45,35 @@ class RawCorpusTestCase(unittest.TestCase):
                 classes to make sure they're all created with correct
                 parameters
         """
-        pass
+        input_dict = {
+            'data': [
+                {
+                    'paragraphs': [
+                        {
+                            'context': 'c0 c1 c2.c3 c4\'c5',
+                            'qas': [
+                                {
+                                    'answers': [
+                                        {
+                                            'answer_start': 0,
+                                            'text': 'c0 c1'
+                                        }
+                                    ],
+                                    'id': '0x0001',
+                                    'question': 'q00 q01 q02 q03?'
+                                },
+                            ]
+                        }
+                    ]
+                },
+            ]
+        }
+        answer: Answer = Answer('c0 c1', 0)
+        qa: QuestionAnswer = QuestionAnswer(QuestionId('0x0001'), 'q00 q01 q02 q03?', [answer], self.tokenizer)
+        cqa: ContextQuestionAnswer = ContextQuestionAnswer('c0 c1 c2.c3 c4\'c5', [qa], self.tokenizer)
+        json.dump(input_dict, self.tempfile)
+        cqas: List[ContextQuestionAnswer] = Corpus.read_context_qas(self.tempfile.name, self.tokenizer)
+        self.assertEqual(cqas, [cqa])
 
     def test_no_answer(self):
         pass

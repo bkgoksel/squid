@@ -32,14 +32,18 @@ def train_model(train_dataset: QADataset,
     loader: DataLoader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, collate_fn=collate_batch)
     print('%d/%d = %d' % (len(train_dataset), batch_size, len(loader)))
     for epoch in range(num_epochs):
+        epoch_loss = 0.0
         for batch_num, batch in enumerate(loader):
             optimizer.zero_grad()
             predictions: ModelPredictions = predictor(batch)
             loss = train_evaluator(batch, predictions)
             loss.backward()
             optimizer.step()
-            running_loss = loss.item()
-            print('[%d, %d] loss: %.3f' % (epoch + 1, batch_num + 1, running_loss))
+            batch_loss = loss.item()
+            epoch_loss += batch_loss
+            print('[%d, %d] loss: %.3f' % (epoch + 1, batch_num + 1, batch_loss))
+        epoch_loss = epoch_loss / len(loader)
+        print('=== EPOCH %d done. Average loss: %.3f' % (epoch + 1, epoch_loss))
     return predictor
 
 

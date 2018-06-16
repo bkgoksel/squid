@@ -3,7 +3,6 @@ Module for testing data encoding
 """
 import unittest
 from unittest.mock import Mock, MagicMock
-import tempfile
 
 import numpy as np
 
@@ -31,7 +30,6 @@ class EncodingTestCase(unittest.TestCase):
 
         self.tokenizer = Mock(Tokenizer)
         self.tokenizer.tokenize.side_effect = lambda txt: split_tokenize(txt)
-        self.tempfile = tempfile.NamedTemporaryFile()
         self.vectors = MagicMock(WordVectors)
 
     def test_answer_init(self):

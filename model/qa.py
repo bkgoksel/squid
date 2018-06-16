@@ -67,6 +67,12 @@ class QuestionAnswer(Tokenized):
         self.answers = answers
         super().__init__(text, tokenizer)
 
+    def __eq__(self, other) -> bool:
+        return (self.answers == other.answers and
+                self.text == other.text and
+                self.question_id == other.question_id and
+                self.tokens == other.tokens)
+
 
 class ContextQuestionAnswer(Tokenized):
     """
@@ -81,6 +87,11 @@ class ContextQuestionAnswer(Tokenized):
         self.text = text
         self.qas = qas
         super().__init__(text, tokenizer)
+
+    def __eq__(self, other) -> bool:
+        return (self.qas == other.qas and
+                self.text == other.text and
+                self.tokens == other.tokens)
 
 
 class EncodedAnswer():
@@ -124,6 +135,11 @@ class EncodedQuestionAnswer():
         self.encoding = np.array([word_vectors[tk.word] for tk in qa.tokens])
         self.answers = [EncodedAnswer(ans, context_tokens) for ans in qa.answers]
 
+    def __eq__(self, other) -> bool:
+        return (self.question_id == other.question_id and
+                np.all(self.encoding == other.encoding) and
+                self.answers == other.answers)
+
 
 class EncodedContextQuestionAnswer():
     """
@@ -136,6 +152,10 @@ class EncodedContextQuestionAnswer():
     def __init__(self, ctx: ContextQuestionAnswer, word_vectors: WordVectors) -> None:
         self.encoding = np.array([word_vectors[tk.word] for tk in ctx.tokens])
         self.qas = [EncodedQuestionAnswer(qa, word_vectors, ctx.tokens) for qa in ctx.qas]
+
+    def __eq__(self, other) -> bool:
+        return (self.qas == other.qas and
+                np.all(self.encoding == other.encoding))
 
 
 class EncodedSample():
@@ -163,3 +183,11 @@ class EncodedSample():
             ends = np.array([ans.span_end for ans in qa.answers])
             self.span_starts[starts] = 1
             self.span_ends[ends] = 1
+
+    def __eq__(self, other) -> bool:
+        return (self.question_id == other.question_id and
+                np.all(self.context == other.context) and
+                np.all(self.question == other.question) and
+                self.has_answer == other.has_answer and
+                np.all(self.span_starts == other.span_starts) and
+                np.all(self.span_ends == other.span_ends))
