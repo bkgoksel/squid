@@ -75,7 +75,6 @@ class BasicPredictor(PredictorModel):
     A very simple Predictor for testing
     """
 
-    word_vectors: WordVectors
     config: BasicPredictorConfig
     embed: nn.Embedding
     q_gru: nn.GRU
@@ -90,17 +89,16 @@ class BasicPredictor(PredictorModel):
 
     def __init__(self, word_vectors: WordVectors, config: BasicPredictorConfig) -> None:
         super().__init__()
-        self.word_vectors = word_vectors
         self.config = config
-        self.embed = nn.Embedding.from_pretrained(t.Tensor(self.word_vectors.vectors),
+        self.embed = nn.Embedding.from_pretrained(t.Tensor(word_vectors.vectors),
                                                   freeze=(not self.config.train_vecs))
-        self.q_gru = nn.GRU(self.word_vectors.dim,
+        self.q_gru = nn.GRU(word_vectors.dim,
                             self.config.gru.hidden_size,
                             self.config.gru.num_layers,
                             dropout=self.config.gru.dropout,
                             batch_first=True,
                             bidirectional=self.config.gru.bidirectional)
-        self.ctx_gru = nn.GRU(self.word_vectors.dim,
+        self.ctx_gru = nn.GRU(word_vectors.dim,
                               self.config.gru.hidden_size,
                               self.config.gru.num_layers,
                               dropout=self.config.gru.dropout,
@@ -128,7 +126,7 @@ class BasicPredictor(PredictorModel):
                                                         batch.question_lens,
                                                         batch_first=True)
         _, q_out_len_sorted = self.q_gru(q_packed)
-        q_out_len_sorted = self.get_last_hidden_states(q_out_len_sorted)
+        q_out_len_sorted = BasicPredictor.get_last_hidden_states(q_out_len_sorted, self.config)
         # Put the questions back in their pre-length-sort ordering so the
         # ordering matches with the context encoding
         q_out = q_out_len_sorted[batch.question_orig_idxs]
@@ -155,7 +153,7 @@ class BasicPredictor(PredictorModel):
 
         _, no_answer_out_len_sorted = self.no_answer_gru(attended_packed)
 
-        no_answer_out_len_sorted = self.get_last_hidden_states(no_answer_out_len_sorted)
+        no_answer_out_len_sorted = BasicPredictor.get_last_hidden_states(no_answer_out_len_sorted, self.config)
         no_answer_out = no_answer_out_len_sorted[batch.context_orig_idxs]
         no_answer_predictions = self.no_answer_predictor(no_answer_out)
 
@@ -163,30 +161,29 @@ class BasicPredictor(PredictorModel):
                                 end_logits=end_predictions,
                                 no_ans_logits=no_answer_predictions)
 
-    def get_last_hidden_states(self, out):
+    @staticmethod
+    def get_last_hidden_states(out, config: BasicPredictorConfig):
         """
         Do some juggling with the output of the RNNs to get the
             final hidden states of the topmost layers of all the
             directions to feed into attention
         (should be in same tensor layout as the all hidden states of context)
 
-        'q_out' here is 'u' from the paper
-
-        q_processed: All hidden states, of shape:
+        format: All hidden states, of shape:
             [batch_size, max_seq_len, hidden_size*n_dirs]
 
-        q_out: Last hidden states for all layers and directions, of shape:
+        out: Last hidden states for all layers and directions, of shape:
             [n_layers*n_dirs, batch_size, hidden_size]:
                 The first dimension is laid out like:
                     layer0dir0, layer0dir1, layer1dir0, layer1dir1
 
         To get it in the same config as q_processed:
-            1. Make q_out batch first
+            1. Make out batch first
             2. Only keep the last layers for each direction
             3. Concatenate the layer hidden states in one dimension
         """
         batch_size = out.size(1)
         out = out.transpose(0, 1)
-        out = out[:, -self.config.n_directions:, :]
-        out = out.contiguous().view(batch_size, self.config.total_hidden_size)
+        out = out[:, -config.n_directions:, :]
+        out = out.contiguous().view(batch_size, config.total_hidden_size)
         return out
