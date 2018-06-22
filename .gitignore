@@ -4,6 +4,7 @@ venv/
 
 .ropeproject/
 __pycache__/
+.mypy_cache/
 
 data/
 

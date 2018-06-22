@@ -6,6 +6,7 @@ import json
 import tempfile
 from typing import List
 
+from model.text_processor import TextProcessor
 from model.tokenizer import Tokenizer, Token
 from model.qa import (Answer,
                       QuestionAnswer,
@@ -31,6 +32,8 @@ class RawCorpusTestCase(unittest.TestCase):
 
         self.tokenizer = Mock(Tokenizer)
         self.tokenizer.tokenize.side_effect = lambda txt: split_tokenize(txt)
+        self.processor = Mock(TextProcessor)
+        self.processor.process.side_effect = lambda txt: txt
 
     def tearDown(self):
         self.tempfile.close()
@@ -69,10 +72,10 @@ class RawCorpusTestCase(unittest.TestCase):
             ]
         }
         answer: Answer = Answer('c0 c1', 0)
-        qa: QuestionAnswer = QuestionAnswer(QuestionId('0x0001'), 'q00 q01 q02 q03?', [answer], self.tokenizer)
-        cqa: ContextQuestionAnswer = ContextQuestionAnswer('c0 c1 c2.c3 c4\'c5', [qa], self.tokenizer)
+        qa: QuestionAnswer = QuestionAnswer(QuestionId('0x0001'), 'q00 q01 q02 q03?', [answer], self.tokenizer, self.processor)
+        cqa: ContextQuestionAnswer = ContextQuestionAnswer('c0 c1 c2.c3 c4\'c5', [qa], self.tokenizer, self.processor)
         json.dump(input_dict, self.tempfile)
-        cqas: List[ContextQuestionAnswer] = Corpus.read_context_qas(self.tempfile.name, self.tokenizer)
+        cqas: List[ContextQuestionAnswer] = Corpus.read_context_qas(self.tempfile.name, self.tokenizer, self.processor)
         self.assertEqual(cqas, [cqa])
 
     def test_no_answer(self):

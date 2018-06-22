@@ -14,6 +14,7 @@ from typing import (Any,
 
 from torch.utils.data import Dataset
 
+from model.text_processor import TextProcessor
 from model.tokenizer import Tokenizer
 from model.qa import (Answer,
                       QuestionAnswer,
@@ -67,14 +68,14 @@ class Corpus():
             return pickle.load(f)
 
     @classmethod
-    def from_raw(cls, data_file: str, tokenizer: Tokenizer):
-        context_qas = cls.read_context_qas(data_file, tokenizer)
+    def from_raw(cls, data_file: str, tokenizer: Tokenizer, processor: TextProcessor):
+        context_qas = cls.read_context_qas(data_file, tokenizer, processor)
         vocab = cls.compute_vocab(context_qas)
         stats = cls.compute_stats(context_qas, vocab)
         return cls(context_qas, vocab, stats)
 
     @staticmethod
-    def read_context_qas(data_file: str, tokenizer: Tokenizer) -> List[ContextQuestionAnswer]:
+    def read_context_qas(data_file: str, tokenizer: Tokenizer, processor: TextProcessor) -> List[ContextQuestionAnswer]:
         """
         Reads a SQUAD formattted JSON file into ContextQuestionAnswer objects
         :param data_file: filename of the JSON questions file
@@ -95,11 +96,11 @@ class Corpus():
                         for answer in qa['answers']:
                             text: str = answer['text']
                             span_start: int = answer['answer_start']
-                            tokenized_answer = Answer(text, span_start)
+                            tokenized_answer = Answer(text, span_start, tokenizer, processor)
                             answers.add(tokenized_answer)
-                        tokenized_question = QuestionAnswer(q_id, q_text, answers, tokenizer)
+                        tokenized_question = QuestionAnswer(q_id, q_text, answers, tokenizer, processor)
                         qas.append(tokenized_question)
-                    tokenized_context = ContextQuestionAnswer(context, qas, tokenizer)
+                    tokenized_context = ContextQuestionAnswer(context, qas, tokenizer, processor)
                     contexts.append(tokenized_context)
         return contexts
 

@@ -17,6 +17,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument('--num-epochs', type=int, default=25)
     parser.add_argument('--lstm-hidden-size', type=int, default=512)
     parser.add_argument('--lstm-num-layers', type=int, default=2)
+    parser.add_argument('--lstm-unidirectional', action='store_true')
     parser.add_argument('--dropout', type=float, default=0.2)
     parser.add_argument('--attention-hidden-size', type=int, default=512)
     parser.add_argument('--answer-train-set', action='store_true', help='if specified generate answers to the train set')
@@ -29,13 +30,15 @@ def main() -> None:
     predictor_config = BasicPredictorConfig(gru=GRUConfig(hidden_size=args.lstm_hidden_size,
                                                           num_layers=args.lstm_num_layers,
                                                           dropout=args.dropout,
-                                                          bidirectional=True),
+                                                          bidirectional=(not args.lstm_unidirectional)),
                                             attention_hidden_size=args.attention_hidden_size,
                                             train_vecs=False,
                                             batch_size=args.batch_size)
     vectors: WordVectors = trainer.load_vectors(args.word_vector_file)
     train_dataset: QADataset = trainer.load_dataset(args.train_file, vectors)
     dev_dataset: QADataset = trainer.load_dataset(args.dev_file, vectors)
+    print('Training with config: %s \n vectors: %s \n training file: %s \n dev file: %s \n' %
+          (predictor_config, args.word_vector_file, args.train_file, args.dev_file))
     model: PredictorModel = trainer.train_model(train_dataset, dev_dataset, vectors, args.num_epochs, args.batch_size, predictor_config)
     if args.answer_train_set:
         train_answers = trainer.answer_dataset(train_dataset, model)

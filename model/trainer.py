@@ -13,6 +13,7 @@ from model.corpus import Corpus, QADataset
 from model.qa import QuestionId
 from model.batcher import QABatch, collate_batch
 from model.predictor import PredictorModel, BasicPredictor, BasicPredictorConfig, ModelPredictions
+from model.text_processor import TextProcessor
 from model.tokenizer import Tokenizer, NltkTokenizer
 
 import model.evaluator as evaluator
@@ -73,5 +74,6 @@ def load_dataset(filename: str, vectors: WordVectors) -> QADataset:
         corpus = Corpus.from_disk(filename)
     except (IOError, UnpicklingError) as e:
         tokenizer: Tokenizer = NltkTokenizer()
-        corpus = Corpus.from_raw(filename, tokenizer)
+        processor: TextProcessor = TextProcessor({'lowercase': True})
+        corpus = Corpus.from_raw(filename, tokenizer, processor)
     return QADataset(corpus, vectors)

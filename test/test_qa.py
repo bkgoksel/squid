@@ -7,6 +7,7 @@ from unittest.mock import Mock, MagicMock
 import numpy as np
 
 from typing import List
+from model.text_processor import TextProcessor
 from model.tokenizer import Tokenizer, Token
 from model.qa import (Answer,
                       QuestionAnswer,
@@ -20,7 +21,8 @@ from model.wv import WordVectors
 
 class EncodingTestCase(unittest.TestCase):
     def setUp(self):
-        self.tokenizer = Mock(Tokenizer)
+        self.processor = Mock(TextProcessor)
+        self.processor.side_effect = lambda txt: txt.lower()
 
         def split_tokenize(txt: str):
             toks = txt.split()
@@ -38,7 +40,7 @@ class EncodingTestCase(unittest.TestCase):
         """
         answer_text = 'a0 a1 a2'
         answer_start = 0
-        answer_obj: Answer = Answer(answer_text, answer_start)
+        answer_obj: Answer = Answer(answer_text, answer_start, self.tokenizer, self.processor)
         self.assertEqual(answer_obj.text, answer_text)
         self.assertEqual(answer_obj.span_start, answer_start)
         self.assertEqual(answer_obj.span_end, answer_start + len(answer_text))
@@ -47,12 +49,12 @@ class EncodingTestCase(unittest.TestCase):
         """
         Tests that QuestionAnswer objects are initialized successfully
         """
-        answers = [Answer('a00 a01', 0), Answer('a10', 2)]
+        answers = [Answer('a00 a01', 0, self.tokenizer, self.processor), Answer('a10', 2, self.tokenizer, self.processor)]
         question_id = 'qid_0'
         question_text = 'q0 q1 q2 q3'
         question_tokens = self.tokenizer.tokenize(question_text)
 
-        question_obj: QuestionAnswer = QuestionAnswer(question_id, question_text, answers, self.tokenizer)
+        question_obj: QuestionAnswer = QuestionAnswer(question_id, question_text, answers, self.tokenizer, self.processor)
 
         self.assertEqual(question_obj.question_id, question_id)
         self.assertEqual(question_obj.text, question_text)
@@ -65,13 +67,14 @@ class EncodingTestCase(unittest.TestCase):
         """
         qas: List[QuestionAnswer] = [QuestionAnswer('qa_%d' % i,
                                                     'question %d' % i,
-                                                    [Answer('c%d' % i, 3 * i)],
-                                                    self.tokenizer)
+                                                    [Answer('c%d' % i, 3 * i, self.tokenizer, self.processor)],
+                                                    self.tokenizer,
+                                                    self.processor)
                                      for i in range(2)]
         context_text = 'c0 c1 c2'
         context_tokens = self.tokenizer.tokenize(context_text)
         cqa_obj: ContextQuestionAnswer = ContextQuestionAnswer(
-            context_text, qas, self.tokenizer)
+            context_text, qas, self.tokenizer, self.processor)
         self.assertEqual(qas, cqa_obj.qas)
         self.assertEqual(context_text, cqa_obj.text)
         self.assertEqual(context_tokens, cqa_obj.tokens)
@@ -83,7 +86,7 @@ class EncodingTestCase(unittest.TestCase):
         """
         context_text: str = "c0 c1 c2 a0 a1 c5 c6"
         context_tokens: List[Token] = self.tokenizer.tokenize(context_text)
-        answer: Answer = Answer('a0 a1', 9)
+        answer: Answer = Answer('a0 a1', 9, self.tokenizer, self.processor)
         encoded_answer: EncodedAnswer = EncodedAnswer(answer, context_tokens)
         self.assertEqual(encoded_answer.span_start, 3)
         self.assertEqual(encoded_answer.span_end, 4)
@@ -98,7 +101,7 @@ class EncodingTestCase(unittest.TestCase):
         context_text: str = "c0 c1 c2 a0 a1"
         context_tokens = self.tokenizer.tokenize(context_text)
 
-        answers = [Answer('a0 a1', 9), Answer('a0', 9)]
+        answers = [Answer('a0 a1', 9, self.tokenizer, self.processor), Answer('a0', 9, self.tokenizer, self.processor)]
         encoded_answers = [EncodedAnswer(ans, context_tokens) for ans in answers]
 
         question_id = 'qid_0'
@@ -106,7 +109,7 @@ class EncodingTestCase(unittest.TestCase):
         question_tokens = self.tokenizer.tokenize(question_text)
         question_encoding = np.array([token_id_mapping[tok.word] for tok in question_tokens])
 
-        question_obj: QuestionAnswer = QuestionAnswer(question_id, question_text, answers, self.tokenizer)
+        question_obj: QuestionAnswer = QuestionAnswer(question_id, question_text, answers, self.tokenizer, self.processor)
 
         self.vectors.__getitem__.side_effect = lambda tok: token_id_mapping[tok]
 
@@ -128,15 +131,16 @@ class EncodingTestCase(unittest.TestCase):
         context_tokens = self.tokenizer.tokenize(context_text)
         context_encoding = np.array([token_id_mapping[tok.word] for tok in context_tokens])
 
-        answers = [Answer('a0 a1', 9), Answer('a0', 9)]
+        answers = [Answer('a0 a1', 9, self.tokenizer, self.processor), Answer('a0', 9, self.tokenizer, self.processor)]
 
         question_id = 'qid_0'
         question_text = 'c0 c1 c2'
 
-        question_obj: QuestionAnswer = QuestionAnswer(question_id, question_text, answers, self.tokenizer)
+        question_obj: QuestionAnswer = QuestionAnswer(question_id, question_text, answers, self.tokenizer, self.processor)
         cqa_obj: ContextQuestionAnswer = ContextQuestionAnswer(context_text,
                                                                [question_obj],
-                                                               self.tokenizer)
+                                                               self.tokenizer,
+                                                               self.processor)
 
         self.vectors.__getitem__.side_effect = lambda tok: token_id_mapping[tok]
 
@@ -156,7 +160,7 @@ class EncodingTestCase(unittest.TestCase):
         context_tokens = self.tokenizer.tokenize(context_text)
         context_encoding = np.array([token_id_mapping[tok.word] for tok in context_tokens])
 
-        answers = [Answer('a0 a1', 9), Answer('a0', 9)]
+        answers = [Answer('a0 a1', 9, self.tokenizer, self.processor), Answer('a0', 9, self.tokenizer, self.processor)]
         answer_starts = np.array([0, 0, 0, 1, 0])
         answer_ends = np.array([0, 0, 0, 1, 1])
 
@@ -165,7 +169,7 @@ class EncodingTestCase(unittest.TestCase):
         question_tokens = self.tokenizer.tokenize(question_text)
         question_encoding = np.array([token_id_mapping[tok.word] for tok in question_tokens])
 
-        question_obj: QuestionAnswer = QuestionAnswer(question_id, question_text, answers, self.tokenizer)
+        question_obj: QuestionAnswer = QuestionAnswer(question_id, question_text, answers, self.tokenizer, self.processor)
 
         self.vectors.__getitem__.side_effect = lambda tok: token_id_mapping[tok]
 

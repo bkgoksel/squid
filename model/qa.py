@@ -6,6 +6,7 @@ import numpy as np
 import bisect
 from typing import cast, List, Any, Set, NewType
 
+from model.text_processor import TextProcessor
 from model.tokenizer import Token, Tokenizer
 from model.wv import WordVectors
 
@@ -13,17 +14,21 @@ from model.wv import WordVectors
 QuestionId = NewType('QuestionId', str)
 
 
-class Tokenized():
+class Processed():
     """
-    Base Class for any object that stores tokenized text
+    Base Class for any object that stores processed and tokenized text
     """
     tokens: List[Token]
+    original_text: str
+    text: str
 
-    def __init__(self, text: str, tokenizer: Tokenizer) -> None:
-        self.tokens = tokenizer.tokenize(text)
+    def __init__(self, text: str, processor: TextProcessor, tokenizer: Tokenizer) -> None:
+        self.original_text = text
+        self.text = processor.process(text)
+        self.tokens = tokenizer.tokenize(self.text)
 
 
-class Answer():
+class Answer(Processed):
     """
     Base class for an Answer, stores the text and span boundaries
     """
@@ -31,8 +36,8 @@ class Answer():
     span_start: int
     span_end: int
 
-    def __init__(self, text: str, span_start: int) -> None:
-        self.text = text
+    def __init__(self, text: str, span_start: int, tokenizer: Tokenizer, text_processor: TextProcessor) -> None:
+        super().__init__(text, text_processor, tokenizer)
         self.span_start = span_start
         self.span_end = self.span_start + len(self.text)
 
@@ -51,21 +56,18 @@ class Answer():
         return hash("%d_%d_%s" % (self.span_start, self.span_end, self.text))
 
 
-class QuestionAnswer(Tokenized):
+class QuestionAnswer(Processed):
     """
     Base class for a question paired with its answer.
     Stores the question text and a list of answers
     """
     question_id: QuestionId
-    text: str
     answers: Set[Answer]
-    tokens: List[Token]
 
-    def __init__(self, question_id: str, text: str, answers: Set[Answer], tokenizer: Tokenizer) -> None:
+    def __init__(self, question_id: str, text: str, answers: Set[Answer], tokenizer: Tokenizer, processor: TextProcessor) -> None:
         self.question_id = cast(QuestionId, question_id)
-        self.text = text
         self.answers = answers
-        super().__init__(text, tokenizer)
+        super().__init__(text, tokenizer, processor)
 
     def __eq__(self, other) -> bool:
         return (self.answers == other.answers and
@@ -74,19 +76,16 @@ class QuestionAnswer(Tokenized):
                 self.tokens == other.tokens)
 
 
-class ContextQuestionAnswer(Tokenized):
+class ContextQuestionAnswer(Processed):
     """
     Base class for a context paragraph and its question-answer pairs
     Stores the context text and a list of question answer pair objects
     """
-    text: str
     qas: List[QuestionAnswer]
-    tokens: List[Token]
 
-    def __init__(self, text: str, qas: List[QuestionAnswer], tokenizer: Tokenizer) -> None:
-        self.text = text
+    def __init__(self, text: str, qas: List[QuestionAnswer], tokenizer: Tokenizer, processor: TextProcessor) -> None:
         self.qas = qas
-        super().__init__(text, tokenizer)
+        super().__init__(text, tokenizer, processor)
 
     def __eq__(self, other) -> bool:
         return (self.qas == other.qas and

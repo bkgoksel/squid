@@ -162,28 +162,28 @@ class BasicPredictor(PredictorModel):
                                 no_ans_logits=no_answer_predictions)
 
     @staticmethod
-    def get_last_hidden_states(out, config: BasicPredictorConfig):
+    def get_last_hidden_states(states, config: BasicPredictorConfig):
         """
         Do some juggling with the output of the RNNs to get the
             final hidden states of the topmost layers of all the
             directions to feed into attention
-        (should be in same tensor layout as the all hidden states of context)
 
-        format: All hidden states, of shape:
-            [batch_size, max_seq_len, hidden_size*n_dirs]
+        To get it in the same config as q_processed:
+            1. Make states batch first
+            2. Only keep the last layers for each direction
+            3. Concatenate the layer hidden states in one dimension
 
-        out: Last hidden states for all layers and directions, of shape:
+        :param states: Last hidden states for all layers and directions, of shape:
             [n_layers*n_dirs, batch_size, hidden_size]:
                 The first dimension is laid out like:
                     layer0dir0, layer0dir1, layer1dir0, layer1dir1
 
-        To get it in the same config as q_processed:
-            1. Make out batch first
-            2. Only keep the last layers for each direction
-            3. Concatenate the layer hidden states in one dimension
+        :returns: All hidden states, of shape:
+            [batch_size, max_seq_len, hidden_size*n_dirs]
+
         """
-        batch_size = out.size(1)
-        out = out.transpose(0, 1)
-        out = out[:, -config.n_directions:, :]
-        out = out.contiguous().view(batch_size, config.total_hidden_size)
+        batch_size = states.size(1)
+        states = states.transpose(0, 1)
+        states = states[:, -config.n_directions:, :]
+        out = states.contiguous().view(batch_size, config.total_hidden_size)
         return out
