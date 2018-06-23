@@ -22,7 +22,7 @@ from model.wv import WordVectors
 class EncodingTestCase(unittest.TestCase):
     def setUp(self):
         self.processor = Mock(TextProcessor)
-        self.processor.side_effect = lambda txt: txt.lower()
+        self.processor.process.side_effect = lambda txt: txt.lower()
 
         def split_tokenize(txt: str):
             toks = txt.split()
