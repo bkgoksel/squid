@@ -10,8 +10,8 @@ class TextProcessor():
     Base class for text processors
     """
 
-    def __init__(self, config: Set[str]) -> None:
-        self.config = config
+    def __init__(self) -> None:
+        pass
 
     def process(self, text: str) -> str:
         """

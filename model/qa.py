@@ -22,7 +22,7 @@ class Processed():
     original_text: str
     text: str
 
-    def __init__(self, text: str, processor: TextProcessor, tokenizer: Tokenizer) -> None:
+    def __init__(self, text: str, tokenizer: Tokenizer, processor: TextProcessor) -> None:
         self.original_text = text
         self.text = processor.process(text)
         self.tokens = tokenizer.tokenize(self.text)
@@ -36,8 +36,8 @@ class Answer(Processed):
     span_start: int
     span_end: int
 
-    def __init__(self, text: str, span_start: int, tokenizer: Tokenizer, text_processor: TextProcessor) -> None:
-        super().__init__(text, text_processor, tokenizer)
+    def __init__(self, text: str, span_start: int, tokenizer: Tokenizer, processor: TextProcessor) -> None:
+        super().__init__(text, tokenizer, processor)
         self.span_start = span_start
         self.span_end = self.span_start + len(self.text)
 
