@@ -64,3 +64,32 @@ class SimpleAttention(nn.Module):
         attended = self.attention(context_enc * q_enc.unsqueeze(1), context_mask)
 
         return attended
+
+
+class BidirectionalAttention(nn.Module):
+    """
+    Bidirectional Attention computations as described in Bidirectional
+    Attention Flow
+    """
+
+    def __init__(self, config):
+        self.ctx_softmax = nn.Softmax(dim=2)
+        self.config = config
+
+    def forward(self, context, question):
+        """
+        Computes Context2Query and Query2Context attention given context
+        and query embeddings
+        :param context: Context embeddings (batch_len, max_context_len, embedding_size)
+        :param question: Query embeddings (batch_len, max_question_len, embedding_size)
+        :returns: Tuple[Context2QueryAttention, Query2ContextAttention]
+            Context2QueryAttention: (batch_len, max_context_len, embedding_size)
+            Query2ContextAttention: (batch_len, embedding_size)
+        """
+        # TODO: Build S (batch_len, max_context_len, max_question_len)
+        # S[:,t,j] = ws @ concat(context[:,t,:], question[:,j,:], ctx[:,t,:]*q[:,j,:])
+        S_tj = t.zeros((self.config.batch_len, self.config.max_context_len, self.config.max_question_len))
+        a_ctx = self.ctx_softmax(S_tj)  # (batch_len, max_context_len, max_question_len)
+        # TODO: Build c2q (batch_len, max_context_len, embedding_size)
+        # c2q[:,t,:] = sum_j(a_ctx[:,t,j]*question[:,j])
+        pass
