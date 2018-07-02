@@ -12,6 +12,7 @@ from model.wv import WordVectors
 from model.batcher import QABatch
 from model.modules.attention import SimpleAttention, AttentionConfig
 from model.modules.masked import MaskedLinear
+from model.modules.embeddor import WordEmbeddor
 
 
 ModelPredictions = NamedTuple('ModelPredictions', [
@@ -76,7 +77,7 @@ class BasicPredictor(PredictorModel):
     """
 
     config: BasicPredictorConfig
-    embed: nn.Embedding
+    embed: WordEmbeddor
     q_gru: nn.GRU
     q_hidden_state: t.Tensor
     ctx_gru: nn.GRU
@@ -90,8 +91,7 @@ class BasicPredictor(PredictorModel):
     def __init__(self, word_vectors: WordVectors, config: BasicPredictorConfig) -> None:
         super().__init__()
         self.config = config
-        self.embed = nn.Embedding.from_pretrained(t.Tensor(word_vectors.vectors),
-                                                  freeze=(not self.config.train_vecs))
+        self.embed = WordEmbeddor(word_vectors, self.config.train_vecs)
         self.q_gru = nn.GRU(word_vectors.dim,
                             self.config.gru.hidden_size,
                             self.config.gru.num_layers,

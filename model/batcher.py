@@ -58,20 +58,24 @@ def collate_batch(batch: List[EncodedSample]) -> QABatch:
 
     for sample in batch:
         question_words.append(sample.question_words)
-        question_chars.append(sample.question_chars)
         question_ids.append(sample.question_id)
         context_words.append(sample.context_words)
-        context_chars.append(sample.context_chars)
         answer_span_starts.append(sample.span_starts)
         answer_span_ends.append(sample.span_ends)
+        this_question_chars, _, orig_idxs, _ = pad_and_sort(sample.question_chars)
+        question_chars.append(this_question_chars[orig_idxs])
+        this_ctx_chars, _, orig_idxs, _ = pad_and_sort(sample.context_chars)
+        context_chars.append(this_ctx_chars[orig_idxs])
 
     question_words, question_orig_idxs, question_len_idxs, question_lens = pad_and_sort(question_words)
     question_words = question_words[question_orig_idxs]
     question_mask = mask_sequence(question_words)
+    question_chars = t.concat(question_chars)
 
     context_words, context_orig_idxs, context_len_idxs, context_lens = pad_and_sort(context_words)
     context_words = context_words[context_orig_idxs]
     context_mask = mask_sequence(context_words)
+    context_chars = t.concat(context_chars)
 
     answer_span_starts, _, _, _ = pad_and_sort(answer_span_starts)
     answer_span_starts = answer_span_starts[context_orig_idxs]
