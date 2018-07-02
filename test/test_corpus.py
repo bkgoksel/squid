@@ -1,10 +1,12 @@
-""" Module for testing dataset representations
 """
-import unittest
-from unittest.mock import Mock
+Module for testing dataset representations
+"""
+
 import json
 import tempfile
 from typing import List
+import unittest
+from unittest.mock import Mock
 
 from model.text_processor import TextProcessor
 from model.tokenizer import Tokenizer, Token
@@ -22,7 +24,7 @@ from model.corpus import (Corpus,
 
 class RawCorpusTestCase(unittest.TestCase):
     def setUp(self):
-        self.tempfile = tempfile.NamedTemporaryFile()
+        self.tempfile = tempfile.NamedTemporaryFile(mode='w')
 
         def split_tokenize(txt: str):
             toks = txt.split()
@@ -43,7 +45,6 @@ class RawCorpusTestCase(unittest.TestCase):
         Test that read_context_qas(data_file, tokenizer)
         reads a sample dataset correctly
         TODO:
-            - Use small simple JSON inputs for different edge cases
             - Mock Answer, QuestionAnswer and ContextQuestionAnswer
                 classes to make sure they're all created with correct
                 parameters
@@ -71,15 +72,39 @@ class RawCorpusTestCase(unittest.TestCase):
                 },
             ]
         }
-        answer: Answer = Answer('c0 c1', 0)
-        qa: QuestionAnswer = QuestionAnswer(QuestionId('0x0001'), 'q00 q01 q02 q03?', [answer], self.tokenizer, self.processor)
+        answer: Answer = Answer('c0 c1', 0, self.tokenizer, self.processor)
+        qa: QuestionAnswer = QuestionAnswer(QuestionId('0x0001'), 'q00 q01 q02 q03?', set([answer]), self.tokenizer, self.processor)
         cqa: ContextQuestionAnswer = ContextQuestionAnswer('c0 c1 c2.c3 c4\'c5', [qa], self.tokenizer, self.processor)
         json.dump(input_dict, self.tempfile)
+        self.tempfile.flush()
         cqas: List[ContextQuestionAnswer] = Corpus.read_context_qas(self.tempfile.name, self.tokenizer, self.processor)
         self.assertEqual(cqas, [cqa])
 
     def test_no_answer(self):
-        pass
+        input_dict = {
+            'data': [
+                {
+                    'paragraphs': [
+                        {
+                            'context': 'c0 c1 c2.c3 c4\'c5',
+                            'qas': [
+                                {
+                                    'answers': [],
+                                    'id': '0x0001',
+                                    'question': 'q00 q01 q02 q03?'
+                                },
+                            ]
+                        }
+                    ]
+                },
+            ]
+        }
+        json.dump(input_dict, self.tempfile)
+        self.tempfile.flush()
+        cqas: List[ContextQuestionAnswer] = Corpus.read_context_qas(self.tempfile.name, self.tokenizer, self.processor)
+        self.assertEqual(len(cqas), 1)
+        self.assertEqual(len(cqas[0].qas), 1)
+        self.assertEqual(len(cqas[0].qas[0].answers), 0)
 
     def test_multiple_questions(self):
         pass

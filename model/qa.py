@@ -27,6 +27,11 @@ class Processed():
         self.text = processor.process(text)
         self.tokens = tokenizer.tokenize(self.text)
 
+    def __eq__(self, other) -> bool:
+        return (self.original_text == other.original_text and
+                self.text == other.text and
+                self.tokens == other.tokens)
+
 
 class Answer(Processed):
     """
@@ -45,9 +50,9 @@ class Answer(Processed):
         """
         Two answers are equal if their spans and text are equal
         """
-        return (self.span_start == other.span_start and
-                self.span_end == other.span_end and
-                self.text == other.text)
+        return (super().__eq__(other) and
+                self.span_start == other.span_start and
+                self.span_end == other.span_end)
 
     def __hash__(self):
         """
@@ -70,10 +75,9 @@ class QuestionAnswer(Processed):
         super().__init__(text, tokenizer, processor)
 
     def __eq__(self, other) -> bool:
-        return (self.answers == other.answers and
-                self.text == other.text and
-                self.question_id == other.question_id and
-                self.tokens == other.tokens)
+        return (super().__eq__(other) and
+                self.answers == other.answers and
+                self.question_id == other.question_id)
 
 
 class ContextQuestionAnswer(Processed):
@@ -88,9 +92,8 @@ class ContextQuestionAnswer(Processed):
         super().__init__(text, tokenizer, processor)
 
     def __eq__(self, other) -> bool:
-        return (self.qas == other.qas and
-                self.text == other.text and
-                self.tokens == other.tokens)
+        return (super().__eq__(other) and
+                self.qas == other.qas)
 
 
 class EncodedAnswer():
