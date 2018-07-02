@@ -32,6 +32,7 @@ CorpusStats = NamedTuple('CorpusStats', [
     ('n_unanswerable', int),
     ('max_context_len', int),
     ('max_q_len', int),
+    ('max_word_len', int),
     ('vocab_size', int)
 ])
 
@@ -48,14 +49,18 @@ class Corpus():
     vocab: Set[str]
     stats: CorpusStats
 
-    def __init__(self, context_qas: List[ContextQuestionAnswer],
-                 vocab: Set[str], stats: CorpusStats) -> None:
+    def __init__(self,
+                 context_qas: List[ContextQuestionAnswer],
+                 vocab: Set[str],
+                 char_mapping: Dict[str, int],
+                 stats: CorpusStats) -> None:
         self.context_qas: List[ContextQuestionAnswer] = context_qas
         self.quids_to_context_qas: Dict[QuestionId, ContextQuestionAnswer] = dict()
         for cqa in context_qas:
             self.quids_to_context_qas.update({qa.question_id: cqa for qa in cqa.qas})
         self.vocab = vocab
         self.stats = stats
+        self.char_mapping = char_mapping
 
     @classmethod
     def from_disk(cls, serialized_file: str):
@@ -72,7 +77,8 @@ class Corpus():
         context_qas = cls.read_context_qas(data_file, tokenizer, processor)
         vocab = cls.compute_vocab(context_qas)
         stats = cls.compute_stats(context_qas, vocab)
-        return cls(context_qas, vocab, stats)
+        char_mapping = cls.compute_char_indices(context_qas)
+        return cls(context_qas, vocab, char_mapping, stats)
 
     @staticmethod
     def read_context_qas(data_file: str, tokenizer: Tokenizer, processor: TextProcessor) -> List[ContextQuestionAnswer]:
@@ -119,6 +125,23 @@ class Corpus():
         return vocab
 
     @staticmethod
+    def compute_char_indices(context_qas: List[ContextQuestionAnswer]) -> Dict[str, int]:
+        """
+        Takes in a list of contexts and qas and returns a mapping from each char seen to an index
+        :param context_qas: List[ContextQuestionAnswer] all the context qa's
+        :returns: Dict[str, int] mapping from each character seen to an index
+        """
+        chars: Set[str] = set()
+        for ctx in context_qas:
+            for tok in ctx.tokens:
+                chars.update(set(tok.word))
+            for qa in ctx.qas:
+                for tok in qa.tokens:
+                    chars.update(set(tok.word))
+        char_mapping: Dict[str, int] = dict(map(reversed, enumerate(chars)))
+        return char_mapping
+
+    @staticmethod
     def compute_stats(context_qas: List[ContextQuestionAnswer],
                       vocab: Set[str]) -> CorpusStats:
         """
@@ -133,12 +156,22 @@ class Corpus():
         n_unanswerable: int = sum(len([qa for qa in ctx.qas if not qa.answers]) for ctx in context_qas)
         max_context_len: int = max(len(ctx.tokens) for ctx in context_qas)
         max_q_len: int = max(len(qa.tokens) for ctx in context_qas for qa in ctx.qas)
+
+        max_word_len = 0
+        for ctx in context_qas:
+            max_curr_len = max(len(tok.word) for tok in ctx.tokens)
+            max_word_len = max(max_curr_len, max_word_len)
+            for qa in ctx.qas:
+                max_curr_len = max(len(tok.word) for tok in qa.tokens)
+                max_word_len = max(max_curr_len, max_word_len)
+
         return CorpusStats(n_contexts=n_contexts,
                            n_questions=n_questions,
                            n_answerable=n_answerable,
                            n_unanswerable=n_unanswerable,
                            max_context_len=max_context_len,
                            max_q_len=max_q_len,
+                           max_word_len=max_word_len,
                            vocab_size=len(vocab))
 
     def get_single_answer_text(self, qid: QuestionId, span_start: int, span_end: int) -> str:
@@ -183,24 +216,27 @@ class EncodedCorpus(Corpus):
     """
 
     vocab: Set[str]
+    char_mapping: Dict[str, int]
     stats: CorpusStats
     word_vectors: WordVectors
     encoded_context_qas: List[EncodedContextQuestionAnswer]
 
     def __init__(self, corpus: Corpus, word_vectors: WordVectors) -> None:
-        super().__init__(corpus.context_qas, corpus.vocab, corpus.stats)
+        super().__init__(corpus.context_qas, corpus.vocab, corpus.char_mapping, corpus.stats)
         self.word_vectors = word_vectors
-        self.encoded_context_qas = EncodedCorpus.encode(self.context_qas, self.word_vectors)
+        self.encoded_context_qas = EncodedCorpus.encode(self.context_qas, self.word_vectors, self.char_mapping)
 
     @staticmethod
-    def encode(context_qas: List[ContextQuestionAnswer], word_vectors: WordVectors) -> List[EncodedContextQuestionAnswer]:
+    def encode(context_qas: List[ContextQuestionAnswer],
+               word_vectors: WordVectors,
+               char_mapping: Dict[str, int]) -> List[EncodedContextQuestionAnswer]:
         """
         Method that encodes all the given contextQA's using given word vectors
         :param context_qas: List of ContextQA objects
         :param word_vectors: a WordVectors objects used to encode
         :returns: List of EncodedContextQuestionAnswer objects
         """
-        return [EncodedContextQuestionAnswer(cqa, word_vectors) for cqa in context_qas]
+        return [EncodedContextQuestionAnswer(cqa, word_vectors, char_mapping) for cqa in context_qas]
 
 
 class SampleCorpus(EncodedCorpus):
@@ -230,7 +266,7 @@ class SampleCorpus(EncodedCorpus):
         :param context_qas: List of EncodedContextQuestionAnswer objects
         :returns: List of EncodedSample objects
         """
-        return [EncodedSample(ctx.encoding, qa) for ctx in context_qas for qa in ctx.qas]
+        return [EncodedSample(ctx.word_encoding, ctx.char_encoding, qa) for ctx in context_qas for qa in ctx.qas]
 
 
 class QADataset(Dataset):

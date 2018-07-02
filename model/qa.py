@@ -4,7 +4,12 @@ answers at various points of existence.
 """
 import numpy as np
 import bisect
-from typing import cast, List, Any, Set, NewType
+from typing import (cast,
+                    List,
+                    Any,
+                    Set,
+                    NewType,
+                    Dict)
 
 from model.text_processor import TextProcessor
 from model.tokenizer import Token, Tokenizer
@@ -126,17 +131,24 @@ class EncodedQuestionAnswer():
     Paired with its encoded answers
     """
     question_id: QuestionId
-    encoding: Any  # numpy array
+    word_encoding: Any  # numpy array
+    char_encoding: List[Any]  # numpy array
     answers: List[EncodedAnswer]
 
-    def __init__(self, qa: QuestionAnswer, word_vectors: WordVectors, context_tokens: List[Token]) -> None:
+    def __init__(self,
+                 qa: QuestionAnswer,
+                 word_vectors: WordVectors,
+                 char_mapping: Dict[str, int],
+                 context_tokens: List[Token]) -> None:
         self.question_id = qa.question_id
-        self.encoding = np.array([word_vectors[tk.word] for tk in qa.tokens])
+        self.word_encoding = np.array([word_vectors[tk.word] for tk in qa.tokens])
+        self.char_encoding = [np.array([char_mapping[char] for char in tk.word]) for tk in qa.tokens]
         self.answers = [EncodedAnswer(ans, context_tokens) for ans in qa.answers]
 
     def __eq__(self, other) -> bool:
         return (self.question_id == other.question_id and
-                np.all(self.encoding == other.encoding) and
+                np.all(self.word_encoding == other.word_encoding) and
+                np.all(self.char_encoding == other.char_encoding) and
                 self.answers == other.answers)
 
 
@@ -145,16 +157,22 @@ class EncodedContextQuestionAnswer():
     Class for a context paragraph and its question-answer pairs
     Stores them in encoded form
     """
-    encoding: Any  # numpy array
+    word_encoding: Any  # numpy array
+    char_encoding: List[Any]  # numpy array
     qas: List[EncodedQuestionAnswer]
 
-    def __init__(self, ctx: ContextQuestionAnswer, word_vectors: WordVectors) -> None:
-        self.encoding = np.array([word_vectors[tk.word] for tk in ctx.tokens])
-        self.qas = [EncodedQuestionAnswer(qa, word_vectors, ctx.tokens) for qa in ctx.qas]
+    def __init__(self,
+                 ctx: ContextQuestionAnswer,
+                 word_vectors: WordVectors,
+                 char_mapping: Dict[str, int]) -> None:
+        self.word_encoding = np.array([word_vectors[tk.word] for tk in ctx.tokens])
+        self.char_encoding = [np.array([char_mapping[char] for char in tk.word]) for tk in ctx.tokens]
+        self.qas = [EncodedQuestionAnswer(qa, word_vectors, char_mapping, ctx.tokens) for qa in ctx.qas]
 
     def __eq__(self, other) -> bool:
         return (self.qas == other.qas and
-                np.all(self.encoding == other.encoding))
+                np.all(self.char_encoding == other.char_encoding) and
+                np.all(self.word_encoding == other.word_encoding))
 
 
 class EncodedSample():
@@ -165,17 +183,19 @@ class EncodedSample():
     """
     question_id: QuestionId
     question_words: Any  # numpy array
-    question_chars: List[List[Any]]  # numpy array
+    question_chars: List[Any]  # numpy array
     context_words: Any  # numpy array
-    context_chars: List[List[Any]]  # numpy array
+    context_chars: List[Any]  # numpy array
     has_answer: bool
     span_starts: Any  # numpy array
     span_ends: Any  # numpy array
 
-    def __init__(self, ctx_encoding: Any, qa: EncodedQuestionAnswer) -> None:
+    def __init__(self, ctx_word_encoding: Any, ctx_char_encoding: Any, qa: EncodedQuestionAnswer) -> None:
         self.question_id = qa.question_id
-        self.context_words = ctx_encoding
-        self.question_words = qa.encoding
+        self.context_words = ctx_word_encoding
+        self.context_chars = ctx_char_encoding
+        self.question_words = qa.word_encoding
+        self.question_chars = qa.char_encoding
         self.has_answer = bool(qa.answers)
         self.span_starts = np.zeros_like(self.context_words)
         self.span_ends = np.zeros_like(self.context_words)
@@ -189,6 +209,8 @@ class EncodedSample():
         return (self.question_id == other.question_id and
                 np.all(self.context_words == other.context_words) and
                 np.all(self.question_words == other.question_words) and
+                np.all(self.context_chars == other.context_chars) and
+                np.all(self.question_chars == other.question_chars) and
                 self.has_answer == other.has_answer and
                 np.all(self.span_starts == other.span_starts) and
                 np.all(self.span_ends == other.span_ends))
