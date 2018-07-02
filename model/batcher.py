@@ -14,20 +14,22 @@ from model.qa import EncodedSample, QuestionId
 Holds a batch of samples in a form that's easy for the model to use
 len_idxs and orig_idxs allow for length-sorted or original orderings
 of the respective texts i.e.
-questions[question_len_idxs] = length_sorted_questions
-length_sorted_questions[question_orig_idxs] = questions
+question_words[question_len_idxs] = length_sorted_questions
+length_sorted_questions[question_orig_idxs] = question_words
 
 masks, and question_ids come in original ordering
 lengths come sorted
 """
 QABatch = NamedTuple('QABatch', [
-    ('questions', t.LongTensor),
+    ('question_words', t.LongTensor),
+    ('question_chars', t.LongTensor),
     ('question_lens', t.LongTensor),
     ('question_len_idxs', t.LongTensor),
     ('question_orig_idxs', t.LongTensor),
     ('question_mask', t.LongTensor),
     ('question_ids', List[QuestionId]),
-    ('contexts', t.LongTensor),
+    ('context_words', t.LongTensor),
+    ('context_chars', t.LongTensor),
     ('context_lens', t.LongTensor),
     ('context_len_idxs', t.LongTensor),
     ('context_orig_idxs', t.LongTensor),
@@ -40,29 +42,36 @@ QABatch = NamedTuple('QABatch', [
 def collate_batch(batch: List[EncodedSample]) -> QABatch:
     """
     Takes a list of EncodedSample objects and creates a PyTorch batch
+    For chars:
+        context_chars[batch, word, char_idx] -> (batch_len, max_ctx_len, max_word_len)
     :param batch: List[EncodedSample] QA samples
     :returns: a QABatch
     """
-    questions = []
+    # TODO: Do the char encoding in the batch
+    question_words = []
+    question_chars = []
     question_ids = []
-    contexts = []
+    context_words = []
+    context_chars = []
     answer_span_starts = []
     answer_span_ends = []
 
     for sample in batch:
-        questions.append(sample.question)
+        question_words.append(sample.question_words)
+        question_chars.append(sample.question_chars)
         question_ids.append(sample.question_id)
-        contexts.append(sample.context)
+        context_words.append(sample.context_words)
+        context_chars.append(sample.context_chars)
         answer_span_starts.append(sample.span_starts)
         answer_span_ends.append(sample.span_ends)
 
-    questions, question_orig_idxs, question_len_idxs, question_lens = pad_and_sort(questions)
-    questions = questions[question_orig_idxs]
-    question_mask = mask_sequence(questions)
+    question_words, question_orig_idxs, question_len_idxs, question_lens = pad_and_sort(question_words)
+    question_words = question_words[question_orig_idxs]
+    question_mask = mask_sequence(question_words)
 
-    contexts, context_orig_idxs, context_len_idxs, context_lens = pad_and_sort(contexts)
-    contexts = contexts[context_orig_idxs]
-    context_mask = mask_sequence(contexts)
+    context_words, context_orig_idxs, context_len_idxs, context_lens = pad_and_sort(context_words)
+    context_words = context_words[context_orig_idxs]
+    context_mask = mask_sequence(context_words)
 
     answer_span_starts, _, _, _ = pad_and_sort(answer_span_starts)
     answer_span_starts = answer_span_starts[context_orig_idxs]
@@ -70,13 +79,15 @@ def collate_batch(batch: List[EncodedSample]) -> QABatch:
     answer_span_ends, _, _, _ = pad_and_sort(answer_span_ends)
     answer_span_ends = answer_span_ends[context_orig_idxs]
 
-    return QABatch(questions=questions,
+    return QABatch(question_words=question_words,
+                   question_chars=question_chars,
                    question_lens=question_lens,
                    question_len_idxs=question_len_idxs,
                    question_orig_idxs=question_orig_idxs,
                    question_mask=question_mask,
                    question_ids=question_ids,
-                   contexts=contexts,
+                   context_words=context_words,
+                   context_chars=context_chars,
                    context_lens=context_lens,
                    context_len_idxs=context_len_idxs,
                    context_orig_idxs=context_orig_idxs,
