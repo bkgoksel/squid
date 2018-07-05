@@ -47,7 +47,6 @@ def collate_batch(batch: List[EncodedSample]) -> QABatch:
     :param batch: List[EncodedSample] QA samples
     :returns: a QABatch
     """
-    # TODO: Do the char encoding in the batch
     question_words = []
     question_chars = []
     question_ids = []

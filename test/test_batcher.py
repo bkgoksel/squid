@@ -14,6 +14,7 @@ from model.qa import (Answer,
                       QuestionAnswer,
                       EncodedQuestionAnswer,
                       EncodedSample)
+from model.text_processor import TextProcessor
 from model.tokenizer import Tokenizer, Token
 from model.wv import WordVectors
 
@@ -21,7 +22,9 @@ from model.wv import WordVectors
 class BatcherTestCase(unittest.TestCase):
     def setUp(self):
         vocab = ['c0', 'c1', 'c2', 'c3', 'c4']
+        char_vocab = set([char for word in vocab for char in word])
         token_id_mapping = dict(map(reversed, enumerate(vocab)))
+        self.char_mapping = dict(map(reversed, enumerate(char_vocab)))
 
         def split_tokenize(txt: str):
             toks = txt.split()
@@ -31,18 +34,21 @@ class BatcherTestCase(unittest.TestCase):
 
         self.tokenizer = Mock(Tokenizer)
         self.tokenizer.tokenize.side_effect = lambda txt: split_tokenize(txt)
+        self.processor = Mock(TextProcessor)
+        self.processor.process.side_effect = lambda txt: txt
         self.vectors = MagicMock(WordVectors)
         self.vectors.__getitem__.side_effect = lambda tok: token_id_mapping[tok]
 
     def make_sample(self, context_text: str, answers: List[Answer], question_id: str, question_text: str) -> EncodedSample:
         context_tokens = self.tokenizer.tokenize(context_text)
-        context_encoding = np.array([self.vectors[tok.word] for tok in context_tokens])
+        context_word_encoding = np.array([self.vectors[tok.word] for tok in context_tokens])
+        context_char_encoding = [np.array([self.char_mapping[char] for char in tok.word]) for tok in context_tokens]
 
-        question_obj: QuestionAnswer = QuestionAnswer(question_id, question_text, answers, self.tokenizer)
+        question_obj: QuestionAnswer = QuestionAnswer(question_id, question_text, answers, self.tokenizer, self.processor)
 
         encoded_qa_obj: EncodedQuestionAnswer = EncodedQuestionAnswer(
-            question_obj, self.vectors, context_tokens)
-        encoded_sample = EncodedSample(context_encoding, encoded_qa_obj)
+            question_obj, self.vectors, self.char_mapping, context_tokens)
+        encoded_sample = EncodedSample(context_word_encoding, context_char_encoding, encoded_qa_obj)
         return encoded_sample
 
     def test_pad_and_sort(self):

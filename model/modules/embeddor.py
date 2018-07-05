@@ -1,6 +1,7 @@
 """
 Module that holds classes built for embedding text
 """
+from typing import Dict
 
 import torch as t
 import torch.nn as nn
@@ -25,4 +26,7 @@ class CharEmbeddor(nn.Module):
     """
     Module that embeds words using their characters
     """
-    pass
+    def __init__(self, char_mapping: Dict[str, int]) -> None:
+        super().__init__()
+        # TODO: Figure out the char embedding and the CNN
+        self.embed = nn.Embedding()
