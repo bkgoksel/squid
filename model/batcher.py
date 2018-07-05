@@ -22,14 +22,14 @@ lengths come sorted
 """
 QABatch = NamedTuple('QABatch', [
     ('question_words', t.LongTensor),
-    ('question_chars', t.LongTensor),
+    ('question_chars', List[t.LongTensor]),
     ('question_lens', t.LongTensor),
     ('question_len_idxs', t.LongTensor),
     ('question_orig_idxs', t.LongTensor),
     ('question_mask', t.LongTensor),
     ('question_ids', List[QuestionId]),
     ('context_words', t.LongTensor),
-    ('context_chars', t.LongTensor),
+    ('context_chars', List[t.LongTensor]),
     ('context_lens', t.LongTensor),
     ('context_len_idxs', t.LongTensor),
     ('context_orig_idxs', t.LongTensor),
@@ -69,12 +69,10 @@ def collate_batch(batch: List[EncodedSample]) -> QABatch:
     question_words, question_orig_idxs, question_len_idxs, question_lens = pad_and_sort(question_words)
     question_words = question_words[question_orig_idxs]
     question_mask = mask_sequence(question_words)
-    question_chars = t.concat(question_chars)
 
     context_words, context_orig_idxs, context_len_idxs, context_lens = pad_and_sort(context_words)
     context_words = context_words[context_orig_idxs]
     context_mask = mask_sequence(context_words)
-    context_chars = t.concat(context_chars)
 
     answer_span_starts, _, _, _ = pad_and_sort(answer_span_starts)
     answer_span_starts = answer_span_starts[context_orig_idxs]
@@ -110,6 +108,12 @@ def pad_and_sort(seq: List[Any]) -> Tuple[t.LongTensor, t.LongTensor, t.LongTens
         - Length-sorted-to-original sort indices (meaning batch[orig_idxs] == seq)
         - lengths of sequences
     """
+    if len(seq) == 1:
+        batch = t.LongTensor(seq)
+        orig_idxs = t.LongTensor([0])
+        length_idxs = t.LongTensor([0])
+        lengths = t.LongTensor([1])
+        return batch, orig_idxs, length_idxs, lengths
     lengths = t.LongTensor([el.shape[0] for el in seq])
     lengths, length_idxs = lengths.sort(0, descending=True)
     seq = np.array(seq)

@@ -4,6 +4,7 @@ Module for testing dataset representations
 import unittest
 from unittest.mock import Mock, MagicMock
 import numpy as np
+import torch as t
 
 from typing import List
 from model.batcher import (QABatch,
@@ -23,7 +24,8 @@ class BatcherTestCase(unittest.TestCase):
     def setUp(self):
         vocab = ['c0', 'c1', 'c2', 'c3', 'c4']
         char_vocab = set([char for word in vocab for char in word])
-        token_id_mapping = dict(map(reversed, enumerate(vocab)))
+        self.token_id_mapping = dict(map(reversed, enumerate(vocab)))
+        self.id_token_mapping = dict(enumerate(vocab))
         self.char_mapping = dict(map(reversed, enumerate(char_vocab)))
 
         def split_tokenize(txt: str):
@@ -37,7 +39,7 @@ class BatcherTestCase(unittest.TestCase):
         self.processor = Mock(TextProcessor)
         self.processor.process.side_effect = lambda txt: txt
         self.vectors = MagicMock(WordVectors)
-        self.vectors.__getitem__.side_effect = lambda tok: token_id_mapping[tok]
+        self.vectors.__getitem__.side_effect = lambda tok: self.token_id_mapping[tok]
 
     def make_sample(self, context_text: str, answers: List[Answer], question_id: str, question_text: str) -> EncodedSample:
         context_tokens = self.tokenizer.tokenize(context_text)
@@ -51,7 +53,19 @@ class BatcherTestCase(unittest.TestCase):
         encoded_sample = EncodedSample(context_word_encoding, context_char_encoding, encoded_qa_obj)
         return encoded_sample
 
-    def test_pad_and_sort(self):
+    def test_pad_and_sort_single_seq(self):
+        seq = [np.array([1])]
+        batch, orig_idxs, length_idxs, lengths = pad_and_sort(seq)
+        self.assertTrue(np.all(batch.numpy() == np.array([1])),
+                        'Batch: {0}, expected: {1}'.format(batch, [1]))
+        self.assertTrue(np.all(orig_idxs.numpy() == np.array([0])),
+                        'Length idxs: {0}, expected: {1}'.format(length_idxs, [0]))
+        self.assertTrue(np.all(length_idxs.numpy() == np.array([0])),
+                        'Orig idxs: {0}, expected: {1}'.format(orig_idxs, [0]))
+        self.assertTrue(np.all(lengths.numpy() == np.array([1])),
+                        'Lengths: {0}, expected: {1}'.format(lengths, [1]))
+
+    def test_pad_and_sort_regular(self):
         seqs = [
             np.array([1, 1, 1]),
             np.array([2]),
@@ -103,7 +117,7 @@ class BatcherTestCase(unittest.TestCase):
                                batch),
                         'After orig idxs and len idxs: {0}, expected: {1}'.format(batch[orig_idxs][length_idxs], batch))
 
-    def test_collate_batch_simple(self):
+    def test_collate_batch_simple_words(self):
         """
         Tests that collate batch includes all question ids in original order
         """
@@ -116,9 +130,9 @@ class BatcherTestCase(unittest.TestCase):
         self.assertEqual(batch.question_ids, [QuestionId('q0'),
                                               QuestionId('q1'),
                                               QuestionId('q2')])
-        self.assertTrue(np.all(batch.questions.numpy() ==
+        self.assertTrue(np.all(batch.question_words.numpy() ==
                                np.stack([[1], [2], [3]])),
-                        'Batch questions: {0} Expected: {1}'.format(batch.questions, [[1], [2], [3]]))
+                        'Batch questions: {0} Expected: {1}'.format(batch.question_words, [[1], [2], [3]]))
 
     def test_collate_batch_q_len_sorting(self):
         """
@@ -132,9 +146,9 @@ class BatcherTestCase(unittest.TestCase):
         ]
 
         batch: QABatch = collate_batch(samples)
-        self.assertTrue(np.all(batch.questions.numpy() ==
+        self.assertTrue(np.all(batch.question_words.numpy() ==
                                np.stack([[1, 0, 0], [1, 2, 3], [1, 2, 0]])),
-                        'Batch questions: {0} Expected: {1}'.format(batch.questions, [[1, 0, 0], [1, 2, 3], [1, 2, 0]]))
+                        'Batch questions: {0} Expected: {1}'.format(batch.question_words, [[1, 0, 0], [1, 2, 3], [1, 2, 0]]))
         self.assertTrue(np.allclose(batch.question_lens, [3, 2, 1]),
                         'Question lens: {0} expected: {1}'.format(batch.question_lens, [3, 2, 1]))
         self.assertTrue(np.allclose(batch.question_len_idxs, [1, 2, 0]),
@@ -169,5 +183,22 @@ class BatcherTestCase(unittest.TestCase):
 
         self.assertTrue(np.allclose(batch.context_len_idxs, [0, 2, 1]))
         self.assertTrue(np.allclose(batch.question_len_idxs, [1, 0, 2]))
-        self.assertTrue(np.allclose(batch.questions, (batch.questions[batch.question_len_idxs])[batch.question_orig_idxs]))
-        self.assertTrue(np.allclose(batch.contexts, (batch.contexts[batch.context_len_idxs])[batch.context_orig_idxs]))
+        self.assertTrue(np.allclose(batch.question_words, (batch.question_words[batch.question_len_idxs])[batch.question_orig_idxs]))
+        self.assertTrue(np.allclose(batch.context_words, (batch.context_words[batch.context_len_idxs])[batch.context_orig_idxs]))
+
+    def test_collate_batch_question_chars(self):
+        """
+        Tests that collate batch includes all question word characters are parsed correctly
+        """
+        samples: List[EncodedSample] = [
+            self.make_sample('c0', [], 'q0', 'c1'),
+            self.make_sample('c0', [], 'q1', 'c2'),
+            self.make_sample('c0', [], 'q2', 'c3'),
+        ]
+        batch: QABatch = collate_batch(samples)
+        self.assertEqual(len(batch.question_chars), 3)
+        for idx, sample in enumerate(batch.question_chars):
+            word = self.id_token_mapping[batch.question_words[idx].item()]
+            self.assertEqual(sample[0].shape, t.Size([2]))
+            self.assertEqual(sample[0][0], self.char_mapping[word[0]])
+            self.assertEqual(sample[0][1].item(), self.char_mapping[word[1]])
