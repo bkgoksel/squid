@@ -202,3 +202,20 @@ class BatcherTestCase(unittest.TestCase):
             self.assertEqual(sample[0].shape, t.Size([2]))
             self.assertEqual(sample[0][0], self.char_mapping[word[0]])
             self.assertEqual(sample[0][1].item(), self.char_mapping[word[1]])
+
+    def test_collate_batch_context_chars(self):
+        """
+        Tests that collate batch includes all question word characters are parsed correctly
+        """
+        samples: List[EncodedSample] = [
+            self.make_sample('c0', [], 'q0', 'c1'),
+            self.make_sample('c0', [], 'q1', 'c2'),
+            self.make_sample('c0', [], 'q2', 'c3'),
+        ]
+        batch: QABatch = collate_batch(samples)
+        self.assertEqual(len(batch.context_chars), 3)
+        for idx, sample in enumerate(batch.context_chars):
+            word = self.id_token_mapping[batch.context_words[idx].item()]
+            self.assertEqual(sample[0].shape, t.Size([2]))
+            self.assertEqual(sample[0][0], self.char_mapping[word[0]])
+            self.assertEqual(sample[0][1].item(), self.char_mapping[word[1]])
