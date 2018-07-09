@@ -22,11 +22,11 @@ from model.wv import WordVectors
 
 class BatcherTestCase(unittest.TestCase):
     def setUp(self):
-        vocab = ['c0', 'c1', 'c2', 'c3', 'c4']
+        vocab = ['c1', 'c2', 'c3', 'c4', 'c00']
         char_vocab = set([char for word in vocab for char in word])
-        self.token_id_mapping = dict(map(reversed, enumerate(vocab)))
-        self.id_token_mapping = dict(enumerate(vocab))
-        self.char_mapping = dict(map(reversed, enumerate(char_vocab)))
+        self.token_id_mapping = dict(map(reversed, enumerate(vocab, 1)))
+        self.id_token_mapping = dict(enumerate(vocab, 1))
+        self.char_mapping = dict(map(reversed, enumerate(char_vocab, 1)))
 
         def split_tokenize(txt: str):
             toks = txt.split()
@@ -122,9 +122,9 @@ class BatcherTestCase(unittest.TestCase):
         Tests that collate batch includes all question ids in original order
         """
         samples: List[EncodedSample] = [
-            self.make_sample('c0', [], 'q0', 'c1'),
-            self.make_sample('c0', [], 'q1', 'c2'),
-            self.make_sample('c0', [], 'q2', 'c3'),
+            self.make_sample('c1', [], 'q0', 'c1'),
+            self.make_sample('c1', [], 'q1', 'c2'),
+            self.make_sample('c1', [], 'q2', 'c3'),
         ]
         batch: QABatch = collate_batch(samples)
         self.assertEqual(batch.question_ids, [QuestionId('q0'),
@@ -140,9 +140,9 @@ class BatcherTestCase(unittest.TestCase):
         len_idxs indices map to correct indices
         """
         samples: List[EncodedSample] = [
-            self.make_sample('c0', [], 'q0', 'c1'),
-            self.make_sample('c0', [], 'q1', 'c1 c2 c3'),
-            self.make_sample('c0', [], 'q2', 'c1 c2'),
+            self.make_sample('c1', [], 'q0', 'c1'),
+            self.make_sample('c1', [], 'q1', 'c1 c2 c3'),
+            self.make_sample('c1', [], 'q2', 'c1 c2'),
         ]
 
         batch: QABatch = collate_batch(samples)
@@ -160,9 +160,9 @@ class BatcherTestCase(unittest.TestCase):
         len_idxs indices map to correct indices
         """
         samples: List[EncodedSample] = [
-            self.make_sample('c0 c1 c2', [], 'q0', 'c1'),
-            self.make_sample('c0', [], 'q1', 'c1'),
-            self.make_sample('c0 c1', [], 'q2', 'c1'),
+            self.make_sample('c1 c2 c3', [], 'q0', 'c1'),
+            self.make_sample('c1', [], 'q1', 'c1'),
+            self.make_sample('c1 c2', [], 'q2', 'c1'),
         ]
 
         batch: QABatch = collate_batch(samples)
@@ -174,9 +174,9 @@ class BatcherTestCase(unittest.TestCase):
         Tests that (q|c)[len_sorted][orig_idxs] == q|c
         """
         samples: List[EncodedSample] = [
-            self.make_sample('c0 c1 c2', [], 'q0', 'c0 c1'),
-            self.make_sample('c0', [], 'q1', 'c0 c1 c2'),
-            self.make_sample('c0 c1', [], 'q2', 'c1'),
+            self.make_sample('c1 c2 c3', [], 'q0', 'c1 c2'),
+            self.make_sample('c1', [], 'q1', 'c1 c2 c3'),
+            self.make_sample('c1 c2', [], 'q2', 'c1'),
         ]
 
         batch: QABatch = collate_batch(samples)
@@ -188,12 +188,12 @@ class BatcherTestCase(unittest.TestCase):
 
     def test_collate_batch_question_chars(self):
         """
-        Tests that collate batch includes all question word characters are parsed correctly
+        Tests that collate batch includes all question word characters that are parsed correctly
         """
         samples: List[EncodedSample] = [
-            self.make_sample('c0', [], 'q0', 'c1'),
-            self.make_sample('c0', [], 'q1', 'c2'),
-            self.make_sample('c0', [], 'q2', 'c3'),
+            self.make_sample('c1', [], 'q0', 'c1'),
+            self.make_sample('c2', [], 'q1', 'c2'),
+            self.make_sample('c3', [], 'q2', 'c3'),
         ]
         batch: QABatch = collate_batch(samples)
         self.assertEqual(len(batch.question_chars), 3)
@@ -205,12 +205,12 @@ class BatcherTestCase(unittest.TestCase):
 
     def test_collate_batch_context_chars(self):
         """
-        Tests that collate batch includes all question word characters are parsed correctly
+        Tests that collate batch includes all context word characters that are parsed correctly
         """
         samples: List[EncodedSample] = [
-            self.make_sample('c0', [], 'q0', 'c1'),
-            self.make_sample('c0', [], 'q1', 'c2'),
-            self.make_sample('c0', [], 'q2', 'c3'),
+            self.make_sample('c1', [], 'q0', 'c1'),
+            self.make_sample('c2', [], 'q1', 'c1'),
+            self.make_sample('c3', [], 'q2', 'c1'),
         ]
         batch: QABatch = collate_batch(samples)
         self.assertEqual(len(batch.context_chars), 3)
@@ -219,3 +219,53 @@ class BatcherTestCase(unittest.TestCase):
             self.assertEqual(sample[0].shape, t.Size([2]))
             self.assertEqual(sample[0][0], self.char_mapping[word[0]])
             self.assertEqual(sample[0][1].item(), self.char_mapping[word[1]])
+
+    def test_collate_batch_different_question_word_lens(self):
+        """
+        Tests that collate batch deals with questions with different
+        question word lengths
+        """
+        samples: List[EncodedSample] = [
+            self.make_sample('c1', [], 'q0', 'c00'),
+            self.make_sample('c1', [], 'q1', 'c1'),
+        ]
+        batch: QABatch = collate_batch(samples)
+        self.assertEqual(batch.question_chars.shape, t.Size([2, 1, 3]))
+
+    def test_collate_batch_different_question_word_numbers_and_lens(self):
+        """
+        Tests that collate batch deals with questions with different
+        question word lengths and numbers
+        """
+        samples: List[EncodedSample] = [
+            self.make_sample('c1', [], 'q0', 'c1'),
+            self.make_sample('c1', [], 'q1', 'c00'),
+            self.make_sample('c1', [], 'q2', 'c1 c00'),
+        ]
+        batch: QABatch = collate_batch(samples)
+        self.assertEqual(batch.question_chars.shape, t.Size([3, 2, 3]))
+
+    def test_collate_batch_different_context_word_lens(self):
+        """
+        Tests that collate batch deals with questions with different
+        context word lengths
+        """
+        samples: List[EncodedSample] = [
+            self.make_sample('c00', [], 'q0', 'c1'),
+            self.make_sample('c1', [], 'q1', 'c1'),
+        ]
+        batch: QABatch = collate_batch(samples)
+        self.assertEqual(batch.context_chars.shape, t.Size([2, 1, 3]))
+
+    def test_collate_batch_different_context_word_numbers_and_lens(self):
+        """
+        Tests that collate batch deals with questions with different
+        context word lengths and numbers
+        """
+        samples: List[EncodedSample] = [
+            self.make_sample('c1', [], 'q0', 'c1'),
+            self.make_sample('c00', [], 'q1', 'c1'),
+            self.make_sample('c1 c00', [], 'q2', 'c1'),
+        ]
+        batch: QABatch = collate_batch(samples)
+        self.assertEqual(batch.context_chars.shape, t.Size([3, 2, 3]))

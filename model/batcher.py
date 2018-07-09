@@ -22,14 +22,14 @@ lengths come sorted
 """
 QABatch = NamedTuple('QABatch', [
     ('question_words', t.LongTensor),
-    ('question_chars', List[t.LongTensor]),
+    ('question_chars', t.LongTensor),
     ('question_lens', t.LongTensor),
     ('question_len_idxs', t.LongTensor),
     ('question_orig_idxs', t.LongTensor),
     ('question_mask', t.LongTensor),
     ('question_ids', List[QuestionId]),
     ('context_words', t.LongTensor),
-    ('context_chars', List[t.LongTensor]),
+    ('context_chars', t.LongTensor),
     ('context_lens', t.LongTensor),
     ('context_len_idxs', t.LongTensor),
     ('context_orig_idxs', t.LongTensor),
@@ -47,32 +47,50 @@ def collate_batch(batch: List[EncodedSample]) -> QABatch:
     :param batch: List[EncodedSample] QA samples
     :returns: a QABatch
     """
-    question_words = []
-    question_chars = []
+    question_words_list = []
+    question_chars_list = []
     question_ids = []
-    context_words = []
-    context_chars = []
+    context_words_list = []
+    context_chars_list = []
     answer_span_starts = []
     answer_span_ends = []
 
+    batch_size = len(batch)
+    max_question_word_len = 0
+    max_ctx_word_len = 0
+
     for sample in batch:
-        question_words.append(sample.question_words)
+        question_words_list.append(sample.question_words)
         question_ids.append(sample.question_id)
-        context_words.append(sample.context_words)
+        context_words_list.append(sample.context_words)
         answer_span_starts.append(sample.span_starts)
         answer_span_ends.append(sample.span_ends)
-        this_question_chars, _, orig_idxs, _ = pad_and_sort(sample.question_chars)
-        question_chars.append(this_question_chars[orig_idxs])
-        this_ctx_chars, _, orig_idxs, _ = pad_and_sort(sample.context_chars)
-        context_chars.append(this_ctx_chars[orig_idxs])
+        question_chars_list.append(sample.question_chars)
+        max_question_word_len = max(max_question_word_len, max(word.size for word in sample.question_chars))
+        context_chars_list.append(sample.context_chars)
+        max_ctx_word_len = max(max_ctx_word_len, max(word.size for word in sample.context_chars))
 
-    question_words, question_orig_idxs, question_len_idxs, question_lens = pad_and_sort(question_words)
+    question_words, question_orig_idxs, question_len_idxs, question_lens = pad_and_sort(question_words_list)
     question_words = question_words[question_orig_idxs]
     question_mask = mask_sequence(question_words)
 
-    context_words, context_orig_idxs, context_len_idxs, context_lens = pad_and_sort(context_words)
+    # TODO: Is there a more efficient way of doing this?
+    max_question_len = question_lens[0]
+    question_chars = t.zeros((batch_size, max_question_len, max_question_word_len), dtype=t.int32)
+    for batch_idx, q_chars in enumerate(question_chars_list):
+        for word_idx, word in enumerate(q_chars):
+            question_chars[batch_idx, word_idx, :word.size] = t.Tensor(word)
+
+    context_words, context_orig_idxs, context_len_idxs, context_lens = pad_and_sort(context_words_list)
     context_words = context_words[context_orig_idxs]
     context_mask = mask_sequence(context_words)
+
+    # TODO: Is there a more efficient way of doing this?
+    max_context_len = context_lens[0]
+    context_chars = t.zeros((batch_size, max_context_len, max_ctx_word_len), dtype=t.int32)
+    for batch_idx, c_chars in enumerate(context_chars_list):
+        for word_idx, word in enumerate(c_chars):
+            context_chars[batch_idx, word_idx, :word.size] = t.Tensor(word)
 
     answer_span_starts, _, _, _ = pad_and_sort(answer_span_starts)
     answer_span_starts = answer_span_starts[context_orig_idxs]
@@ -116,9 +134,7 @@ def pad_and_sort(seq: List[Any]) -> Tuple[t.LongTensor, t.LongTensor, t.LongTens
         return batch, orig_idxs, length_idxs, lengths
     lengths = t.LongTensor([el.shape[0] for el in seq])
     lengths, length_idxs = lengths.sort(0, descending=True)
-    seq = np.array(seq)
-    seq = seq[length_idxs]
-    seq = [t.LongTensor(el) for el in seq]
+    seq = [t.LongTensor(seq[i]) for i in length_idxs]
     batch = pad_sequence(seq, batch_first=True)
     _, orig_idxs = length_idxs.sort()
     return batch, orig_idxs, length_idxs, lengths
