@@ -196,12 +196,8 @@ class BatcherTestCase(unittest.TestCase):
             self.make_sample('c3', [], 'q2', 'c3'),
         ]
         batch: QABatch = collate_batch(samples)
-        self.assertEqual(len(batch.question_chars), 3)
-        for idx, sample in enumerate(batch.question_chars):
-            word = self.id_token_mapping[batch.question_words[idx].item()]
-            self.assertEqual(sample[0].shape, t.Size([2]))
-            self.assertEqual(sample[0][0], self.char_mapping[word[0]])
-            self.assertEqual(sample[0][1].item(), self.char_mapping[word[1]])
+        self.assertEqual(batch.question_chars.shape, t.Size([3, 1, 2]))
+        self.check_collated_chars(batch.question_chars, batch.question_words)
 
     def test_collate_batch_context_chars(self):
         """
@@ -213,12 +209,8 @@ class BatcherTestCase(unittest.TestCase):
             self.make_sample('c3', [], 'q2', 'c1'),
         ]
         batch: QABatch = collate_batch(samples)
-        self.assertEqual(len(batch.context_chars), 3)
-        for idx, sample in enumerate(batch.context_chars):
-            word = self.id_token_mapping[batch.context_words[idx].item()]
-            self.assertEqual(sample[0].shape, t.Size([2]))
-            self.assertEqual(sample[0][0], self.char_mapping[word[0]])
-            self.assertEqual(sample[0][1].item(), self.char_mapping[word[1]])
+        self.assertEqual(batch.question_chars.shape, t.Size([3, 1, 2]))
+        self.check_collated_chars(batch.context_chars, batch.context_words)
 
     def test_collate_batch_different_question_word_lens(self):
         """
@@ -231,6 +223,7 @@ class BatcherTestCase(unittest.TestCase):
         ]
         batch: QABatch = collate_batch(samples)
         self.assertEqual(batch.question_chars.shape, t.Size([2, 1, 3]))
+        self.check_collated_chars(batch.question_chars, batch.question_words)
 
     def test_collate_batch_different_question_word_numbers_and_lens(self):
         """
@@ -244,6 +237,7 @@ class BatcherTestCase(unittest.TestCase):
         ]
         batch: QABatch = collate_batch(samples)
         self.assertEqual(batch.question_chars.shape, t.Size([3, 2, 3]))
+        self.check_collated_chars(batch.question_chars, batch.question_words)
 
     def test_collate_batch_different_context_word_lens(self):
         """
@@ -256,6 +250,7 @@ class BatcherTestCase(unittest.TestCase):
         ]
         batch: QABatch = collate_batch(samples)
         self.assertEqual(batch.context_chars.shape, t.Size([2, 1, 3]))
+        self.check_collated_chars(batch.context_chars, batch.context_words)
 
     def test_collate_batch_different_context_word_numbers_and_lens(self):
         """
@@ -269,3 +264,14 @@ class BatcherTestCase(unittest.TestCase):
         ]
         batch: QABatch = collate_batch(samples)
         self.assertEqual(batch.context_chars.shape, t.Size([3, 2, 3]))
+        self.check_collated_chars(batch.context_chars, batch.context_words)
+
+    def check_collated_chars(self, chars, words):
+        for batch_idx in range(chars.shape[0]):
+            for word_idx in range(chars.shape[1]):
+                word_id = words[batch_idx, word_idx].item()
+                word = self.id_token_mapping.get(word_id, '')
+                for char_idx in range(chars.shape[2]):
+                    sample = chars[batch_idx, word_idx, char_idx]
+                    real_char = self.char_mapping[word[char_idx]] if char_idx < len(word) else 0
+                    self.assertEqual(sample, real_char)
