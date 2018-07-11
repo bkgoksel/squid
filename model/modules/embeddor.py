@@ -1,7 +1,7 @@
 """
 Module that holds classes built for embedding text
 """
-from typing import Dict
+from typing import Dict, List, NamedTuple, Optional
 
 import torch as t
 import torch.nn as nn
@@ -9,65 +9,125 @@ import torch.nn as nn
 from model.wv import WordVectors
 
 
-class WordEmbeddor(nn.Module):
+WordEmbeddorConfig = NamedTuple('WordEmbeddorConfig', [
+    ('vectors', WordVectors),
+    ('train_vecs', bool)
+])
+
+
+PoolingCharEmbeddorConfig = NamedTuple('PoolingCharEmbeddorConfig', [
+    ('char_vocab_size', int),
+    ('embedding_dimension', int)
+])
+
+
+EmbeddorConfig = NamedTuple('EmbeddorConfig', [
+    ('word_embeddor', Optional[WordEmbeddorConfig]),
+    ('char_embeddor', Optional[PoolingCharEmbeddorConfig])
+])
+
+
+class Embeddor(nn.Module):
+    """
+    Base class for embeddors
+    """
+    embedding_dim: int
+
+    def __init__(self, embedding_dim: int) -> None:
+        super().__init__()
+        self.embedding_dim = embedding_dim
+
+    def forward(self, words: t.LongTensor, chars: t.LongTensor) -> t.Tensor:
+        """
+        :param words: Words of the batch organized in a tensor in the following shape:
+            (batch_size, max_num_words)
+        :param chars: Characters of a batch organized in a tensor in the following shape:
+            (batch_size, max_num_words, max_num_chars)
+        :returns: Embeddings for each word of shape:
+            (batch_size, max_num_words, embedding_dim)
+        """
+        raise NotImplementedError
+
+
+class WordEmbeddor(Embeddor):
     """
     Module that embeds words using pretrained word vectors
     """
     embed: nn.Embedding
 
     def __init__(self, word_vectors: WordVectors, train_vecs: bool) -> None:
-        super().__init__()
+        super().__init__(word_vectors.dim)
         self.embed = nn.Embedding.from_pretrained(t.Tensor(word_vectors.vectors),
                                                   freeze=(not train_vecs))
 
-    def forward(self, text: t.LongTensor) -> t.Tensor:
-        return self.embed(text)
+    def forward(self, words: t.LongTensor, chars: t.LongTensor) -> t.Tensor:
+        """
+        :param words: Words of the batch organized in a tensor in the following shape:
+            (batch_size, max_num_words)
+        :param chars: Characters of a batch, unused by this module
+        :returns: Pretrainde word embeddings for each word of shape:
+            (batch_size, max_num_words, embedding_dim)
+        """
+        self.embed(words)
 
 
-class PoolingCharEmbeddor(nn.Module):
+class PoolingCharEmbeddor(Embeddor):
     """
     Module that embeds words by training character-level embeddings and max pooling over them
     """
     embed: nn.Embedding
 
     def __init__(self, char_vocab_size: int, embedding_dimension: int) -> None:
-        super().__init__()
-        self.embed = nn.Embedding(char_vocab_size, embedding_dimension, padding_idx=0)
+        super().__init__(embedding_dimension)
+        self.embed = nn.Embedding(char_vocab_size + 1, embedding_dimension, padding_idx=0)
 
-    def forward(self, chars: t.LongTensor) -> t.Tensor:
+    def forward(self, words: t.LongTensor, chars: t.LongTensor) -> t.Tensor:
         """
+        :param words: Words of the batch, unused by this module
         :param chars: Characters of a batch organized in a tensor in the following shape:
             (batch_size, max_num_words, max_num_chars)
-        1. Embeds the chars ->
-            (batch, word, char_idx, embedding_size)
-        2. Pools the embeddings ->
-            (batch, word, embedding_size)
-
+        :returns: Character-level embeddings for each word of shape:
+            (batch_size, max_num_words, embedding_dim)
         """
         embeddings = self.embed(chars)
         pooled, _ = embeddings.max(2)
         return pooled
 
 
-class WordCharPoolCombinedEmbeddor(nn.Module):
+class ConcatenatingEmbeddor(Embeddor):
     """
-    Module that embeds each word using a concatenation of
-    its word embeddings and char-level max-pooled embeddings
+    Module that takes multiple Embeddors and concatenates their outputs to produce final embeddings
     """
-    word_embeddor: WordEmbeddor
-    char_embeddor: PoolingCharEmbeddor
+    embeddors: List[Embeddor]
 
-    def __init__(self,
-                 word_vectors: WordVectors,
-                 train_vecs: bool,
-                 char_vocab_size: int,
-                 char_embedding_dimension: int) -> None:
-        super().__init__()
-        self.word_embeddor = WordEmbeddor(word_vectors, train_vecs)
-        self.char_embeddor = PoolingCharEmbeddor(char_vocab_size, char_embedding_dimension)
+    def __init__(self, *args) -> None:
+        super().__init__(sum(embeddor.embedding_dim for embeddor in args))
+        self.embeddors = list(args)
 
-    def forward(self, word_encoding: t.LongTensor, char_encoding: t.LongTensor) -> t.Tensor:
-        word_embeddings = self.word_embeddor(word_encoding)
-        char_embeddings = self.char_embeddor(char_encoding)
-        combined_embeddings = t.cat([word_embeddings, char_embeddings], dim=2)
-        return combined_embeddings
+    def forward(self, words: t.LongTensor, chars: t.LongTensor) -> t.Tensor:
+        """
+        :param words: Words of the batch organized in a tensor in the following shape:
+            (batch_size, max_num_words)
+        :param chars: Characters of a batch organized in a tensor in the following shape:
+            (batch_size, max_num_words, max_num_chars)
+        :returns: Concatenated embeddings from all the given embeddors
+            (batch_size, max_num_words, embedding_dim)
+        """
+        embeddings = [embeddor(words, chars) for embeddor in self.embeddors]
+        return t.cat(embeddings, dim=2)
+
+
+def make_embeddor(config: EmbeddorConfig) -> Embeddor:
+    """
+    Makes an embeddor given an embeddor config
+    :param config: An EmbeddorConfig object decsribing the embeddor to be made
+    :returns: An Embeddor module as described by the config
+    """
+    embeddors = []
+    assert(config.word_embeddor or config.char_embeddor)
+    if config.word_embeddor:
+        embeddors.append(WordEmbeddor(config.word_embeddor.vectors, config.word_embeddor.train_vecs))
+    if config.char_embeddor:
+        embeddors.append(PoolingCharEmbeddor(config.char_embeddor.char_vocab_size, config.char_embeddor.embedding_dimension))
+    return ConcatenatingEmbeddor(*embeddors)
+

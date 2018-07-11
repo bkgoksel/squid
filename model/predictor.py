@@ -12,7 +12,10 @@ from model.wv import WordVectors
 from model.batcher import QABatch
 from model.modules.attention import SimpleAttention, AttentionConfig
 from model.modules.masked import MaskedLinear
-from model.modules.embeddor import WordEmbeddor
+from model.modules.embeddor import (Embeddor,
+                                    WordEmbeddor,
+                                    PoolingCharEmbeddor,
+                                    ConcatenatingEmbeddor)
 
 
 ModelPredictions = NamedTuple('ModelPredictions', [
@@ -56,18 +59,21 @@ class BasicPredictorConfig():
     train_vecs: bool
     batch_size: int
     n_directions: int
+    char_vocab_size: int
+    char_embedding_dimension: int
 
     def __init__(self,
                  gru: GRUConfig,
                  attention_hidden_size: int,
                  train_vecs: bool,
-                 batch_size: int) -> None:
+                 batch_size: int,
+                 char_vocab_size: int,
+                 char_embedding_dimension: int) -> None:
         self.gru = gru
         self.n_directions = 1 + int(self.gru.bidirectional)
         self.total_hidden_size = self.n_directions * self.gru.hidden_size
         self.attention = AttentionConfig(input_size=self.total_hidden_size,
                                          hidden_size=attention_hidden_size)
-        self.train_vecs = train_vecs
         self.batch_size = batch_size
 
 
@@ -77,7 +83,7 @@ class BasicPredictor(PredictorModel):
     """
 
     config: BasicPredictorConfig
-    embed: WordEmbeddor
+    embed: Embeddor
     q_gru: nn.GRU
     q_hidden_state: t.Tensor
     ctx_gru: nn.GRU
@@ -88,17 +94,17 @@ class BasicPredictor(PredictorModel):
     no_answer_gru: nn.GRU
     no_answer_predictor: nn.Linear
 
-    def __init__(self, word_vectors: WordVectors, config: BasicPredictorConfig) -> None:
+    def __init__(self, embeddor: Embeddor, config: BasicPredictorConfig) -> None:
         super().__init__()
         self.config = config
-        self.embed = WordEmbeddor(word_vectors, self.config.train_vecs)
-        self.q_gru = nn.GRU(word_vectors.dim,
+        self.embed = embeddor
+        self.q_gru = nn.GRU(self.embed.embedding_dim,
                             self.config.gru.hidden_size,
                             self.config.gru.num_layers,
                             dropout=self.config.gru.dropout,
                             batch_first=True,
                             bidirectional=self.config.gru.bidirectional)
-        self.ctx_gru = nn.GRU(word_vectors.dim,
+        self.ctx_gru = nn.GRU(self.embed.embedding_dim,
                               self.config.gru.hidden_size,
                               self.config.gru.num_layers,
                               dropout=self.config.gru.dropout,
@@ -120,7 +126,7 @@ class BasicPredictor(PredictorModel):
         Check base class method for docs
         """
 
-        q_embedded = self.embed(batch.questions)
+        q_embedded = self.embed(batch.question_words, batch.question_chars)
         q_len_sorted = q_embedded[batch.question_len_idxs]
         q_packed: PackedSequence = pack_padded_sequence(q_len_sorted,
                                                         batch.question_lens,
@@ -131,7 +137,7 @@ class BasicPredictor(PredictorModel):
         # ordering matches with the context encoding
         q_out = q_out_len_sorted[batch.question_orig_idxs]
 
-        ctx_embedded = self.embed(batch.contexts)
+        ctx_embedded = self.embed(batch.context_words, batch.context_chars)
         ctx_len_sorted = ctx_embedded[batch.context_len_idxs]
         ctx_packed: PackedSequence = pack_padded_sequence(ctx_len_sorted,
                                                           batch.context_lens,

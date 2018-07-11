@@ -5,6 +5,7 @@ Module that deals with preparing QA corpora
 import json
 import pickle
 from typing import (Any,
+                    Sized,
                     List,
                     Dict,
                     Set,
@@ -33,7 +34,8 @@ CorpusStats = NamedTuple('CorpusStats', [
     ('max_context_len', int),
     ('max_q_len', int),
     ('max_word_len', int),
-    ('vocab_size', int)
+    ('vocab_size', int),
+    ('char_vocab_size', int)
 ])
 
 
@@ -76,8 +78,8 @@ class Corpus():
     def from_raw(cls, data_file: str, tokenizer: Tokenizer, processor: TextProcessor):
         context_qas = cls.read_context_qas(data_file, tokenizer, processor)
         vocab = cls.compute_vocab(context_qas)
-        stats = cls.compute_stats(context_qas, vocab)
         char_mapping = cls.compute_char_indices(context_qas)
+        stats = cls.compute_stats(context_qas, vocab, char_mapping.keys())
         return cls(context_qas, vocab, char_mapping, stats)
 
     @staticmethod
@@ -143,7 +145,8 @@ class Corpus():
 
     @staticmethod
     def compute_stats(context_qas: List[ContextQuestionAnswer],
-                      vocab: Set[str]) -> CorpusStats:
+                      vocab: Sized,
+                      char_vocab: Sized) -> CorpusStats:
         """
         Method that computes statistics given list of context qas and vocab
         :param context_qas: List of contextQA objects
@@ -172,7 +175,8 @@ class Corpus():
                            max_context_len=max_context_len,
                            max_q_len=max_q_len,
                            max_word_len=max_word_len,
-                           vocab_size=len(vocab))
+                           vocab_size=len(vocab),
+                           char_vocab_size=len(char_vocab))
 
     def get_single_answer_text(self, qid: QuestionId, span_start: int, span_end: int) -> str:
         """

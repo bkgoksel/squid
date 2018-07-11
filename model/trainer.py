@@ -12,9 +12,16 @@ from model.wv import WordVectors
 from model.corpus import Corpus, QADataset
 from model.qa import QuestionId
 from model.batcher import QABatch, collate_batch
-from model.predictor import PredictorModel, BasicPredictor, BasicPredictorConfig, ModelPredictions
+from model.predictor import (PredictorModel,
+                             BasicPredictor,
+                             BasicPredictorConfig,
+                             ModelPredictions)
 from model.text_processor import TextProcessor
 from model.tokenizer import Tokenizer, NltkTokenizer
+
+from model.modules.embeddor import (Embeddor,
+                                    EmbeddorConfig,
+                                    make_embeddor)
 
 import model.evaluator as evaluator
 from model.evaluator import MultiClassLossEvaluator
@@ -22,11 +29,12 @@ from model.evaluator import MultiClassLossEvaluator
 
 def train_model(train_dataset: QADataset,
                 dev_dataset: QADataset,
-                vectors: WordVectors,
                 num_epochs: int,
                 batch_size: int,
-                predictor_config: BasicPredictorConfig) -> PredictorModel:
-    predictor: PredictorModel = BasicPredictor(vectors, predictor_config)
+                predictor_config: BasicPredictorConfig,
+                embeddor_config: EmbeddorConfig) -> PredictorModel:
+    embeddor: Embeddor = make_embeddor(embeddor_config)
+    predictor: PredictorModel = BasicPredictor(embeddor, predictor_config)
     train_evaluator: MultiClassLossEvaluator = MultiClassLossEvaluator()
     trainable_parameters = filter(lambda p: p.requires_grad, predictor.parameters())
     optimizer: optim.Optimizer = optim.Adam(trainable_parameters)

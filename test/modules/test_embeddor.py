@@ -3,15 +3,14 @@ Module for testing embeddor model utilities
 """
 
 import unittest
-from unittest.mock import Mock, MagicMock
+from unittest.mock import Mock
 
 import numpy as np
 import torch as t
-import torch.nn as nn
 
 from model.modules.embeddor import (WordEmbeddor,
                                     PoolingCharEmbeddor,
-                                    WordCharPoolCombinedEmbeddor)
+                                    ConcatenatingEmbeddor)
 from model.wv import WordVectors
 
 
@@ -28,7 +27,7 @@ class WordEmbeddorTestCase(unittest.TestCase):
         embeddor = WordEmbeddor(self.vectors, False)
         words_list = [[1, 0], [2, 2]]
         words = t.LongTensor(words_list)
-        embedded = embeddor(words)
+        embedded = embeddor(words, t.empty())
         # Check results
         self.assertEqual(embedded.size(), t.Size([len(words_list),  # batch size
                                                   len(words_list[0]),  # max seq len
@@ -40,14 +39,14 @@ class WordEmbeddorTestCase(unittest.TestCase):
 
 class PoolingCharEmbeddorTestCase(unittest.TestCase):
     def setUp(self):
-        self.char_vocab_size = 3
+        self.char_vocab_size = 2
         self.char_embedding_size = 4
 
     def test_pooling_char_embeddor(self):
         embeddor = PoolingCharEmbeddor(self.char_vocab_size, self.char_embedding_size)
         chars_list = [[[1, 1], [0, 0]], [[2, 0], [2, 0]]]
         chars = t.LongTensor(chars_list)
-        embedded = embeddor(chars)
+        embedded = embeddor(t.empty(), chars)
         # Check results
         self.assertEqual(embedded.size(), t.Size([len(chars_list),  # batch size
                                                   len(chars_list[0]),  # max seq len
@@ -55,11 +54,11 @@ class PoolingCharEmbeddorTestCase(unittest.TestCase):
                                                   self.char_embedding_size]))
 
 
-class WordCharPoolCombinedEmbeddorTestCase(unittest.TestCase):
+class ConcatenatingEmbeddorTestCase(unittest.TestCase):
     def setUp(self):
         self.word_embedding_size = 5
         self.word_vocab_len = 3
-        self.char_vocab_size = 3
+        self.char_vocab_size = 2
         self.char_embedding_size = 4
 
         self.total_embedding_size = self.word_embedding_size + self.char_embedding_size
@@ -68,8 +67,9 @@ class WordCharPoolCombinedEmbeddorTestCase(unittest.TestCase):
         for i in range(self.word_vocab_len):
             self.vectors.vectors[i] *= i
 
-    def test_word_and_char_pooling_combined_embeddor(self):
-        embeddor = WordCharPoolCombinedEmbeddor(self.vectors, False, self.char_vocab_size, self.char_embedding_size)
+    def test_word_and_char_pooling_concatenating_embeddor(self):
+        embeddor = ConcatenatingEmbeddor(WordEmbeddor(self.vectors, False),
+                                         PoolingCharEmbeddor(self.char_vocab_size, self.char_embedding_size))
 
         words_list = [[1, 0], [2, 2]]
         words = t.LongTensor(words_list)

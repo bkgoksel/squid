@@ -3,6 +3,7 @@ import json
 
 import model.trainer as trainer
 from model.predictor import BasicPredictorConfig, GRUConfig, PredictorModel
+from model.embeddor import EmbeddorConfig, WordEmbeddorConfig, PoolingCharEmbeddorConfig
 from model.corpus import QADataset
 from model.wv import WordVectors
 
@@ -15,6 +16,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument('--word-vector-file', type=str, default='data/word-vectors/glove/glove.6B.100d.txt')
     parser.add_argument('--batch-size', type=int, default=256)
     parser.add_argument('--num-epochs', type=int, default=25)
+    parser.add_argument('--char-embedding-size', type=int, default=200, help='Set to 0 to disable char-level embeddings')
     parser.add_argument('--lstm-hidden-size', type=int, default=512)
     parser.add_argument('--lstm-num-layers', type=int, default=2)
     parser.add_argument('--lstm-unidirectional', action='store_true')
@@ -27,19 +29,33 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
+    vectors: WordVectors = trainer.load_vectors(args.word_vector_file)
+    train_dataset: QADataset = trainer.load_dataset(args.train_file, vectors)
+    dev_dataset: QADataset = trainer.load_dataset(args.dev_file, vectors)
     predictor_config = BasicPredictorConfig(gru=GRUConfig(hidden_size=args.lstm_hidden_size,
                                                           num_layers=args.lstm_num_layers,
                                                           dropout=args.dropout,
                                                           bidirectional=(not args.lstm_unidirectional)),
                                             attention_hidden_size=args.attention_hidden_size,
-                                            train_vecs=False,
                                             batch_size=args.batch_size)
-    vectors: WordVectors = trainer.load_vectors(args.word_vector_file)
-    train_dataset: QADataset = trainer.load_dataset(args.train_file, vectors)
-    dev_dataset: QADataset = trainer.load_dataset(args.dev_file, vectors)
+    word_embedding_config = WordEmbeddorConfig(vectors=vectors, train_vecs=False)
+    if args.char_embedding_size:
+        char_embedding_config = PoolingCharEmbeddorConfig(embedding_dimension=args.char_embedding_size,
+                                                          char_vocab_size=train_dataset.corpus.stats.char_vocab_size)
+    else:
+        char_embedding_config = None
+
+    embeddor_config = EmbeddorConfig(word_embeddor=word_embedding_config,
+                                     char_embeddor=char_embedding_config)
     print('Training with config: %s \n vectors: %s \n training file: %s \n dev file: %s \n' %
           (predictor_config, args.word_vector_file, args.train_file, args.dev_file))
-    model: PredictorModel = trainer.train_model(train_dataset, dev_dataset, vectors, args.num_epochs, args.batch_size, predictor_config)
+    model: PredictorModel = trainer.train_model(train_dataset,
+                                                dev_dataset,
+                                                vectors,
+                                                args.num_epochs,
+                                                args.batch_size,
+                                                predictor_config,
+                                                embeddor_config)
     if args.answer_train_set:
         train_answers = trainer.answer_dataset(train_dataset, model)
         with open('train-pred.json', 'w') as f:
