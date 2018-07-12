@@ -20,7 +20,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument('--word-vector-file', type=str, default='data/word-vectors/glove/glove.6B.100d.txt')
     parser.add_argument('--batch-size', type=int, default=256)
     parser.add_argument('--num-epochs', type=int, default=25)
-    parser.add_argument('--lr', type=int, default=1e-3)
+    parser.add_argument('--lr', type=float, default=1e-3)
     parser.add_argument('--char-embedding-size', type=int, default=200, help='Set to 0 to disable char-level embeddings')
     parser.add_argument('--lstm-hidden-size', type=int, default=512)
     parser.add_argument('--lstm-num-layers', type=int, default=2)
