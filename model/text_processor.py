@@ -2,7 +2,7 @@
 Module to store various text processors
 """
 
-from typing import Set
+from typing import Set, Dict
 
 
 class TextProcessor():
@@ -10,8 +10,10 @@ class TextProcessor():
     Base class for text processors
     """
 
-    def __init__(self) -> None:
-        pass
+    config: Dict[str, bool]
+
+    def __init__(self, config: Dict[str, bool]) -> None:
+        self.config = config
 
     def process(self, text: str) -> str:
         """
@@ -19,4 +21,4 @@ class TextProcessor():
         :param text: String to be processed
         :returns: String of processed text
         """
-        return text.lower()
+        return text.lower() if self.config['lowercase'] else text

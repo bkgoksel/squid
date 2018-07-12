@@ -56,19 +56,13 @@ class BasicPredictorConfig():
 
     gru: GRUConfig
     attention: AttentionConfig
-    train_vecs: bool
     batch_size: int
     n_directions: int
-    char_vocab_size: int
-    char_embedding_dimension: int
 
     def __init__(self,
                  gru: GRUConfig,
                  attention_hidden_size: int,
-                 train_vecs: bool,
-                 batch_size: int,
-                 char_vocab_size: int,
-                 char_embedding_dimension: int) -> None:
+                 batch_size: int) -> None:
         self.gru = gru
         self.n_directions = 1 + int(self.gru.bidirectional)
         self.total_hidden_size = self.n_directions * self.gru.hidden_size

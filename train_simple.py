@@ -2,8 +2,12 @@ import argparse
 import json
 
 import model.trainer as trainer
-from model.predictor import BasicPredictorConfig, GRUConfig, PredictorModel
-from model.embeddor import EmbeddorConfig, WordEmbeddorConfig, PoolingCharEmbeddorConfig
+from model.predictor import (BasicPredictorConfig,
+                             GRUConfig,
+                             PredictorModel)
+from model.modules.embeddor import (EmbeddorConfig,
+                                    WordEmbeddorConfig,
+                                    PoolingCharEmbeddorConfig)
 from model.corpus import QADataset
 from model.wv import WordVectors
 
@@ -53,7 +57,6 @@ def main() -> None:
           (predictor_config, args.word_vector_file, args.train_file, args.dev_file))
     model: PredictorModel = trainer.train_model(train_dataset,
                                                 dev_dataset,
-                                                vectors,
                                                 args.num_epochs,
                                                 args.batch_size,
                                                 predictor_config,

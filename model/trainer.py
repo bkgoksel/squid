@@ -52,7 +52,7 @@ def train_model(train_dataset: QADataset,
     embeddor: Embeddor = make_embeddor(embeddor_config)
     predictor: PredictorModel = BasicPredictor(embeddor, predictor_config)
     train_evaluator: MultiClassLossEvaluator = MultiClassLossEvaluator()
-    trainable_parameters = filter(lambda p: p.requires_grad, predictor.parameters() + embeddor.parameters())
+    trainable_parameters = filter(lambda p: p.requires_grad, set(predictor.parameters()) | set(embeddor.parameters()))
     optimizer: optim.Optimizer = optim.Adam(trainable_parameters)
     loader: DataLoader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, collate_fn=collate_batch)
     print('%d/%d = %d' % (len(train_dataset), batch_size, len(loader)))

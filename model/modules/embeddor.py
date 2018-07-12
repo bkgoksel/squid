@@ -68,7 +68,7 @@ class WordEmbeddor(Embeddor):
         :returns: Pretrainde word embeddings for each word of shape:
             (batch_size, max_num_words, embedding_dim)
         """
-        self.embed(words)
+        return self.embed(words)
 
 
 class PoolingCharEmbeddor(Embeddor):
