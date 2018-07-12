@@ -32,17 +32,34 @@ def train_model(train_dataset: QADataset,
                 num_epochs: int,
                 batch_size: int,
                 predictor_config: BasicPredictorConfig,
-                embeddor_config: EmbeddorConfig) -> PredictorModel:
+                embeddor_config: EmbeddorConfig,
+                fit_one_batch: bool=False) -> PredictorModel:
+    """
+    Trains a BasicPredictor model on the given train set with given params and returns
+    the trained model instance
+
+    :param train_dataset: A Processed QADataset object of training data
+    :param dev_dataset: A Processed QADataset object of dev data
+    :param num_epochs: Number of epochs to train for
+    :param batch_size: Size of each training batch
+    :param predictor_config: A BasicPredictorConfig object specifying parameters of the model
+    :param embeddor_config: An EmbeddorConfig object that specifies the embeddings layer
+    :param fit_one_batch: If True train on a single batch (default False)
+
+    :returns: A Trained PredictorModel object
+    """
+
     embeddor: Embeddor = make_embeddor(embeddor_config)
     predictor: PredictorModel = BasicPredictor(embeddor, predictor_config)
     train_evaluator: MultiClassLossEvaluator = MultiClassLossEvaluator()
-    trainable_parameters = filter(lambda p: p.requires_grad, predictor.parameters())
+    trainable_parameters = filter(lambda p: p.requires_grad, predictor.parameters() + embeddor.parameters())
     optimizer: optim.Optimizer = optim.Adam(trainable_parameters)
     loader: DataLoader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, collate_fn=collate_batch)
     print('%d/%d = %d' % (len(train_dataset), batch_size, len(loader)))
     for epoch in range(num_epochs):
         epoch_loss = 0.0
-        for batch_num, batch in enumerate(loader):
+        batches = [next(iter(loader))] if fit_one_batch else loader
+        for batch_num, batch in enumerate(batches):
             optimizer.zero_grad()
             predictions: ModelPredictions = predictor(batch)
             loss = train_evaluator(batch, predictions)
