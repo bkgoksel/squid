@@ -90,7 +90,7 @@ class QABatch():
         self.answer_span_ends = self.answer_span_ends.to(device)
 
 
-def collate_batch(batch: List[EncodedSample], device: Any) -> QABatch:
+def collate_batch(batch: List[EncodedSample]) -> QABatch:
     """
     Takes a list of EncodedSample objects and creates a PyTorch batch
     For chars:
