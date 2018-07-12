@@ -67,7 +67,7 @@ def train_model(train_dataset: QADataset,
     else:
         train_evaluator = MultiClassLossEvaluator().to(device)
     trainable_parameters = filter(lambda p: p.requires_grad, set(predictor.parameters()) | set(embeddor.parameters()))
-    optimizer: optim.Optimizer = optim.Adam(trainable_parameters, lr=learning_rate).to(device)
+    optimizer: optim.Optimizer = optim.Adam(trainable_parameters, lr=learning_rate)
     loader: DataLoader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, collate_fn=collate_batch)
     batches = [next(iter(loader)).to(device)] if fit_one_batch else loader
     for epoch in range(num_epochs):

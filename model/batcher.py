@@ -2,7 +2,7 @@
 Module that handles batching logic
 """
 
-from typing import List, Any, Tuple, NamedTuple
+from typing import List, Any, Tuple
 import numpy as np
 import torch as t
 from torch.nn.utils.rnn import pad_sequence
@@ -10,36 +10,87 @@ from torch.nn.utils.rnn import pad_sequence
 from model.modules.masked import mask_sequence
 from model.qa import EncodedSample, QuestionId
 
-"""
-Holds a batch of samples in a form that's easy for the model to use
-len_idxs and orig_idxs allow for length-sorted or original orderings
-of the respective texts i.e.
-question_words[question_len_idxs] = length_sorted_questions
-length_sorted_questions[question_orig_idxs] = question_words
 
-masks, and question_ids come in original ordering
-lengths come sorted
-"""
-QABatch = NamedTuple('QABatch', [
-    ('question_words', t.LongTensor),
-    ('question_chars', t.LongTensor),
-    ('question_lens', t.LongTensor),
-    ('question_len_idxs', t.LongTensor),
-    ('question_orig_idxs', t.LongTensor),
-    ('question_mask', t.LongTensor),
-    ('question_ids', List[QuestionId]),
-    ('context_words', t.LongTensor),
-    ('context_chars', t.LongTensor),
-    ('context_lens', t.LongTensor),
-    ('context_len_idxs', t.LongTensor),
-    ('context_orig_idxs', t.LongTensor),
-    ('context_mask', t.LongTensor),
-    ('answer_span_starts', t.LongTensor),
-    ('answer_span_ends', t.LongTensor)
-])
+class QABatch():
+    """
+    Holds a batch of samples in a form that's easy for the model to use
+    len_idxs and orig_idxs allow for length-sorted or original orderings
+    of the respective texts i.e.
+    question_words[question_len_idxs] = length_sorted_questions
+    length_sorted_questions[question_orig_idxs] = question_words
+
+    masks, and question_ids come in original ordering
+    lengths come sorted
+    """
+    question_ids: List[QuestionId]
+    question_words: t.LongTensor
+    question_chars: t.LongTensor
+    question_lens: t.LongTensor
+    question_len_idxs: t.LongTensor
+    question_orig_idxs: t.LongTensor
+    question_mask: t.LongTensor
+    context_words: t.LongTensor
+    context_chars: t.LongTensor
+    context_lens: t.LongTensor
+    context_len_idxs: t.LongTensor
+    context_orig_idxs: t.LongTensor
+    context_mask: t.LongTensor
+    answer_span_starts: t.LongTensor
+    answer_span_ends: t.LongTensor
+
+    def __init__(self,
+                 question_ids: List[QuestionId],
+                 question_words: t.LongTensor,
+                 question_chars: t.LongTensor,
+                 question_lens: t.LongTensor,
+                 question_len_idxs: t.LongTensor,
+                 question_orig_idxs: t.LongTensor,
+                 question_mask: t.LongTensor,
+                 context_words: t.LongTensor,
+                 context_chars: t.LongTensor,
+                 context_lens: t.LongTensor,
+                 context_len_idxs: t.LongTensor,
+                 context_orig_idxs: t.LongTensor,
+                 context_mask: t.LongTensor,
+                 answer_span_starts: t.LongTensor,
+                 answer_span_ends: t.LongTensor) -> None:
+        self.question_ids = question_ids
+        self.question_words = question_words
+        self.question_chars = question_chars
+        self.question_lens = question_lens
+        self.question_len_idxs = question_len_idxs
+        self.question_orig_idxs = question_orig_idxs
+        self.question_mask = question_mask
+        self.context_words = context_words
+        self.context_chars = context_chars
+        self.context_lens = context_lens
+        self.context_len_idxs = context_len_idxs
+        self.context_orig_idxs = context_orig_idxs
+        self.context_mask = context_mask
+        self.answer_span_starts = answer_span_starts
+        self.answer_span_ends = answer_span_ends
+
+    def to(self, device: Any) -> None:
+        """
+        Moves all Tensors to device
+        """
+        self.question_words = self.question_words.to(device)
+        self.question_chars = self.question_chars.to(device)
+        self.question_lens = self.question_lens.to(device)
+        self.question_len_idxs = self.question_len_idxs.to(device)
+        self.question_orig_idxs = self.question_orig_idxs.to(device)
+        self.question_mask = self.question_mask.to(device)
+        self.context_words = self.context_words.to(device)
+        self.context_chars = self.context_chars.to(device)
+        self.context_lens = self.context_lens.to(device)
+        self.context_len_idxs = self.context_len_idxs.to(device)
+        self.context_orig_idxs = self.context_orig_idxs.to(device)
+        self.context_mask = self.context_mask.to(device)
+        self.answer_span_starts = self.answer_span_starts.to(device)
+        self.answer_span_ends = self.answer_span_ends.to(device)
 
 
-def collate_batch(batch: List[EncodedSample]) -> QABatch:
+def collate_batch(batch: List[EncodedSample], device: Any) -> QABatch:
     """
     Takes a list of EncodedSample objects and creates a PyTorch batch
     For chars:
@@ -100,13 +151,13 @@ def collate_batch(batch: List[EncodedSample]) -> QABatch:
     answer_span_ends, _, _, _ = pad_and_sort(answer_span_ends)
     answer_span_ends = answer_span_ends[context_orig_idxs]
 
-    return QABatch(question_words=question_words,
+    return QABatch(question_ids=question_ids,
+                   question_words=question_words,
                    question_chars=question_chars,
                    question_lens=question_lens,
                    question_len_idxs=question_len_idxs,
                    question_orig_idxs=question_orig_idxs,
                    question_mask=question_mask,
-                   question_ids=question_ids,
                    context_words=context_words,
                    context_chars=context_chars,
                    context_lens=context_lens,
