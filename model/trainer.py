@@ -74,7 +74,7 @@ def train_model(train_dataset: QADataset,
         epoch_loss = 0.0
         for batch_num, batch in enumerate(batches):
             optimizer.zero_grad()
-            batch = batch.to(device)
+            batch.to(device)
             predictions: ModelPredictions = predictor(batch)
             loss = train_evaluator(batch, predictions)
             loss.backward()

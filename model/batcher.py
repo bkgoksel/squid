@@ -70,9 +70,11 @@ class QABatch():
         self.answer_span_starts = answer_span_starts
         self.answer_span_ends = answer_span_ends
 
-    def to(self, device: Any) -> None:
+    def to(self, device: Any):
         """
-        Moves all Tensors to device
+        Moves all Tensors to device, calls .to on all tensors in batch
+        :param device: a PyTorch device
+        :returns: self
         """
         self.question_words = self.question_words.to(device)
         self.question_chars = self.question_chars.to(device)
@@ -88,6 +90,8 @@ class QABatch():
         self.context_mask = self.context_mask.to(device)
         self.answer_span_starts = self.answer_span_starts.to(device)
         self.answer_span_ends = self.answer_span_ends.to(device)
+
+        return self
 
 
 def collate_batch(batch: List[EncodedSample]) -> QABatch:
