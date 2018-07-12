@@ -1,7 +1,7 @@
 """
 Module that holds classes built for embedding text
 """
-from typing import Dict, List, NamedTuple, Optional
+from typing import Any, Dict, List, NamedTuple, Optional
 
 import torch as t
 import torch.nn as nn
@@ -55,10 +55,11 @@ class WordEmbeddor(Embeddor):
     """
     embed: nn.Embedding
 
-    def __init__(self, word_vectors: WordVectors, train_vecs: bool) -> None:
+    def __init__(self, word_vectors: WordVectors, train_vecs: bool, device: Any=t.device('cpu')) -> None:
         super().__init__(word_vectors.dim)
-        self.embed = nn.Embedding.from_pretrained(t.Tensor(word_vectors.vectors),
+        self.embed = nn.Embedding.from_pretrained(t.Tensor(word_vectors.vectors).to(device),
                                                   freeze=(not train_vecs))
+        self.to(device)
 
     def forward(self, words: t.LongTensor, chars: t.LongTensor) -> t.Tensor:
         """
@@ -77,9 +78,10 @@ class PoolingCharEmbeddor(Embeddor):
     """
     embed: nn.Embedding
 
-    def __init__(self, char_vocab_size: int, embedding_dimension: int) -> None:
+    def __init__(self, char_vocab_size: int, embedding_dimension: int, device: Any=t.device('cpu')) -> None:
         super().__init__(embedding_dimension)
         self.embed = nn.Embedding(char_vocab_size + 1, embedding_dimension, padding_idx=0)
+        self.to(device)
 
     def forward(self, words: t.LongTensor, chars: t.LongTensor) -> t.Tensor:
         """
@@ -117,17 +119,18 @@ class ConcatenatingEmbeddor(Embeddor):
         return t.cat(embeddings, dim=2)
 
 
-def make_embeddor(config: EmbeddorConfig) -> Embeddor:
+def make_embeddor(config: EmbeddorConfig, device: Any) -> Embeddor:
     """
-    Makes an embeddor given an embeddor config
+    Makes an embeddor given an embeddor config on the given device
     :param config: An EmbeddorConfig object decsribing the embeddor to be made
+    :param device: Torch device to put the embeddor on
     :returns: An Embeddor module as described by the config
     """
     embeddors = []
     assert(config.word_embeddor or config.char_embeddor)
     if config.word_embeddor:
-        embeddors.append(WordEmbeddor(config.word_embeddor.vectors, config.word_embeddor.train_vecs))
+        embeddors.append(WordEmbeddor(config.word_embeddor.vectors, config.word_embeddor.train_vecs, device))
     if config.char_embeddor:
-        embeddors.append(PoolingCharEmbeddor(config.char_embeddor.char_vocab_size, config.char_embeddor.embedding_dimension))
+        embeddors.append(PoolingCharEmbeddor(config.char_embeddor.char_vocab_size, config.char_embeddor.embedding_dimension, device))
     return ConcatenatingEmbeddor(*embeddors)
 

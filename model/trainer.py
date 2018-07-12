@@ -57,7 +57,7 @@ def train_model(train_dataset: QADataset,
     """
 
     device = get_device(use_cuda)
-    embeddor: Embeddor = make_embeddor(embeddor_config).to(device)
+    embeddor: Embeddor = make_embeddor(embeddor_config, device)
     predictor: PredictorModel = BasicPredictor(embeddor, predictor_config).to(device)
     train_evaluator: Evaluator
     if fit_one_batch:
