@@ -5,6 +5,7 @@ Module that holds the training harness
 from pickle import UnpicklingError
 from typing import Dict
 
+import torch as t
 from torch.utils.data import DataLoader
 import torch.optim as optim
 
@@ -36,6 +37,7 @@ def train_model(train_dataset: QADataset,
                 batch_size: int,
                 predictor_config: BasicPredictorConfig,
                 embeddor_config: EmbeddorConfig,
+                use_cuda: bool=False,
                 fit_one_batch: bool=False) -> PredictorModel:
     """
     Trains a BasicPredictor model on the given train set with given params and returns
@@ -48,28 +50,31 @@ def train_model(train_dataset: QADataset,
     :param batch_size: Size of each training batch
     :param predictor_config: A BasicPredictorConfig object specifying parameters of the model
     :param embeddor_config: An EmbeddorConfig object that specifies the embeddings layer
+    :param use_cuda: If True use CUDA (default False)
     :param fit_one_batch: If True train on a single batch (default False)
 
     :returns: A Trained PredictorModel object
     """
 
-    embeddor: Embeddor = make_embeddor(embeddor_config)
-    predictor: PredictorModel = BasicPredictor(embeddor, predictor_config)
+    device = get_device(use_cuda)
+    embeddor: Embeddor = make_embeddor(embeddor_config).to(device)
+    predictor: PredictorModel = BasicPredictor(embeddor, predictor_config).to(device)
     train_evaluator: Evaluator
     if fit_one_batch:
         # Take the minimum loss so the model can achieve 0 loss for questions with
-        # multiple correct answers
-        train_evaluator = SingleClassLossEvaluator()
+        # multiple correct answerse
+        train_evaluator = SingleClassLossEvaluator().to(device)
     else:
-        train_evaluator = MultiClassLossEvaluator()
+        train_evaluator = MultiClassLossEvaluator().to(device)
     trainable_parameters = filter(lambda p: p.requires_grad, set(predictor.parameters()) | set(embeddor.parameters()))
-    optimizer: optim.Optimizer = optim.Adam(trainable_parameters, lr=learning_rate)
+    optimizer: optim.Optimizer = optim.Adam(trainable_parameters, lr=learning_rate).to(device)
     loader: DataLoader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, collate_fn=collate_batch)
-    batches = [next(iter(loader))] if fit_one_batch else loader
+    batches = [next(iter(loader)).to(device)] if fit_one_batch else loader
     for epoch in range(num_epochs):
         epoch_loss = 0.0
         for batch_num, batch in enumerate(batches):
             optimizer.zero_grad()
+            batch = batch.to(device)
             predictions: ModelPredictions = predictor(batch)
             loss = train_evaluator(batch, predictions)
             loss.backward()
@@ -82,6 +87,15 @@ def train_model(train_dataset: QADataset,
     return predictor
 
 
+def get_device(use_cuda: bool):
+    if use_cuda:
+        if t.cuda.is_available:
+            return t.device('cuda')
+        print('[WARNING]: CUDA requested but is unavailable, defaulting to CPU')
+        return t.device('cpu')
+    return t.device('cpu')
+
+
 def answer_dataset(dataset: QADataset,
                    predictor: PredictorModel,
                    batch_size: int=16) -> Dict[QuestionId, str]:
@@ -89,8 +103,9 @@ def answer_dataset(dataset: QADataset,
     batch: QABatch
     qid_to_answer: Dict[QuestionId, str] = dict()
     for batch_num, batch in enumerate(loader):
-        predictions: ModelPredictions = predictor(batch)
-        qid_to_answer.update(evaluator.get_answer_token_idxs(batch, predictions))
+        with t.no_grad():
+            predictions: ModelPredictions = predictor(batch)
+            qid_to_answer.update(evaluator.get_answer_token_idxs(batch, predictions))
     return dataset.get_answer_texts(qid_to_answer)
 
 

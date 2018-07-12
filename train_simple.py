@@ -29,6 +29,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument('--attention-hidden-size', type=int, default=512)
     parser.add_argument('--answer-train-set', action='store_true', help='if specified generate answers to the train set')
     parser.add_argument('--fit-one-batch', action='store_true', help='if specified try to fit a single batch')
+    parser.add_argument('--use-cuda', action='store_true', help='if specified use CUDA')
     parser.add_argument('--config-file', type=str, default='', help='if specified load config from this json file (overwrites cli args)')
 
     return parser.parse_known_args()[0]
@@ -63,7 +64,8 @@ def main() -> None:
                                                 args.batch_size,
                                                 predictor_config,
                                                 embeddor_config,
-                                                args.fit_one_batch)
+                                                use_cuda=args.use_cuda,
+                                                fit_one_batch=args.fit_one_batch)
     if args.answer_train_set:
         train_answers = trainer.answer_dataset(train_dataset, model)
         with open('train-pred.json', 'w') as f:
