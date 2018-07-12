@@ -132,7 +132,7 @@ def pad_and_sort(seq: List[Any]) -> Tuple[t.LongTensor, t.LongTensor, t.LongTens
         batch = t.LongTensor(seq)
         orig_idxs = t.LongTensor([0])
         length_idxs = t.LongTensor([0])
-        lengths = t.LongTensor([1])
+        lengths = t.LongTensor([len(seq[0])])
         return batch, orig_idxs, length_idxs, lengths
     lengths = t.LongTensor([el.shape[0] for el in seq])
     lengths, length_idxs = lengths.sort(0, descending=True)

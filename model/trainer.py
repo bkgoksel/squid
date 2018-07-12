@@ -24,7 +24,9 @@ from model.modules.embeddor import (Embeddor,
                                     make_embeddor)
 
 import model.evaluator as evaluator
-from model.evaluator import MultiClassLossEvaluator
+from model.evaluator import (Evaluator,
+                             MultiClassLossEvaluator,
+                             SingleClassLossEvaluator)
 
 
 def train_model(train_dataset: QADataset,
@@ -51,14 +53,19 @@ def train_model(train_dataset: QADataset,
 
     embeddor: Embeddor = make_embeddor(embeddor_config)
     predictor: PredictorModel = BasicPredictor(embeddor, predictor_config)
-    train_evaluator: MultiClassLossEvaluator = MultiClassLossEvaluator()
+    train_evaluator: Evaluator
+    if fit_one_batch:
+        # Take the minimum loss so the model can achieve 0 loss for questions with
+        # multiple correct answers
+        train_evaluator = SingleClassLossEvaluator()
+    else:
+        train_evaluator = MultiClassLossEvaluator()
     trainable_parameters = filter(lambda p: p.requires_grad, set(predictor.parameters()) | set(embeddor.parameters()))
     optimizer: optim.Optimizer = optim.Adam(trainable_parameters)
     loader: DataLoader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, collate_fn=collate_batch)
-    print('%d/%d = %d' % (len(train_dataset), batch_size, len(loader)))
+    batches = [next(iter(loader))] if fit_one_batch else loader
     for epoch in range(num_epochs):
         epoch_loss = 0.0
-        batches = [next(iter(loader))] if fit_one_batch else loader
         for batch_num, batch in enumerate(batches):
             optimizer.zero_grad()
             predictions: ModelPredictions = predictor(batch)
