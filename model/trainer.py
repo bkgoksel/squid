@@ -29,6 +29,7 @@ from model.evaluator import MultiClassLossEvaluator
 
 def train_model(train_dataset: QADataset,
                 dev_dataset: QADataset,
+                learning_rate: float,
                 num_epochs: int,
                 batch_size: int,
                 predictor_config: BasicPredictorConfig,
@@ -40,6 +41,7 @@ def train_model(train_dataset: QADataset,
 
     :param train_dataset: A Processed QADataset object of training data
     :param dev_dataset: A Processed QADataset object of dev data
+    :param learning_rate: LR for Adam optimizer
     :param num_epochs: Number of epochs to train for
     :param batch_size: Size of each training batch
     :param predictor_config: A BasicPredictorConfig object specifying parameters of the model
@@ -53,7 +55,7 @@ def train_model(train_dataset: QADataset,
     predictor: PredictorModel = BasicPredictor(embeddor, predictor_config)
     train_evaluator: MultiClassLossEvaluator = MultiClassLossEvaluator()
     trainable_parameters = filter(lambda p: p.requires_grad, set(predictor.parameters()) | set(embeddor.parameters()))
-    optimizer: optim.Optimizer = optim.Adam(trainable_parameters)
+    optimizer: optim.Optimizer = optim.Adam(trainable_parameters, lr=learning_rate)
     loader: DataLoader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, collate_fn=collate_batch)
     print('%d/%d = %d' % (len(train_dataset), batch_size, len(loader)))
     for epoch in range(num_epochs):
