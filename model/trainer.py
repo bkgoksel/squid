@@ -2,7 +2,8 @@
 Module that holds the training harness
 """
 
-from typing import Dict
+import json
+from typing import Any, Dict
 
 import torch as t
 from torch.utils.data import DataLoader
@@ -28,6 +29,9 @@ import model.evaluator as evaluator
 from model.evaluator import (Evaluator,
                              MultiClassLossEvaluator,
                              SingleClassLossEvaluator)
+
+import scripts.evaluate_v1_1 as evaluate_v1_1
+import scripts.evaluate_v2_0 as evaluate_v2_0
 
 
 def train_model(train_dataset: TrainDataset,
@@ -85,9 +89,41 @@ def train_model(train_dataset: TrainDataset,
         epoch_loss = epoch_loss / len(loader)
         print('=== EPOCH %d done. Average loss: %.3f' % (epoch + 1, epoch_loss))
         if epoch and epoch % 10 == 9:
-            # Validate on dev set
-            print('=== EPOCH %d: Validating on the dev set')
+            validate(dev_dataset, predictor, train_evaluator, use_cuda, batch_size)
     return predictor
+
+
+def validate(dataset: QADataset,
+             predictor: PredictorModel,
+             evaluator: Any,
+             use_cuda: bool,
+             batch_size: int=16) -> None:
+    print('=== EPOCH %d: Measuring QA performance on the dev set')
+    try:
+        dev_perf = evaluate_on_squad_dataset(dataset, predictor, use_cuda, batch_size)
+        print('=== Dev set performance: {}'.format(json.dumps(dev_perf)))
+    except Exception as err:
+        print('Error when trying to get full evaluation: {}'.format(err.args))
+    print('=== EPOCH %d: Measuring loss on the dev set')
+    dev_loss = get_dataset_loss(dataset, predictor, evaluator, use_cuda, batch_size)
+    print('=== Dev set loss: {}'.format(dev_loss))
+
+
+def get_dataset_loss(dataset: QADataset,
+                     predictor: PredictorModel,
+                     evaluator: Any,
+                     use_cuda: bool,
+                     batch_size: int=16) -> float:
+    device = get_device(use_cuda)
+    loader: DataLoader = DataLoader(dataset, batch_size, collate_fn=collate_batch)
+    total_loss = 0.0
+    batch: QABatch
+    for batch in loader:
+        with t.no_grad():
+            batch.to(device)
+            predictions: ModelPredictions = predictor(batch)
+            total_loss += evaluator(batch, predictions).item()
+    return total_loss
 
 
 def answer_dataset(dataset: QADataset,
@@ -104,3 +140,19 @@ def answer_dataset(dataset: QADataset,
             predictions: ModelPredictions = predictor(batch)
             qid_to_answer.update(evaluator.get_answer_token_idxs(batch, predictions))
     return dataset.get_answer_texts(qid_to_answer)
+
+
+def evaluate_on_squad_dataset(dataset: QADataset,
+                              predictor: PredictorModel,
+                              use_cuda: bool,
+                              batch_size: int=16) -> Dict[str, str]:
+    answer_dict = answer_dataset(dataset, predictor, use_cuda, batch_size)
+    with open(dataset.source_file) as dataset_file:
+        dataset_json = json.load(dataset_file)
+        dataset_version = dataset_json['version']
+        if dataset_version == '1.1.':
+            eval_fn = evaluate_v1_1.evaluate
+        elif dataset_version == '2.0':
+            eval_fn = evaluate_v2_0.evaluate
+        dataset_dict = dataset_json['data']
+    return eval_fn(dataset_dict, answer_dict)

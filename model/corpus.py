@@ -47,6 +47,7 @@ class Corpus():
         - all the tokenized context-qas objects
         - the word vocab
     """
+    source_file: Optional[str]
     context_qas: List[ContextQuestionAnswer]
     quids_to_context_qas: Dict[QuestionId, ContextQuestionAnswer]
     vocab: Set[str]
@@ -56,7 +57,9 @@ class Corpus():
                  context_qas: List[ContextQuestionAnswer],
                  vocab: Set[str],
                  char_mapping: Dict[str, int],
-                 stats: CorpusStats) -> None:
+                 stats: CorpusStats,
+                 source_file: Optional[str]=None) -> None:
+        self.source_file = source_file
         self.context_qas: List[ContextQuestionAnswer] = context_qas
         self.quids_to_context_qas: Dict[QuestionId, ContextQuestionAnswer] = dict()
         for cqa in context_qas:
@@ -95,7 +98,7 @@ class Corpus():
         if not char_mapping:
             char_mapping = cls.compute_char_indices(context_qas)
         stats = cls.compute_stats(context_qas, vocab, char_mapping.keys())
-        return cls(context_qas, vocab, char_mapping, stats)
+        return cls(context_qas, vocab, char_mapping, stats, data_file)
 
     @staticmethod
     def read_context_qas(data_file: str, tokenizer: Tokenizer, processor: TextProcessor) -> List[ContextQuestionAnswer]:
@@ -295,9 +298,11 @@ class QADataset(Dataset):
     """
 
     corpus: SampleCorpus
+    _source_file: Optional[str]
 
     def __init__(self, corpus: Corpus, word_vectors: WordVectors) -> None:
         self.corpus = SampleCorpus(corpus, word_vectors)
+        self._source_file = self.corpus.source_file
 
     def __len__(self):
         return self.corpus.n_samples
@@ -320,6 +325,12 @@ class QADataset(Dataset):
     @property
     def stats(self):
         return self.corpus.stats
+
+    @property
+    def source_file(self) -> str:
+        if self._source_file:
+            return self._source_file
+        raise Exception('Dataset file provenance not available for this dataset')
 
 
 class TrainDataset(QADataset):
