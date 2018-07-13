@@ -3,7 +3,7 @@ Module that holds the training harness
 """
 
 from pickle import UnpicklingError
-from typing import Dict
+from typing import Any, Dict
 
 import torch as t
 from torch.utils.data import DataLoader
@@ -98,12 +98,15 @@ def get_device(use_cuda: bool):
 
 def answer_dataset(dataset: QADataset,
                    predictor: PredictorModel,
+                   use_cuda: bool,
                    batch_size: int=16) -> Dict[QuestionId, str]:
+    device = get_device(use_cuda)
     loader: DataLoader = DataLoader(dataset, batch_size, collate_fn=collate_batch)
     batch: QABatch
     qid_to_answer: Dict[QuestionId, str] = dict()
     for batch_num, batch in enumerate(loader):
         with t.no_grad():
+            batch.to(device)
             predictions: ModelPredictions = predictor(batch)
             qid_to_answer.update(evaluator.get_answer_token_idxs(batch, predictions))
     return dataset.get_answer_texts(qid_to_answer)

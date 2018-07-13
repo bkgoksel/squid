@@ -67,7 +67,7 @@ def main() -> None:
                                                 use_cuda=args.use_cuda,
                                                 fit_one_batch=args.fit_one_batch)
     if args.answer_train_set:
-        train_answers = trainer.answer_dataset(train_dataset, model)
+        train_answers = trainer.answer_dataset(train_dataset, model, args.use_cuda)
         with open('train-pred.json', 'w') as f:
             json.dump(train_answers, f)
 
