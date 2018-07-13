@@ -4,3 +4,4 @@ torch
 torchvision
 mypy
 nltk
+tqdm
