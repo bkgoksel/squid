@@ -97,7 +97,7 @@ class Corpus():
         vocab = cls.compute_vocab(context_qas)
         if not char_mapping:
             char_mapping = cls.compute_char_indices(context_qas)
-        stats = cls.compute_stats(context_qas, vocab, char_mapping.keys())
+        stats = cls.compute_stats(context_qas, vocab, char_mapping)
         return cls(context_qas, vocab, char_mapping, stats, data_file)
 
     @staticmethod
