@@ -166,7 +166,7 @@ class EncodedContextQuestionAnswer():
                  word_vectors: WordVectors,
                  char_mapping: Dict[str, int]) -> None:
         self.word_encoding = np.array([word_vectors[tk.word] for tk in ctx.tokens])
-        self.char_encoding = [np.array([char_mapping[char] for char in tk.word]) for tk in ctx.tokens]
+        self.char_encoding = [np.array([char_mapping.get(char, 1) for char in tk.word]) for tk in ctx.tokens]
         self.qas = [EncodedQuestionAnswer(qa, word_vectors, char_mapping, ctx.tokens) for qa in ctx.qas]
 
     def __eq__(self, other) -> bool:

@@ -158,7 +158,7 @@ class Corpus():
             for qa in ctx.qas:
                 for tok in qa.tokens:
                     chars.update(set(tok.word))
-        char_mapping: Dict[str, int] = dict(map(reversed, enumerate(chars)))
+        char_mapping: Dict[str, int] = dict(map(reversed, enumerate(chars, 2)))  # idx 1 reserved for UNK
         return char_mapping
 
     @staticmethod
