@@ -164,7 +164,7 @@ class Corpus():
     @staticmethod
     def compute_stats(context_qas: List[ContextQuestionAnswer],
                       vocab: Sized,
-                      char_vocab: Sized) -> CorpusStats:
+                      char_vocab: Dict[str, int]) -> CorpusStats:
         """
         Method that computes statistics given list of context qas and vocab
         :param context_qas: List of contextQA objects
@@ -194,7 +194,7 @@ class Corpus():
                            max_q_len=max_q_len,
                            max_word_len=max_word_len,
                            vocab_size=len(vocab),
-                           char_vocab_size=len(char_vocab))
+                           char_vocab_size=max(char_vocab.values()) + 1)
 
     def get_single_answer_text(self, qid: QuestionId, span_start: int, span_end: int) -> str:
         """

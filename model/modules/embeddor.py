@@ -95,12 +95,9 @@ class PoolingCharEmbeddor(Embeddor):
         batch_size, max_num_words, max_num_chars = chars.size()
         # Flatten the word length dimension to make Tensor 2D for embedding
         chars = chars.view(-1, max_num_chars)
-        assert chars.max()[0].item() < self.vocab_size, 'Bad char index %d > vocab size %d' % (chars.max()[0].item(), self.vocab_size)
         embeddings = self.embed(chars)
         embeddings = embeddings.view(batch_size, max_num_words, max_num_chars, self.embedding_dim)
-        assert len(embeddings.size()) == 4
         pooled, _ = embeddings.max(2)
-        assert len(pooled.size()) == 3
         return pooled
 
 
