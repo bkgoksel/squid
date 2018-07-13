@@ -155,6 +155,11 @@ def collate_batch(batch: List[EncodedSample]) -> QABatch:
     answer_span_ends, _, _, _ = pad_and_sort(answer_span_ends)
     answer_span_ends = answer_span_ends[context_orig_idxs]
 
+    assert max_question_word_len > 0, 'Empty word in a question in batch'
+    assert max_question_len > 0, 'Empty question in batch'
+    assert max_ctx_word_len > 0, 'Empty word in a context in batch'
+    assert max_context_len > 0, 'Empty context in batch'
+
     return QABatch(question_ids=question_ids,
                    question_words=question_words,
                    question_chars=question_chars,

@@ -103,7 +103,7 @@ def validate(dataset: QADataset,
         dev_perf = evaluate_on_squad_dataset(dataset, predictor, use_cuda, batch_size)
         print('=== Dev set performance: {}'.format(json.dumps(dev_perf)))
     except Exception as err:
-        print('Error when trying to get full evaluation: {}'.format(err.args))
+        print('Error when trying to get full evaluation: {}'.format(err))
     print('=== EPOCH %d: Measuring loss on the dev set')
     dev_loss = get_dataset_loss(dataset, predictor, evaluator, use_cuda, batch_size)
     print('=== Dev set loss: {}'.format(dev_loss))
