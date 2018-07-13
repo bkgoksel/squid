@@ -77,7 +77,7 @@ def train_model(train_dataset: TrainDataset,
     batches = [next(iter(loader)).to(device)] if fit_one_batch else loader
     for epoch in tqdm(range(num_epochs)):
         epoch_loss = 0.0
-        for batch_num, batch in tqdm(enumerate(batches)):
+        for batch_num, batch in enumerate(tqdm(batches)):
             optimizer.zero_grad()
             batch.to(device)
             predictions: ModelPredictions = predictor(batch)
@@ -135,7 +135,7 @@ def answer_dataset(dataset: QADataset,
     loader: DataLoader = DataLoader(dataset, batch_size, collate_fn=collate_batch)
     batch: QABatch
     qid_to_answer: Dict[QuestionId, str] = dict()
-    for batch_num, batch in tqdm(enumerate(loader)):
+    for batch_num, batch in enumerate(tqdm(loader)):
         with t.no_grad():
             batch.to(device)
             predictions: ModelPredictions = predictor(batch)
