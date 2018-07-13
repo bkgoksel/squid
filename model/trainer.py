@@ -79,7 +79,7 @@ def train_model(train_dataset: TrainDataset,
         for epoch in epochs:
             epochs.set_description('Epoch %d' % (epoch + 1))
             epoch_loss = 0.0
-            with tqdm(batches, desc='Train batch') as batch_loop:
+            with tqdm(batches) as batch_loop:
                 for batch_num, batch in enumerate(batch_loop):
                     batch_loop.set_description('Batch %d' % (batch_num + 1))
                     optimizer.zero_grad()
