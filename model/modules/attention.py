@@ -35,8 +35,8 @@ class SimpleAttention(nn.Module):
         self.Wcm = nn.Parameter(t.empty(config.input_size, config.hidden_size))
         self.Wqm = nn.Parameter(t.empty(config.input_size, config.hidden_size))
 
-        nn.init.xavier_uniform(self.Wcm)
-        nn.init.xavier_uniform(self.Wqm)
+        nn.init.xavier_uniform_(self.Wcm)
+        nn.init.xavier_uniform_(self.Wqm)
 
     def forward(self, question_u: Tensor, context_enc: Tensor, context_mask: t.LongTensor):
         """
