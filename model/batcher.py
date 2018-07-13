@@ -113,6 +113,8 @@ def collate_batch(batch: List[EncodedSample]) -> QABatch:
     batch_size = len(batch)
     max_question_word_len = 0
     max_ctx_word_len = 0
+    min_question_word_len = 1
+    min_ctx_word_len = 1
 
     for sample in batch:
         question_words_list.append(sample.question_words)
@@ -122,8 +124,10 @@ def collate_batch(batch: List[EncodedSample]) -> QABatch:
         answer_span_ends.append(sample.span_ends)
         question_chars_list.append(sample.question_chars)
         max_question_word_len = max(max_question_word_len, max(word.size for word in sample.question_chars))
+        min_question_word_len = min(min_question_word_len, min(word.size for word in sample.question_chars))
         context_chars_list.append(sample.context_chars)
         max_ctx_word_len = max(max_ctx_word_len, max(word.size for word in sample.context_chars))
+        min_ctx_word_len = min(min_ctx_word_len, min(word.size for word in sample.context_chars))
 
     question_words, question_orig_idxs, question_len_idxs, question_lens = pad_and_sort(question_words_list)
     question_words = question_words[question_orig_idxs]
@@ -131,6 +135,7 @@ def collate_batch(batch: List[EncodedSample]) -> QABatch:
 
     # TODO: Is there a more efficient way of doing this?
     max_question_len = question_lens[0]
+    min_question_len = question_lens[-1]
     question_chars = np.zeros((batch_size, max_question_len, max_question_word_len))
     for batch_idx, q_chars in enumerate(question_chars_list):
         for word_idx, word in enumerate(q_chars):
@@ -143,6 +148,7 @@ def collate_batch(batch: List[EncodedSample]) -> QABatch:
 
     # TODO: Is there a more efficient way of doing this?
     max_context_len = context_lens[0]
+    min_context_len = context_lens[-1]
     context_chars = np.zeros((batch_size, max_context_len, max_ctx_word_len))
     for batch_idx, c_chars in enumerate(context_chars_list):
         for word_idx, word in enumerate(c_chars):
@@ -155,10 +161,10 @@ def collate_batch(batch: List[EncodedSample]) -> QABatch:
     answer_span_ends, _, _, _ = pad_and_sort(answer_span_ends)
     answer_span_ends = answer_span_ends[context_orig_idxs]
 
-    assert max_question_word_len > 0, 'Empty word in a question in batch'
-    assert max_question_len > 0, 'Empty question in batch'
-    assert max_ctx_word_len > 0, 'Empty word in a context in batch'
-    assert max_context_len > 0, 'Empty context in batch'
+    assert min_question_word_len > 0, 'Empty word in a question in batch'
+    assert min_question_len > 0, 'Empty question in batch'
+    assert min_ctx_word_len > 0, 'Empty word in a context in batch'
+    assert min_context_len > 0, 'Empty context in batch'
 
     return QABatch(question_ids=question_ids,
                    question_words=question_words,
