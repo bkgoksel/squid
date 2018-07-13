@@ -29,6 +29,8 @@ class Processed():
     def __init__(self, text: str, tokenizer: Tokenizer, processor: TextProcessor) -> None:
         self.text = processor.process(text)
         self.tokens = tokenizer.tokenize(self.text)
+        assert len(self.text) > 0, 'Textual object with empty text'
+        assert len(self.tokens) > 0, 'Tokenized object with no tokensj'
 
     def __eq__(self, other) -> bool:
         return (self.text == other.text and
