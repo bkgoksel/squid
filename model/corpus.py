@@ -5,6 +5,7 @@ Module that deals with preparing QA corpora
 import json
 import pickle
 from typing import (Any,
+                    Optional,
                     Sized,
                     List,
                     Dict,
@@ -16,7 +17,7 @@ from typing import (Any,
 from torch.utils.data import Dataset
 
 from model.text_processor import TextProcessor
-from model.tokenizer import Tokenizer, NltkTokenizer
+from model.tokenizer import Tokenizer
 from model.qa import (Answer,
                       QuestionAnswer,
                       ContextQuestionAnswer,

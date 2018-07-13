@@ -84,6 +84,9 @@ def train_model(train_dataset: TrainDataset,
             print('[%d, %d] loss: %.3f' % (epoch + 1, batch_num + 1, batch_loss))
         epoch_loss = epoch_loss / len(loader)
         print('=== EPOCH %d done. Average loss: %.3f' % (epoch + 1, epoch_loss))
+        if epoch and epoch % 10 == 9:
+            # Validate on dev set
+            print('=== EPOCH %d: Validating on the dev set')
     return predictor
 
 
