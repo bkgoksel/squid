@@ -19,7 +19,9 @@ from model.corpus import (Corpus,
                           CorpusStats,
                           EncodedCorpus,
                           SampleCorpus,
-                          QADataset)
+                          QADataset,
+                          TrainDataset,
+                          EvalDataset)
 
 
 class RawCorpusTestCase(unittest.TestCase):
@@ -164,6 +166,16 @@ class QADatasetTestCase(unittest.TestCase):
         """
         Test that it calls corpus' method correctly
         """
+        pass
+
+
+class TrainDatasetTestCase(unittest.TestCase):
+    def setUp(self):
+        pass
+
+
+class EvalDatasetTestCase(unittest.TestCase):
+    def setUp(self):
         pass
 
 

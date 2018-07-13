@@ -16,7 +16,7 @@ from typing import (Any,
 from torch.utils.data import Dataset
 
 from model.text_processor import TextProcessor
-from model.tokenizer import Tokenizer
+from model.tokenizer import Tokenizer, NltkTokenizer
 from model.qa import (Answer,
                       QuestionAnswer,
                       ContextQuestionAnswer,
@@ -75,10 +75,24 @@ class Corpus():
             return pickle.load(f)
 
     @classmethod
-    def from_raw(cls, data_file: str, tokenizer: Tokenizer, processor: TextProcessor):
+    def from_raw(cls,
+                 data_file: str,
+                 tokenizer: Tokenizer,
+                 processor: TextProcessor,
+                 char_mapping: Optional[Dict[str, int]]=None):
+        """
+        Reads a Corpus of QA questions from a file
+        :param data_file: File to read from
+        :param tokenizer: Tokenizer to tokenize all text read
+        :param processor: TextProcessor object that contains all textual processing
+            to be applied to the text before tokenization
+        :param char_mapping: Optional mapping from chars to ints, will be computed
+            from scratch if not specified
+        """
         context_qas = cls.read_context_qas(data_file, tokenizer, processor)
         vocab = cls.compute_vocab(context_qas)
-        char_mapping = cls.compute_char_indices(context_qas)
+        if not char_mapping:
+            char_mapping = cls.compute_char_indices(context_qas)
         stats = cls.compute_stats(context_qas, vocab, char_mapping.keys())
         return cls(context_qas, vocab, char_mapping, stats)
 
@@ -305,3 +319,72 @@ class QADataset(Dataset):
     @property
     def stats(self):
         return self.corpus.stats
+
+
+class TrainDataset(QADataset):
+    """
+    Class that holds a dataset used for training a model
+    (and therefore is the ground truth for character -> id mappinggs)
+    """
+
+    char_mapping: Dict[str, int]
+
+    def __init__(self, corpus: Corpus, word_vectors: WordVectors) -> None:
+        super().__init__(corpus, word_vectors)
+        self.char_mapping = corpus.char_mapping
+
+    @classmethod
+    def load_dataset(cls,
+                     filename: str,
+                     vectors: WordVectors,
+                     tokenizer: Tokenizer,
+                     processor: TextProcessor) -> QADataset:
+        """
+        Reads the given qa data file and processes it into a TrainDataset using
+        the provided word vectors' vocab, tokenizer and text processor
+        :param filename: File that contains the QA data
+        :param vectors: WordVectors object whose vocab is used to construct the token encoding
+        :param tokenizer: Tokenizer object used to tokenize the text
+        :param processor: TextProcessor object to apply to the text before tokenization
+        :returns: A TrainDataset object
+        """
+        corpus: Corpus
+        try:
+            corpus = Corpus.from_disk(filename)
+        except (IOError, pickle.UnpicklingError) as e:
+            corpus = Corpus.from_raw(filename, tokenizer, processor)
+        return cls(corpus, vectors)
+
+
+class EvalDataset(QADataset):
+    """
+    Class that holds a dataset to be used for evaluating a model trained on a different dataset
+    (and therefore needs the training dataset's character -> id mappings to be instantiated)
+    """
+
+    def __init__(self, corpus: Corpus, word_vectors: WordVectors) -> None:
+        super().__init__(corpus, word_vectors)
+
+    @classmethod
+    def load_dataset(cls,
+                     filename: str,
+                     vectors: WordVectors,
+                     char_mapping: Dict[str, int],
+                     tokenizer: Tokenizer,
+                     processor: TextProcessor) -> QADataset:
+        """
+        Reads the given qa data file and processes it into a TrainDataset using
+        the provided word vectors' vocab, tokenizer and text processor
+        :param filename: File that contains the QA data
+        :param vectors: WordVectors object whose vocab is used to construct the token encoding
+        :param char_mapping: The char -> id mapping to use from the ground truth dataset
+        :param tokenizer: Tokenizer object used to tokenize the text
+        :param processor: TextProcessor object to apply to the text before tokenization
+        :returns: An EvalDataset object
+        """
+        corpus: Corpus
+        try:
+            corpus = Corpus.from_disk(filename)
+        except (IOError, pickle.UnpicklingError) as e:
+            corpus = Corpus.from_raw(filename, tokenizer, processor, char_mapping)
+        return cls(corpus, vectors)

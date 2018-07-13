@@ -2,13 +2,16 @@ import argparse
 import json
 
 import model.trainer as trainer
+from model.tokenizer import Tokenizer, NltkTokenizer
+from model.text_processor import TextProcessor
 from model.predictor import (BasicPredictorConfig,
                              GRUConfig,
                              PredictorModel)
 from model.modules.embeddor import (EmbeddorConfig,
                                     WordEmbeddorConfig,
                                     PoolingCharEmbeddorConfig)
-from model.corpus import QADataset
+from model.corpus import (TrainDataset,
+                          EvalDataset)
 from model.wv import WordVectors
 
 
@@ -37,9 +40,21 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
-    vectors: WordVectors = trainer.load_vectors(args.word_vector_file)
-    train_dataset: QADataset = trainer.load_dataset(args.train_file, vectors)
-    dev_dataset: QADataset = trainer.load_dataset(args.dev_file, vectors)
+
+    tokenizer: Tokenizer = NltkTokenizer()
+    processor: TextProcessor = TextProcessor({'lowercase': True})
+    vectors: WordVectors = WordVectors.load_vectors(args.word_vector_file)
+
+    train_dataset: TrainDataset = TrainDataset.load_dataset(args.train_file,
+                                                            vectors,
+                                                            tokenizer,
+                                                            processor)
+    dev_dataset: EvalDataset = EvalDataset.load_dataset(args.dev_file,
+                                                        vectors,
+                                                        train_dataset.char_mapping,
+                                                        tokenizer,
+                                                        processor)
+
     predictor_config = BasicPredictorConfig(gru=GRUConfig(hidden_size=args.lstm_hidden_size,
                                                           num_layers=args.lstm_num_layers,
                                                           dropout=args.dropout,
@@ -70,6 +85,9 @@ def main() -> None:
         train_answers = trainer.answer_dataset(train_dataset, model, args.use_cuda)
         with open('train-pred.json', 'w') as f:
             json.dump(train_answers, f)
+    dev_answers = trainer.answer_dataset(dev_dataset, model, args.use_cuda)
+    with open('dev-pred.json', 'w') as f:
+        json.dump(dev_answers, f)
 
 
 if __name__ == '__main__':

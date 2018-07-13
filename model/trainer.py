@@ -2,23 +2,23 @@
 Module that holds the training harness
 """
 
-from pickle import UnpicklingError
-from typing import Any, Dict
+from typing import Dict
 
 import torch as t
 from torch.utils.data import DataLoader
 import torch.optim as optim
 
-from model.wv import WordVectors
-from model.corpus import Corpus, QADataset
+from model.corpus import (QADataset,
+                          TrainDataset,
+                          EvalDataset)
 from model.qa import QuestionId
 from model.batcher import QABatch, collate_batch
 from model.predictor import (PredictorModel,
                              BasicPredictor,
                              BasicPredictorConfig,
                              ModelPredictions)
-from model.text_processor import TextProcessor
-from model.tokenizer import Tokenizer, NltkTokenizer
+
+from model.util import get_device
 
 from model.modules.embeddor import (Embeddor,
                                     EmbeddorConfig,
@@ -30,8 +30,8 @@ from model.evaluator import (Evaluator,
                              SingleClassLossEvaluator)
 
 
-def train_model(train_dataset: QADataset,
-                dev_dataset: QADataset,
+def train_model(train_dataset: TrainDataset,
+                dev_dataset: EvalDataset,
                 learning_rate: float,
                 num_epochs: int,
                 batch_size: int,
@@ -43,8 +43,8 @@ def train_model(train_dataset: QADataset,
     Trains a BasicPredictor model on the given train set with given params and returns
     the trained model instance
 
-    :param train_dataset: A Processed QADataset object of training data
-    :param dev_dataset: A Processed QADataset object of dev data
+    :param train_dataset: A Processed TrainDataset object of training data
+    :param dev_dataset: A Processed EvalDataset object of dev data
     :param learning_rate: LR for Adam optimizer
     :param num_epochs: Number of epochs to train for
     :param batch_size: Size of each training batch
@@ -62,7 +62,7 @@ def train_model(train_dataset: QADataset,
     train_evaluator: Evaluator
     if fit_one_batch:
         # Take the minimum loss so the model can achieve 0 loss for questions with
-        # multiple correct answerse
+        # multiple correct answers
         train_evaluator = SingleClassLossEvaluator().to(device)
     else:
         train_evaluator = MultiClassLossEvaluator().to(device)
@@ -87,15 +87,6 @@ def train_model(train_dataset: QADataset,
     return predictor
 
 
-def get_device(use_cuda: bool):
-    if use_cuda:
-        if t.cuda.is_available:
-            return t.device('cuda')
-        print('[WARNING]: CUDA requested but is unavailable, defaulting to CPU')
-        return t.device('cpu')
-    return t.device('cpu')
-
-
 def answer_dataset(dataset: QADataset,
                    predictor: PredictorModel,
                    use_cuda: bool,
@@ -110,22 +101,3 @@ def answer_dataset(dataset: QADataset,
             predictions: ModelPredictions = predictor(batch)
             qid_to_answer.update(evaluator.get_answer_token_idxs(batch, predictions))
     return dataset.get_answer_texts(qid_to_answer)
-
-
-def load_vectors(filename: str) -> WordVectors:
-    try:
-        vectors = WordVectors.from_disk(filename)
-    except (IOError, UnpicklingError) as e:
-        vectors = WordVectors.from_text_vectors(filename)
-    return vectors
-
-
-def load_dataset(filename: str, vectors: WordVectors) -> QADataset:
-    corpus: Corpus
-    try:
-        corpus = Corpus.from_disk(filename)
-    except (IOError, UnpicklingError) as e:
-        tokenizer: Tokenizer = NltkTokenizer()
-        processor: TextProcessor = TextProcessor({'lowercase': True})
-        corpus = Corpus.from_raw(filename, tokenizer, processor)
-    return QADataset(corpus, vectors)

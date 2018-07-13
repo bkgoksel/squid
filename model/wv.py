@@ -40,6 +40,19 @@ class WordVectors():
         return self.word_to_idx[token]
 
     @classmethod
+    def load_vectors(cls, file_name: str):
+        """
+        Class method that loads vectors from an arbitrary filename
+        If the file is a pickle prefix for the processed vectors loads that
+        if that fails tries to read them as text-based word vectors
+        """
+        try:
+            vectors = WordVectors.from_disk(file_name)
+        except (IOError, pickle.UnpicklingError) as e:
+            vectors = WordVectors.from_text_vectors(file_name)
+        return vectors
+
+    @classmethod
     def from_disk(cls, file_name: str):
         """
         Class method that reads pickle files(under same name) from disk
