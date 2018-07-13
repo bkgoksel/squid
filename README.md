@@ -11,7 +11,7 @@
 - [x] Make GPU compatible
 - [x] Debug simple architecture
 - [x] Make a distinction between train and non-train datasets for proper handling of char/word -> idx mappings (handled by wordvecs for now for word level but what about char level)
-- [ ] Write dev validation during training
+- [x] Write dev validation during training
 - [ ] Implement BiDAF on top
 - [ ] Add encoding of sentence-level info
 - [ ] Integrate ELMo vectors
