@@ -75,9 +75,9 @@ def train_model(train_dataset: TrainDataset,
     optimizer: optim.Optimizer = optim.Adam(trainable_parameters, lr=learning_rate)
     loader: DataLoader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, collate_fn=collate_batch)
     batches = [next(iter(loader)).to(device)] if fit_one_batch else loader
-    for epoch in tqdm(range(num_epochs)):
+    for epoch in tqdm(range(num_epochs), desc='Epoch'):
         epoch_loss = 0.0
-        for batch_num, batch in enumerate(tqdm(batches)):
+        for batch_num, batch in enumerate(tqdm(batches), desc='Train batch'):
             optimizer.zero_grad()
             batch.to(device)
             predictions: ModelPredictions = predictor(batch)
@@ -119,7 +119,7 @@ def get_dataset_loss(dataset: QADataset,
     loader: DataLoader = DataLoader(dataset, batch_size, collate_fn=collate_batch)
     total_loss = 0.0
     batch: QABatch
-    for batch in tqdm(loader):
+    for batch in tqdm(loader, desc='Loss computation batch'):
         with t.no_grad():
             batch.to(device)
             predictions: ModelPredictions = predictor(batch)
@@ -135,7 +135,7 @@ def answer_dataset(dataset: QADataset,
     loader: DataLoader = DataLoader(dataset, batch_size, collate_fn=collate_batch)
     batch: QABatch
     qid_to_answer: Dict[QuestionId, str] = dict()
-    for batch_num, batch in enumerate(tqdm(loader)):
+    for batch_num, batch in enumerate(tqdm(loader, desc='Answer generation batch')):
         with t.no_grad():
             batch.to(device)
             predictions: ModelPredictions = predictor(batch)
