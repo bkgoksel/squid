@@ -5,7 +5,7 @@ Module that holds the training harness
 import json
 from typing import Any, Dict
 
-from tqdm import tqdm
+from tqdm import tqdm, trange
 import torch as t
 from torch.utils.data import DataLoader
 import torch.optim as optim
@@ -75,22 +75,26 @@ def train_model(train_dataset: TrainDataset,
     optimizer: optim.Optimizer = optim.Adam(trainable_parameters, lr=learning_rate)
     loader: DataLoader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, collate_fn=collate_batch)
     batches = [next(iter(loader)).to(device)] if fit_one_batch else loader
-    for epoch in tqdm(range(num_epochs), desc='Epoch'):
-        epoch_loss = 0.0
-        for batch_num, batch in enumerate(tqdm(batches, desc='Train batch')):
-            optimizer.zero_grad()
-            batch.to(device)
-            predictions: ModelPredictions = predictor(batch)
-            loss = train_evaluator(batch, predictions)
-            loss.backward()
-            optimizer.step()
-            batch_loss = loss.item()
-            epoch_loss += batch_loss
-            print('[%d, %d] loss: %.3f' % (epoch + 1, batch_num + 1, batch_loss))
-        epoch_loss = epoch_loss / len(loader)
-        print('=== EPOCH %d done. Average loss: %.3f' % (epoch + 1, epoch_loss))
-        if epoch and epoch % 10 == 9:
-            validate(dev_dataset, predictor, train_evaluator, use_cuda, batch_size)
+    with trange(num_epochs) as epochs:
+        for epoch in epochs:
+            epochs.set_description('Epoch %d' % (epoch + 1))
+            epoch_loss = 0.0
+            with tqdm(batches, desc='Train batch') as batch_loop:
+                for batch_num, batch in enumerate(batch_loop):
+                    batch_loop.set_description('Batch %d' % (batch_num + 1))
+                    optimizer.zero_grad()
+                    batch.to(device)
+                    predictions: ModelPredictions = predictor(batch)
+                    loss = train_evaluator(batch, predictions)
+                    loss.backward()
+                    optimizer.step()
+                    batch_loss = loss.item()
+                    epoch_loss += batch_loss
+                    batch_loop.set_postfix(loss=batch_loss)
+            epoch_loss = epoch_loss / len(loader)
+            epochs.set_postfix(loss=epoch_loss)
+            if epoch and epoch % 10 == 9:
+                validate(dev_dataset, predictor, train_evaluator, use_cuda, batch_size)
     return predictor
 
 
@@ -99,15 +103,15 @@ def validate(dataset: QADataset,
              evaluator: Any,
              use_cuda: bool,
              batch_size: int=16) -> None:
-    print('=== EPOCH %d: Measuring QA performance on the dev set')
+    print('\n=== EPOCH %d: Measuring QA performance on the dev set\n')
     try:
         dev_perf = evaluate_on_squad_dataset(dataset, predictor, use_cuda, batch_size)
-        print('=== Dev set performance: {}'.format(json.dumps(dev_perf)))
+        print('\n=== Dev set performance: {}\n'.format(json.dumps(dev_perf)))
     except Exception as err:
-        print('Error when trying to get full evaluation: {}'.format(err))
-    print('=== EPOCH %d: Measuring loss on the dev set')
+        print('\nError when trying to get full evaluation: {}\n'.format(err))
+    print('\n=== EPOCH %d: Measuring loss on the dev set\n')
     dev_loss = get_dataset_loss(dataset, predictor, evaluator, use_cuda, batch_size)
-    print('=== Dev set loss: {}'.format(dev_loss))
+    print('\n=== Dev set loss: {}\n'.format(dev_loss))
 
 
 def get_dataset_loss(dataset: QADataset,
