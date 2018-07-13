@@ -91,7 +91,10 @@ class PoolingCharEmbeddor(Embeddor):
         :returns: Character-level embeddings for each word of shape:
             (batch_size, max_num_words, embedding_dim)
         """
-        embeddings = self.embed(chars)
+        batch_size, max_num_words, max_num_chars = chars.size()
+        # Flatten the word length dimension to make Tensor 2D for embedding
+        chars = chars.view(-1, max_num_chars)
+        embeddings = self.embed(chars).view(batch_size, max_num_words, max_num_chars, -1)
         pooled, _ = embeddings.max(2)
         return pooled
 
