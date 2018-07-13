@@ -67,7 +67,7 @@ def train_model(train_dataset: TrainDataset,
     train_evaluator: Evaluator
     if fit_one_batch:
         # Take the minimum loss so the model can achieve 0 loss for questions with
-        # multiple correct answers
+        # multiple correct answers (since this is for sanity checking)
         train_evaluator = SingleClassLossEvaluator().to(device)
     else:
         train_evaluator = MultiClassLossEvaluator().to(device)
@@ -77,7 +77,7 @@ def train_model(train_dataset: TrainDataset,
     batches = [next(iter(loader)).to(device)] if fit_one_batch else loader
     for epoch in tqdm(range(num_epochs), desc='Epoch'):
         epoch_loss = 0.0
-        for batch_num, batch in enumerate(tqdm(batches), desc='Train batch'):
+        for batch_num, batch in enumerate(tqdm(batches, desc='Train batch')):
             optimizer.zero_grad()
             batch.to(device)
             predictions: ModelPredictions = predictor(batch)
