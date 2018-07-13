@@ -5,7 +5,7 @@ Module that holds the training harness
 import json
 from typing import Any, Dict
 
-import tqdm
+from tqdm import tqdm
 import torch as t
 from torch.utils.data import DataLoader
 import torch.optim as optim
