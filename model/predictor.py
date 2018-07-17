@@ -10,7 +10,7 @@ from torch.nn.utils.rnn import (PackedSequence,
 
 from model.batcher import QABatch
 from model.util import get_last_hidden_states
-from model.modules.attention import SimpleAttention, AttentionConfig, BidirectionalAttention
+from model.modules.attention import BidirectionalAttention
 from model.modules.masked import MaskedLinear
 from model.modules.embeddor import Embeddor
 
@@ -52,7 +52,6 @@ class PredictorConfig():
     """
 
     gru: GRUConfig
-    attention: AttentionConfig
     batch_size: int
     n_directions: int
 
@@ -63,8 +62,6 @@ class PredictorConfig():
         self.gru = gru
         self.n_directions = 1 + int(self.gru.bidirectional)
         self.total_hidden_size = self.n_directions * self.gru.hidden_size
-        self.attention = AttentionConfig(input_size=self.total_hidden_size,
-                                         hidden_size=attention_hidden_size)
         self.batch_size = batch_size
 
 
@@ -188,7 +185,7 @@ class BidafPredictor(PredictorModel):
         self.embed = embeddor
         self.q_encoder = ContextualEncoder(self.embed.embedding_dim, self.config.gru)
         self.ctx_encoder = ContextualEncoder(self.embed.embedding_dim, self.config.gru)
-        self.attention = BidirectionalAttention(self.config.attention)
+        self.attention = BidirectionalAttention(self.config.total_hidden_size)
         self.output_layer = BidafOutput(self.config)
 
     def forward(self, batch: QABatch) -> ModelPredictions:
