@@ -102,7 +102,7 @@ class ContextualEncoder(nn.Module):
                                                       lengths,
                                                       batch_first=True)
         processed_packed, _ = self.gru(packed)
-        processed_len_sorted, = pad_packed_sequence(processed_packed, batch_first=True)
+        processed_len_sorted, _ = pad_packed_sequence(processed_packed, batch_first=True)
         return processed_len_sorted[orig_idxs]
 
 
