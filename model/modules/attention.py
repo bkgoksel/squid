@@ -34,8 +34,10 @@ class BidirectionalAttention(nn.Module):
             Context2QueryAttention: (batch_len, max_context_len, embedding_size)
             Query2ContextAttention: (batch_len, max_context_len, embedding_size)
         """
-        q_unsqueeze = question.unsqueeze(1)
-        ctx_unsqueeze = context.unsqueeze(2)
+        batch_len, max_context_len, embedding_size = context.size()
+        _, max_question_len, _ = question.size()
+        q_unsqueeze = question.unsqueeze(1).expand((batch_len, max_context_len, max_question_len, embedding_size))
+        ctx_unsqueeze = context.unsqueeze(2).expand((batch_len, max_context_len, max_question_len, embedding_size))
         similarity = self.ws @ t.cat([q_unsqueeze, ctx_unsqueeze, q_unsqueeze * ctx_unsqueeze], dim=3)
         c2q_att = t.bmm(self.ctx_softmax(similarity), question)
         q2c_att = t.bmm(self.q_softmax(similarity.max(2)[0]).unsqueeze(1), context)
