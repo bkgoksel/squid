@@ -18,6 +18,7 @@ class BidirectionalAttention(nn.Module):
     """
 
     def __init__(self, input_size: int) -> None:
+        super().__init__()
         self.ws = nn.Parameter(t.empty(3 * input_size))
         self.ctx_softmax = nn.Softmax(dim=2)
         self.q_softmax = nn.Softmax(dim=1)
