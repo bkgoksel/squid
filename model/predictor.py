@@ -121,6 +121,7 @@ class BidafOutput(nn.Module):
 
     def __init__(self, config: PredictorConfig) -> None:
         super().__init__()
+        self.config = config
         self.start_modeling_encoder = ContextualEncoder(self.config.total_hidden_size * 5, self.config.gru)
         self.end_modeling_encoder = ContextualEncoder(self.config.total_hidden_size * 5, self.config.gru)
         self.start_predictor = MaskedLinear(self.config.total_hidden_size, 1)
