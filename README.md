@@ -12,7 +12,8 @@
 - [x] Debug simple architecture
 - [x] Make a distinction between train and non-train datasets for proper handling of char/word -> idx mappings (handled by wordvecs for now for word level but what about char level)
 - [x] Write dev validation during training
-- [ ] Implement BiDAF on top
+- [x] Implement BiDAF on top
+- [ ] Debug BiDAF implemenation, try to reproduce results
 - [ ] Add encoding of sentence-level info
 - [ ] Integrate ELMo vectors
 - [ ] Semi-supervised approach to make models resilient to single-word swaps

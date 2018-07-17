@@ -13,8 +13,9 @@ from torch.nn.utils.rnn import (PackedSequence,
                                 pad_packed_sequence,
                                 pad_sequence)
 
-from model.predictor import (BasicPredictor,
-                             BasicPredictorConfig)
+from model.predictor import (BidafPredictor,
+                             PredictorConfig)
+from model.util import get_last_hidden_states
 
 
 class PredictorTestCase(unittest.TestCase):
@@ -23,7 +24,7 @@ class PredictorTestCase(unittest.TestCase):
         self.seq_len = 4
         self.input_dim = 2
         self.hidden_size = 10
-        self.config = Mock(BasicPredictorConfig)
+        self.config = Mock(PredictorConfig)
 
     def get_input(self) -> PackedSequence:
         seqs = []
@@ -69,7 +70,7 @@ class PredictorTestCase(unittest.TestCase):
         all_states, states = rnn(inpt)
         all_states, lens = pad_packed_sequence(all_states)
         all_states.transpose_(0, 1)
-        last_hidden_state = BasicPredictor.get_last_hidden_states(states, self.config)
+        last_hidden_state = get_last_hidden_states(states, self.config)
         self.check_match(all_states, last_hidden_state, lens)
 
     def test_get_last_hidden_states_two_layers(self):
@@ -82,7 +83,7 @@ class PredictorTestCase(unittest.TestCase):
         all_states, states = rnn(inpt)
         all_states, lens = pad_packed_sequence(all_states)
         all_states.transpose_(0, 1)
-        last_hidden_state = BasicPredictor.get_last_hidden_states(states, self.config)
+        last_hidden_state = get_last_hidden_states(states, self.config)
         self.check_match(all_states, last_hidden_state, lens)
 
     def test_get_last_hidden_states_bidirectional(self):
@@ -95,7 +96,7 @@ class PredictorTestCase(unittest.TestCase):
         all_states, states = rnn(inpt)
         all_states, lens = pad_packed_sequence(all_states)
         all_states.transpose_(0, 1)
-        last_hidden_state = BasicPredictor.get_last_hidden_states(states, self.config)
+        last_hidden_state = get_last_hidden_states(states, self.config)
         self.check_match(all_states, last_hidden_state, lens)
 
     def test_get_last_hidden_states_bidirectional_two_layer(self):
@@ -108,5 +109,5 @@ class PredictorTestCase(unittest.TestCase):
         all_states, states = rnn(inpt)
         all_states, lens = pad_packed_sequence(all_states)
         all_states.transpose_(0, 1)
-        last_hidden_state = BasicPredictor.get_last_hidden_states(states, self.config)
+        last_hidden_state = get_last_hidden_states(states, self.config)
         self.check_match(all_states, last_hidden_state, lens)

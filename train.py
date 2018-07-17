@@ -4,7 +4,7 @@ import json
 import model.trainer as trainer
 from model.tokenizer import Tokenizer, NltkTokenizer
 from model.text_processor import TextProcessor
-from model.predictor import (BasicPredictorConfig,
+from model.predictor import (PredictorConfig,
                              GRUConfig,
                              PredictorModel)
 from model.modules.embeddor import (EmbeddorConfig,
@@ -55,12 +55,12 @@ def main() -> None:
                                                         tokenizer,
                                                         processor)
 
-    predictor_config = BasicPredictorConfig(gru=GRUConfig(hidden_size=args.lstm_hidden_size,
-                                                          num_layers=args.lstm_num_layers,
-                                                          dropout=args.dropout,
-                                                          bidirectional=(not args.lstm_unidirectional)),
-                                            attention_hidden_size=args.attention_hidden_size,
-                                            batch_size=args.batch_size)
+    predictor_config = PredictorConfig(gru=GRUConfig(hidden_size=args.lstm_hidden_size,
+                                                     num_layers=args.lstm_num_layers,
+                                                     dropout=args.dropout,
+                                                     bidirectional=(not args.lstm_unidirectional)),
+                                       attention_hidden_size=args.attention_hidden_size,
+                                       batch_size=args.batch_size)
     word_embedding_config = WordEmbeddorConfig(vectors=vectors, train_vecs=False)
     if args.char_embedding_size:
         char_embedding_config = PoolingCharEmbeddorConfig(embedding_dimension=args.char_embedding_size,

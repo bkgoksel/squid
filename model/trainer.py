@@ -16,8 +16,8 @@ from model.corpus import (QADataset,
 from model.qa import QuestionId
 from model.batcher import QABatch, collate_batch
 from model.predictor import (PredictorModel,
-                             BasicPredictor,
-                             BasicPredictorConfig,
+                             BidafPredictor,
+                             PredictorConfig,
                              ModelPredictions)
 
 from model.util import get_device
@@ -40,12 +40,12 @@ def train_model(train_dataset: TrainDataset,
                 learning_rate: float,
                 num_epochs: int,
                 batch_size: int,
-                predictor_config: BasicPredictorConfig,
+                predictor_config: PredictorConfig,
                 embeddor_config: EmbeddorConfig,
                 use_cuda: bool=False,
                 fit_one_batch: bool=False) -> PredictorModel:
     """
-    Trains a BasicPredictor model on the given train set with given params and returns
+    Trains a BidafPredictor model on the given train set with given params and returns
     the trained model instance
 
     :param train_dataset: A Processed TrainDataset object of training data
@@ -53,7 +53,7 @@ def train_model(train_dataset: TrainDataset,
     :param learning_rate: LR for Adam optimizer
     :param num_epochs: Number of epochs to train for
     :param batch_size: Size of each training batch
-    :param predictor_config: A BasicPredictorConfig object specifying parameters of the model
+    :param predictor_config: A PredictorConfig object specifying parameters of the model
     :param embeddor_config: An EmbeddorConfig object that specifies the embeddings layer
     :param use_cuda: If True use CUDA (default False)
     :param fit_one_batch: If True train on a single batch (default False)
@@ -63,7 +63,7 @@ def train_model(train_dataset: TrainDataset,
 
     device = get_device(use_cuda)
     embeddor: Embeddor = make_embeddor(embeddor_config, device)
-    predictor: PredictorModel = BasicPredictor(embeddor, predictor_config).to(device)
+    predictor: PredictorModel = BidafPredictor(embeddor, predictor_config).to(device)
     train_evaluator: Evaluator
     if fit_one_batch:
         # Take the minimum loss so the model can achieve 0 loss for questions with
