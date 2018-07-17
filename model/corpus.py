@@ -83,6 +83,7 @@ class Corpus():
                  data_file: str,
                  tokenizer: Tokenizer,
                  processor: TextProcessor,
+                 force_single_answer: bool=False,
                  char_mapping: Optional[Dict[str, int]]=None):
         """
         Reads a Corpus of QA questions from a file
@@ -90,10 +91,12 @@ class Corpus():
         :param tokenizer: Tokenizer to tokenize all text read
         :param processor: TextProcessor object that contains all textual processing
             to be applied to the text before tokenization
+        :param force_single_answer: if True only include first answer span as true
+            (default False)
         :param char_mapping: Optional mapping from chars to ints, will be computed
             from scratch if not specified
         """
-        context_qas = cls.read_context_qas(data_file, tokenizer, processor)
+        context_qas = cls.read_context_qas(data_file, tokenizer, processor, force_single_answer)
         vocab = cls.compute_vocab(context_qas)
         if not char_mapping:
             char_mapping = cls.compute_char_indices(context_qas)
@@ -101,11 +104,16 @@ class Corpus():
         return cls(context_qas, vocab, char_mapping, stats, data_file)
 
     @staticmethod
-    def read_context_qas(data_file: str, tokenizer: Tokenizer, processor: TextProcessor) -> List[ContextQuestionAnswer]:
+    def read_context_qas(data_file: str,
+                         tokenizer: Tokenizer,
+                         processor: TextProcessor,
+                         force_single_answer: bool) -> List[ContextQuestionAnswer]:
         """
         Reads a SQUAD formattted JSON file into ContextQuestionAnswer objects
         :param data_file: filename of the JSON questions file
         :param tokenizer: Tokenizer object to use to tokenize the text
+        :param processor: TextProcessor object to process text before tokenization
+        :param force_single_answer: Bool if True only pick first answer span
         :returns: List[ContextQuestionAnswer], list of all the contexts and questions
         """
         contexts: List[ContextQuestionAnswer] = []
@@ -124,6 +132,8 @@ class Corpus():
                             span_start: int = answer['answer_start']
                             tokenized_answer = Answer(text, span_start, tokenizer, processor)
                             answers.add(tokenized_answer)
+                            if force_single_answer:
+                                break
                         tokenized_question = QuestionAnswer(q_id, q_text, answers, tokenizer, processor)
                         qas.append(tokenized_question)
                     tokenized_context = ContextQuestionAnswer(context, qas, tokenizer, processor)
@@ -350,7 +360,8 @@ class TrainDataset(QADataset):
                      filename: str,
                      vectors: WordVectors,
                      tokenizer: Tokenizer,
-                     processor: TextProcessor) -> QADataset:
+                     processor: TextProcessor,
+                     force_single_answer: bool=False) -> QADataset:
         """
         Reads the given qa data file and processes it into a TrainDataset using
         the provided word vectors' vocab, tokenizer and text processor
@@ -358,13 +369,15 @@ class TrainDataset(QADataset):
         :param vectors: WordVectors object whose vocab is used to construct the token encoding
         :param tokenizer: Tokenizer object used to tokenize the text
         :param processor: TextProcessor object to apply to the text before tokenization
+        :param force_single_answer: if True only include first answer span as true
+            (default False)
         :returns: A TrainDataset object
         """
         corpus: Corpus
         try:
             corpus = Corpus.from_disk(filename)
         except (IOError, pickle.UnpicklingError) as e:
-            corpus = Corpus.from_raw(filename, tokenizer, processor)
+            corpus = Corpus.from_raw(filename, tokenizer, processor, force_single_answer)
         return cls(corpus, vectors)
 
 
@@ -383,7 +396,8 @@ class EvalDataset(QADataset):
                      vectors: WordVectors,
                      char_mapping: Dict[str, int],
                      tokenizer: Tokenizer,
-                     processor: TextProcessor) -> QADataset:
+                     processor: TextProcessor,
+                     force_single_answer: bool=False) -> QADataset:
         """
         Reads the given qa data file and processes it into a TrainDataset using
         the provided word vectors' vocab, tokenizer and text processor
@@ -392,11 +406,13 @@ class EvalDataset(QADataset):
         :param char_mapping: The char -> id mapping to use from the ground truth dataset
         :param tokenizer: Tokenizer object used to tokenize the text
         :param processor: TextProcessor object to apply to the text before tokenization
+        :param force_single_answer: if True only include first answer span as true
+            (default False)
         :returns: An EvalDataset object
         """
         corpus: Corpus
         try:
             corpus = Corpus.from_disk(filename)
         except (IOError, pickle.UnpicklingError) as e:
-            corpus = Corpus.from_raw(filename, tokenizer, processor, char_mapping)
+            corpus = Corpus.from_raw(filename, tokenizer, processor, force_single_answer, char_mapping)
         return cls(corpus, vectors)

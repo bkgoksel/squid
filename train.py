@@ -32,6 +32,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument('--attention-hidden-size', type=int, default=512)
     parser.add_argument('--answer-train-set', action='store_true', help='if specified generate answers to the train set')
     parser.add_argument('--fit-one-batch', action='store_true', help='if specified try to fit a single batch')
+    parser.add_argument('--force-single-answer', action='store_true', help='if specified only train on a single answer span per question')
     parser.add_argument('--use-cuda', action='store_true', help='if specified use CUDA')
     parser.add_argument('--config-file', type=str, default='', help='if specified load config from this json file (overwrites cli args)')
 
@@ -48,7 +49,8 @@ def main() -> None:
     train_dataset: TrainDataset = TrainDataset.load_dataset(args.train_file,
                                                             vectors,
                                                             tokenizer,
-                                                            processor)
+                                                            processor,
+                                                            args.force_single_answer)
     dev_dataset: EvalDataset = EvalDataset.load_dataset(args.dev_file,
                                                         vectors,
                                                         train_dataset.char_mapping,
