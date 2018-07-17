@@ -22,7 +22,7 @@ class BidirectionalAttention(nn.Module):
         self.ws = nn.Parameter(t.empty(3 * input_size))
         self.ctx_softmax = nn.Softmax(dim=2)
         self.q_softmax = nn.Softmax(dim=1)
-        nn.init.xavier_uniform_(self.ws)
+        nn.init.normal_(self.ws)
 
     def forward(self, context, question):
         """
