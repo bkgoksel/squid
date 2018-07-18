@@ -38,7 +38,7 @@ class BidirectionalAttention(nn.Module):
         _, max_question_len, _ = question.size()
         q_unsqueeze = question.unsqueeze(1).expand((batch_len, max_context_len, max_question_len, embedding_size))
         ctx_unsqueeze = context.unsqueeze(2).expand((batch_len, max_context_len, max_question_len, embedding_size))
-        similarity = self.ws @ t.cat([q_unsqueeze, ctx_unsqueeze, q_unsqueeze * ctx_unsqueeze], dim=3)
+        similarity = t.cat([q_unsqueeze, ctx_unsqueeze, q_unsqueeze * ctx_unsqueeze], dim=3) @ self.ws
         c2q_att = t.bmm(self.ctx_softmax(similarity), question)
         q2c_att = t.bmm(self.q_softmax(similarity.max(2)[0]).unsqueeze(1), context)
         return c2q_att, q2c_att
