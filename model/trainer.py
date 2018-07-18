@@ -43,6 +43,7 @@ def train_model(train_dataset: TrainDataset,
                 predictor_config: PredictorConfig,
                 embeddor_config: EmbeddorConfig,
                 use_cuda: bool=False,
+                force_single_answer: bool=False,
                 fit_one_batch: bool=False) -> PredictorModel:
     """
     Trains a BidafPredictor model on the given train set with given params and returns
@@ -56,6 +57,7 @@ def train_model(train_dataset: TrainDataset,
     :param predictor_config: A PredictorConfig object specifying parameters of the model
     :param embeddor_config: An EmbeddorConfig object that specifies the embeddings layer
     :param use_cuda: If True use CUDA (default False)
+    :param force_single_answer: If True use a single class loss function (default False)
     :param fit_one_batch: If True train on a single batch (default False)
 
     :returns: A Trained PredictorModel object
@@ -65,9 +67,7 @@ def train_model(train_dataset: TrainDataset,
     embeddor: Embeddor = make_embeddor(embeddor_config, device)
     predictor: PredictorModel = BidafPredictor(embeddor, predictor_config).to(device)
     train_evaluator: Evaluator
-    if fit_one_batch:
-        # Take the minimum loss so the model can achieve 0 loss for questions with
-        # multiple correct answers (since this is for sanity checking)
+    if force_single_answer:
         train_evaluator = SingleClassLossEvaluator().to(device)
     else:
         train_evaluator = MultiClassLossEvaluator().to(device)

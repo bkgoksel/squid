@@ -12,7 +12,7 @@ MaskTime = Enum('MaskTime', 'pre post')
 
 def mask_sequence(input_batch: t.Tensor, mask_index: float=0) -> t.ByteTensor:
     """
-    Returns a LongTensor where masked indices are 0 and rest 1
+    Returns a ByteTensor where masked indices are 0 and rest 1
     :param input_batch: Batch first tensor of padded sequences
     :param mask_index: Value that signifies an index that should be masked
     :returns: A ByteTensor, same shape as input_batch
@@ -55,17 +55,21 @@ class MaskedOp(nn.Module):
         else:
             raise Exception('Malformed mask_mode for MaskedOp: %s' % self.mask_mode)
 
-    def forward(self, input_batch: t.Tensor, mask: t.ByteTensor) -> t.Tensor:
+    def forward(self, input_batch: t.Tensor, *args, mask: t.ByteTensor=None, **kwargs) -> t.Tensor:
         """
         Subtracts mask from its input and applies op to it
         :param input_batch: Batch of variable length sequences to mask and apply op on
+        :param args: Other arguments to pass to the wrapped op (passed in same order)
         :param mask: Mask tensor that is 1 for all in-sequence values and 0 for others
+        :param kwargs: Other keyword arguments to pass to the wrapped op
         :returns: Output of the supplied op after masking
         """
+        if mask is None:
+            raise Exception('No Mask passed to the masked op')
         if self.mask_time == MaskTime.pre:
-            return self.op(self._apply_mask(input_batch, mask))
+            return self.op(self._apply_mask(input_batch, mask), *args, **kwargs)
         elif self.mask_time == MaskTime.post:
-            return self._apply_mask(self.op(input_batch), mask)
+            return self._apply_mask(self.op(input_batch, *args, **kwargs), mask)
         else:
             raise Exception('Malformed mask_time for MaskedOp: %s' % self.mask_time)
 

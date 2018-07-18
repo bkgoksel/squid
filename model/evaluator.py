@@ -12,6 +12,7 @@ import torch.nn as nn
 from model.batcher import QABatch
 from model.predictor import ModelPredictions
 from model.qa import QuestionId
+from model.modules.masked import MaskedOp, MaskTime, MaskMode
 
 
 class Evaluator(nn.Module):
@@ -30,52 +31,59 @@ class Evaluator(nn.Module):
 
 class SingleClassLossEvaluator(Evaluator):
     """
-    Simple Evaluator that outputs the minimum of all
-    masked cross entropy losses for each valid starting
-    and ending point
+    Simple Evaluator for data where there is
+    a single correct answer.
+    Uses CrossEntropyLoss after masking the input logits
     """
 
-    loss_op: nn.BCEWithLogitsLoss
+    loss_op: MaskedOp
 
     def __init__(self) -> None:
         super().__init__()
-        self.loss_op = nn.BCEWithLogitsLoss()
+        self.loss_op = MaskedOp(nn.CrossEntropyLoss(),
+                                MaskMode.subtract,
+                                MaskMode.pre,
+                                mask_value=1e30)
 
     def forward(self,
                 batch: QABatch,
                 model_predictions: ModelPredictions) -> t.Tensor:
-        correct_starts = t.nonzero(batch.answer_span_starts).numpy()
-        start_losses = []
-        for start_idx in correct_starts:
-            fake_start = t.zeros_like(batch.answer_span_starts)
-            fake_start[0, start_idx] = 1
-            start_losses.append(self.loss_op(model_predictions.start_logits, fake_start.float()))
-        correct_ends = t.nonzero(batch.answer_span_ends).numpy()
-        end_losses = []
-        for end_idx in correct_ends:
-            fake_end = t.zeros_like(batch.answer_span_ends)
-            fake_end[0, end_idx] = 1
-            end_losses.append(self.loss_op(model_predictions.end_logits, fake_end.float()))
-        return min(start_losses) + min(end_losses)
+        answer_starts = batch.answer_span_starts.argmax(1)
+        answer_ends = batch.answer_span_ends.argmax(1)
+        start_loss = self.loss_op(model_predictions.start_logits,
+                                  answer_starts,
+                                  mask=batch.context_mask)
+        end_loss = self.loss_op(model_predictions.end_logits,
+                                answer_ends,
+                                mask=batch.context_mask)
+        return start_loss + end_loss
 
 
 class MultiClassLossEvaluator(Evaluator):
     """
     Simple Evaluator that computes multi-class loss on all
-    starting and ending points
+    starting and ending points for multi-answer training
+    Uses BCEWithLogitsLoss after masking the logits
     """
 
-    loss_op: nn.BCEWithLogitsLoss
+    loss_op: MaskedOp
 
     def __init__(self) -> None:
         super().__init__()
-        self.loss_op = nn.BCEWithLogitsLoss()
+        self.loss_op = MaskedOp(nn.BCEWithLogitsLoss(),
+                                MaskMode.subtract,
+                                MaskTime.pre,
+                                mask_value=1e30)
 
     def forward(self,
                 batch: QABatch,
                 model_predictions: ModelPredictions) -> t.Tensor:
-        start_loss = self.loss_op(model_predictions.start_logits, batch.answer_span_starts.float())
-        end_loss = self.loss_op(model_predictions.end_logits, batch.answer_span_ends.float())
+        start_loss = self.loss_op(model_predictions.start_logits,
+                                  batch.answer_span_starts.float(),
+                                  mask=batch.context_mask)
+        end_loss = self.loss_op(model_predictions.end_logits,
+                                batch.answer_span_ends.float(),
+                                mask=batch.context_mask)
         return start_loss + end_loss
 
 
