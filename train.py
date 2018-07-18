@@ -89,6 +89,9 @@ def main() -> None:
     dev_answers = trainer.answer_dataset(dev_dataset, model, args.use_cuda)
     with open('dev-pred.json', 'w') as f:
         json.dump(dev_answers, f)
+    print('Evaluating on dev')
+    eval_results = trainer.evaluate_on_squad_dataset(dev_dataset, model, args.use_cuda, 64)
+    print(eval_results)
 
 
 if __name__ == '__main__':
