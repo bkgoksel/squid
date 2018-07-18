@@ -124,8 +124,8 @@ class BidafOutput(nn.Module):
         self.config = config
         self.start_modeling_encoder = ContextualEncoder(self.config.total_hidden_size * 4, self.config.gru)
         self.end_modeling_encoder = ContextualEncoder(self.config.total_hidden_size * 4, self.config.gru)
-        self.start_predictor = MaskedLinear(self.config.total_hidden_size, 1)
-        self.end_predictor = MaskedLinear(self.config.total_hidden_size, 1)
+        self.start_predictor = MaskedLinear(self.config.total_hidden_size * 5, 1)
+        self.end_predictor = MaskedLinear(self.config.total_hidden_size * 5, 1)
         self.no_answer_gru = nn.GRU(self.config.total_hidden_size * 4,
                                     self.config.gru.hidden_size,
                                     1,
