@@ -35,6 +35,7 @@ CorpusStats = NamedTuple('CorpusStats', [
     ('max_context_len', int),
     ('max_q_len', int),
     ('max_word_len', int),
+    ('single_answer', bool),
     ('vocab_size', int),
     ('char_vocab_size', int)
 ])
@@ -185,9 +186,11 @@ class Corpus():
         n_questions: int = sum(len(ctx.qas) for ctx in context_qas)
         n_answerable: int = sum(len([qa for qa in ctx.qas if qa.answers]) for ctx in context_qas)
         n_unanswerable: int = sum(len([qa for qa in ctx.qas if not qa.answers]) for ctx in context_qas)
+        single_answer: bool = all(all(len(qa.answers) <= 1 for qa in ctx.qas) for ctx in context_qas)
         max_context_len: int = max(len(ctx.tokens) for ctx in context_qas)
         max_q_len: int = max(len(qa.tokens) for ctx in context_qas for qa in ctx.qas)
 
+        max_num_answer_spans = 0
         max_word_len = 0
         for ctx in context_qas:
             max_curr_len = max(len(tok.word) for tok in ctx.tokens)
@@ -195,6 +198,7 @@ class Corpus():
             for qa in ctx.qas:
                 max_curr_len = max(len(tok.word) for tok in qa.tokens)
                 max_word_len = max(max_curr_len, max_word_len)
+                max_num_answer_spans = max(max_num_answer_spans, len(qa.answers))
 
         return CorpusStats(n_contexts=n_contexts,
                            n_questions=n_questions,
@@ -203,6 +207,7 @@ class Corpus():
                            max_context_len=max_context_len,
                            max_q_len=max_q_len,
                            max_word_len=max_word_len,
+                           single_answer=single_answer,
                            vocab_size=len(vocab),
                            char_vocab_size=max(char_vocab.values()) + 1)
 
