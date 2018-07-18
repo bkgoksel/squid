@@ -70,7 +70,7 @@ class PredictorTestCase(unittest.TestCase):
         all_states, states = rnn(inpt)
         all_states, lens = pad_packed_sequence(all_states)
         all_states.transpose_(0, 1)
-        last_hidden_state = get_last_hidden_states(states, self.config)
+        last_hidden_state = get_last_hidden_states(states, self.config.n_directions, self.config.total_hidden_size)
         self.check_match(all_states, last_hidden_state, lens)
 
     def test_get_last_hidden_states_two_layers(self):
@@ -83,7 +83,7 @@ class PredictorTestCase(unittest.TestCase):
         all_states, states = rnn(inpt)
         all_states, lens = pad_packed_sequence(all_states)
         all_states.transpose_(0, 1)
-        last_hidden_state = get_last_hidden_states(states, self.config)
+        last_hidden_state = get_last_hidden_states(states, self.config.n_directions, self.config.total_hidden_size)
         self.check_match(all_states, last_hidden_state, lens)
 
     def test_get_last_hidden_states_bidirectional(self):
@@ -96,7 +96,7 @@ class PredictorTestCase(unittest.TestCase):
         all_states, states = rnn(inpt)
         all_states, lens = pad_packed_sequence(all_states)
         all_states.transpose_(0, 1)
-        last_hidden_state = get_last_hidden_states(states, self.config)
+        last_hidden_state = get_last_hidden_states(states, self.config.n_directions, self.config.total_hidden_size)
         self.check_match(all_states, last_hidden_state, lens)
 
     def test_get_last_hidden_states_bidirectional_two_layer(self):
@@ -109,5 +109,5 @@ class PredictorTestCase(unittest.TestCase):
         all_states, states = rnn(inpt)
         all_states, lens = pad_packed_sequence(all_states)
         all_states.transpose_(0, 1)
-        last_hidden_state = get_last_hidden_states(states, self.config)
+        last_hidden_state = get_last_hidden_states(states, self.config.n_directions, self.config.total_hidden_size)
         self.check_match(all_states, last_hidden_state, lens)

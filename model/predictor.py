@@ -159,7 +159,7 @@ class BidafOutput(nn.Module):
                                                               batch_first=True)
 
         _, no_answer_out_len_sorted = self.no_answer_gru(context_packed)
-        no_answer_out_len_sorted = get_last_hidden_states(no_answer_out_len_sorted, self.config)
+        no_answer_out_len_sorted = get_last_hidden_states(no_answer_out_len_sorted, self.config.n_directions, self.config.total_hidden_size)
         no_answer_out = no_answer_out_len_sorted[orig_idxs]
         no_answer_predictions = self.no_answer_predictor(no_answer_out)
 
