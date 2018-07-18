@@ -45,7 +45,6 @@ class BidirectionalAttention(nn.Module):
 
         q_weighted = question @ self.w_question  # (batch_len, max_question_len)
         ctx_weighted = context @ self.w_context  # (batch_len, max_context_len)
-        __import__('pdb').set_trace()
         multiple_weighted = (question.unsqueeze(1) * context.unsqueeze(2)) @ self.w_multiple  # (batch_len, max_context_len, max_question_len)
 
         similarity = t.sum(t.cat([q_weighted.unsqueeze(1).unsqueeze(3).expand((batch_len, max_context_len, max_question_len, 1)),
