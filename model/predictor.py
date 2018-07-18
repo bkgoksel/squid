@@ -57,7 +57,6 @@ class PredictorConfig():
 
     def __init__(self,
                  gru: GRUConfig,
-                 attention_hidden_size: int,
                  batch_size: int) -> None:
         self.gru = gru
         self.n_directions = 1 + int(self.gru.bidirectional)
