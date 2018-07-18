@@ -43,13 +43,14 @@ class BidirectionalAttention(nn.Module):
         batch_len, max_context_len, embedding_size = context.size()
         _, max_question_len, _ = question.size()
 
-        q_weighted = question @ self.w_question  # (batch_len, max_question_len, 1)
-        ctx_weighted = context @ self.w_context  # (batch_len, max_context_len, 1)
-        multiple_weighted = (question.unsqueeze(1) * context.unsqueeze(2)) @ self.w_multiple  # (batch_len, max_context_len, max_question_len,1)
+        q_weighted = question @ self.w_question  # (batch_len, max_question_len)
+        ctx_weighted = context @ self.w_context  # (batch_len, max_context_len)
+        __import__('pdb').set_trace()
+        multiple_weighted = (question.unsqueeze(1) * context.unsqueeze(2)) @ self.w_multiple  # (batch_len, max_context_len, max_question_len)
 
-        similarity = t.sum(t.cat([q_weighted.unsqueeze(1).expand((batch_len, max_context_len, max_question_len, 1)),
-                                  ctx_weighted.unsqueeze(1).expand((batch_len, max_context_len, max_question_len, 1)),
-                                  multiple_weighted], dim=3), dim=3)
+        similarity = t.sum(t.cat([q_weighted.unsqueeze(1).unsqueeze(3).expand((batch_len, max_context_len, max_question_len, 1)),
+                                  ctx_weighted.unsqueeze(2).unsqueeze(3).expand((batch_len, max_context_len, max_question_len, 1)),
+                                  multiple_weighted.unsqueeze(3)], dim=3), dim=3)
 
         c2q_att = t.bmm(self.ctx_softmax(similarity), question)
         q2c_att = t.bmm(self.q_softmax(similarity.max(2)[0]).unsqueeze(1), context)
