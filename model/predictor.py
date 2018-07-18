@@ -151,7 +151,7 @@ class BidafOutput(nn.Module):
                                                     orig_idxs)
 
         start_predictions = self.start_predictor(t.cat([context_encoding, start_modeled_ctx], dim=2), context_mask).squeeze(2)
-        end_predictions = self.end_predictor(t.cat([context_encoding, end_modeled_ctx]), context_mask).squeeze(2)
+        end_predictions = self.end_predictor(t.cat([context_encoding, end_modeled_ctx], dim=2), context_mask).squeeze(2)
 
         context_length_sorted = context_encoding[length_idxs]
         context_packed: PackedSequence = pack_padded_sequence(context_length_sorted,
