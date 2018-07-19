@@ -11,6 +11,7 @@ from model.wv import WordVectors
 
 WordEmbeddorConfig = NamedTuple('WordEmbeddorConfig', [
     ('vectors', WordVectors),
+    ('token_mapping', Dict[str, int]),
     ('train_vecs', bool)
 ])
 
@@ -55,9 +56,14 @@ class WordEmbeddor(Embeddor):
     """
     embed: nn.Embedding
 
-    def __init__(self, word_vectors: WordVectors, train_vecs: bool, device: Any=t.device('cpu')) -> None:
+    def __init__(self,
+                 word_vectors: WordVectors,
+                 token_mapping: Dict[str, int],
+                 train_vecs: bool,
+                 device: Any=t.device('cpu')) -> None:
         super().__init__(word_vectors.dim)
-        self.embed = nn.Embedding.from_pretrained(t.Tensor(word_vectors.vectors).to(device),
+        embedding_matrix = t.Tensor(word_vectors.build_embeddings_matrix_for(token_mapping)).to(device)
+        self.embed = nn.Embedding.from_pretrained(embedding_matrix,
                                                   freeze=(not train_vecs))
         self.to(device)
 
@@ -134,8 +140,10 @@ def make_embeddor(config: EmbeddorConfig, device: Any) -> Embeddor:
     embeddors = []
     assert(config.word_embeddor or config.char_embeddor)
     if config.word_embeddor:
-        embeddors.append(WordEmbeddor(config.word_embeddor.vectors, config.word_embeddor.train_vecs, device))
+        embeddors.append(WordEmbeddor(config.word_embeddor.vectors,
+                                      config.word_embeddor.token_mapping,
+                                      config.word_embeddor.train_vecs,
+                                      device))
     if config.char_embeddor:
         embeddors.append(PoolingCharEmbeddor(config.char_embeddor.char_vocab_size, config.char_embeddor.embedding_dimension, device))
     return ConcatenatingEmbeddor(*embeddors)
-

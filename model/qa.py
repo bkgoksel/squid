@@ -13,7 +13,6 @@ from typing import (cast,
 
 from model.text_processor import TextProcessor
 from model.tokenizer import Token, Tokenizer
-from model.wv import WordVectors
 
 
 QuestionId = NewType('QuestionId', str)
@@ -139,11 +138,11 @@ class EncodedQuestionAnswer():
 
     def __init__(self,
                  qa: QuestionAnswer,
-                 word_vectors: WordVectors,
+                 token_mapping: Dict[str, int],
                  char_mapping: Dict[str, int],
                  context_tokens: List[Token]) -> None:
         self.question_id = qa.question_id
-        self.word_encoding = np.array([word_vectors[tk.word] for tk in qa.tokens])
+        self.word_encoding = np.array([token_mapping.get(tk.word, 1) for tk in qa.tokens])
         self.char_encoding = [np.array([char_mapping[char] for char in tk.word]) for tk in qa.tokens]
         self.answers = [EncodedAnswer(ans, context_tokens) for ans in qa.answers]
 
@@ -165,11 +164,11 @@ class EncodedContextQuestionAnswer():
 
     def __init__(self,
                  ctx: ContextQuestionAnswer,
-                 word_vectors: WordVectors,
+                 token_mapping: Dict[str, int],
                  char_mapping: Dict[str, int]) -> None:
-        self.word_encoding = np.array([word_vectors[tk.word] for tk in ctx.tokens])
+        self.word_encoding = np.array([token_mapping.get(tk.word, 1) for tk in ctx.tokens])
         self.char_encoding = [np.array([char_mapping.get(char, 1) for char in tk.word]) for tk in ctx.tokens]
-        self.qas = [EncodedQuestionAnswer(qa, word_vectors, char_mapping, ctx.tokens) for qa in ctx.qas]
+        self.qas = [EncodedQuestionAnswer(qa, token_mapping, char_mapping, ctx.tokens) for qa in ctx.qas]
 
     def __eq__(self, other) -> bool:
         return (self.qas == other.qas and

@@ -6,7 +6,6 @@ import json
 import pickle
 from typing import (Any,
                     Optional,
-                    Sized,
                     List,
                     Dict,
                     Set,
@@ -36,7 +35,7 @@ CorpusStats = NamedTuple('CorpusStats', [
     ('max_q_len', int),
     ('max_word_len', int),
     ('single_answer', bool),
-    ('vocab_size', int),
+    ('word_vocab_size', int),
     ('char_vocab_size', int)
 ])
 
@@ -51,23 +50,22 @@ class Corpus():
     source_file: Optional[str]
     context_qas: List[ContextQuestionAnswer]
     quids_to_context_qas: Dict[QuestionId, ContextQuestionAnswer]
-    vocab: Set[str]
+    token_mapping: Dict[str, int]
+    char_mapping: Dict[str, int]
     stats: CorpusStats
 
     def __init__(self,
                  context_qas: List[ContextQuestionAnswer],
-                 vocab: Set[str],
+                 token_mapping: Dict[str, int],
                  char_mapping: Dict[str, int],
                  stats: CorpusStats,
                  source_file: Optional[str]=None) -> None:
         self.source_file = source_file
-        self.context_qas: List[ContextQuestionAnswer] = context_qas
-        self.quids_to_context_qas: Dict[QuestionId, ContextQuestionAnswer] = dict()
-        for cqa in context_qas:
-            self.quids_to_context_qas.update({qa.question_id: cqa for qa in cqa.qas})
-        self.vocab = vocab
-        self.stats = stats
+        self.context_qas = context_qas
+        self.quids_to_context_qas = {qa.question_id: cqa for cqa in context_qas for qa in cqa.qas}
+        self.token_mapping = token_mapping
         self.char_mapping = char_mapping
+        self.stats = stats
 
     @classmethod
     def from_disk(cls, serialized_file: str):
@@ -85,6 +83,8 @@ class Corpus():
                  tokenizer: Tokenizer,
                  processor: TextProcessor,
                  force_single_answer: bool=False,
+                 word_vectors: Optional[WordVectors]=None,
+                 token_mapping: Optional[Dict[str, int]]=None,
                  char_mapping: Optional[Dict[str, int]]=None):
         """
         Reads a Corpus of QA questions from a file
@@ -94,15 +94,19 @@ class Corpus():
             to be applied to the text before tokenization
         :param force_single_answer: if True only include first answer span as true
             (default False)
+        :param word_vectors: WordVectors to pick OOV words from (default None)
+        :param token_mapping: Optional mapping from tokens to ints, will be computed
+            from scratch if not specified
         :param char_mapping: Optional mapping from chars to ints, will be computed
             from scratch if not specified
         """
         context_qas = cls.read_context_qas(data_file, tokenizer, processor, force_single_answer)
-        vocab = cls.compute_vocab(context_qas)
-        if not char_mapping:
+        if token_mapping is None:
+            token_mapping = cls.compute_token_indices(context_qas, word_vectors)
+        if char_mapping is None:
             char_mapping = cls.compute_char_indices(context_qas)
-        stats = cls.compute_stats(context_qas, vocab, char_mapping)
-        return cls(context_qas, vocab, char_mapping, stats, data_file)
+        stats = cls.compute_stats(context_qas, token_mapping, char_mapping)
+        return cls(context_qas, char_mapping, token_mapping, stats, data_file)
 
     @staticmethod
     def read_context_qas(data_file: str,
@@ -142,18 +146,24 @@ class Corpus():
         return contexts
 
     @staticmethod
-    def compute_vocab(context_qas: List[ContextQuestionAnswer]) -> Set[str]:
+    def compute_token_indices(context_qas: List[ContextQuestionAnswer], word_vectors: Optional[WordVectors]) -> Dict[str, int]:
         """
         Takes in a list of contexts and qas and returns the set of all words in them
         :param context_qas: List[ContextQuestionAnswer] all the context qa's
-        :returns: Set[str] set of all strings in all the contexts and qas
+        :param word_vectors: Optional[WordVectors] if specified maps tokens not in the vectors to UNK
+        :returns: Dict[str, int] set of all strings in all the contexts and qas
         """
-        vocab: Set[str] = set()
+        tokens: Set[str] = set()
         for ctx in context_qas:
-            vocab.update(set(tok.word for tok in ctx.tokens))
+            tokens.update(set(tok.word for tok in ctx.tokens))
             for qa in ctx.qas:
-                vocab.update(set(tok.word for tok in qa.tokens))
-        return vocab
+                tokens.update(set(tok.word for tok in qa.tokens))
+
+        if word_vectors is not None:
+            tokens = set(filter(word_vectors.contains, tokens))
+
+        token_mapping: Dict[str, int] = dict(map(reversed, enumerate(tokens, 2)))  # idx 1 reserved for UNK
+        return token_mapping
 
     @staticmethod
     def compute_char_indices(context_qas: List[ContextQuestionAnswer]) -> Dict[str, int]:
@@ -174,8 +184,8 @@ class Corpus():
 
     @staticmethod
     def compute_stats(context_qas: List[ContextQuestionAnswer],
-                      vocab: Sized,
-                      char_vocab: Dict[str, int]) -> CorpusStats:
+                      token_mapping: Dict[str, int],
+                      char_mapping: Dict[str, int]) -> CorpusStats:
         """
         Method that computes statistics given list of context qas and vocab
         :param context_qas: List of contextQA objects
@@ -208,8 +218,8 @@ class Corpus():
                            max_q_len=max_q_len,
                            max_word_len=max_word_len,
                            single_answer=single_answer,
-                           vocab_size=len(vocab),
-                           char_vocab_size=max(char_vocab.values()) + 1)
+                           word_vocab_size=max(token_mapping.values()) + 1,
+                           char_vocab_size=max(char_mapping.values()) + 1)
 
     def get_single_answer_text(self, qid: QuestionId, span_start: int, span_end: int) -> str:
         """
@@ -248,32 +258,34 @@ class Corpus():
 
 class EncodedCorpus(Corpus):
     """
-    Class that holds a Corpus alongside
-    word vectors and token mappings
+    Class that holds a Corpus alongside token and char mappings
     """
 
     vocab: Set[str]
+    token_mapping: Dict[str, int]
     char_mapping: Dict[str, int]
     stats: CorpusStats
-    word_vectors: WordVectors
     encoded_context_qas: List[EncodedContextQuestionAnswer]
 
-    def __init__(self, corpus: Corpus, word_vectors: WordVectors) -> None:
-        super().__init__(corpus.context_qas, corpus.vocab, corpus.char_mapping, corpus.stats)
-        self.word_vectors = word_vectors
-        self.encoded_context_qas = EncodedCorpus.encode(self.context_qas, self.word_vectors, self.char_mapping)
+    def __init__(self, corpus: Corpus) -> None:
+        super().__init__(corpus.context_qas, corpus.token_mapping, corpus.char_mapping, corpus.stats)
+        self.encoded_context_qas = EncodedCorpus.encode(self.context_qas,
+                                                        self.token_mapping,
+                                                        self.char_mapping)
 
     @staticmethod
     def encode(context_qas: List[ContextQuestionAnswer],
-               word_vectors: WordVectors,
-               char_mapping: Dict[str, int]) -> List[EncodedContextQuestionAnswer]:
+               token_mapping: Dict[str, int],
+               char_mapping: Dict[str, int],
+               ) -> List[EncodedContextQuestionAnswer]:
         """
-        Method that encodes all the given contextQA's using given word vectors
+        Method that encodes all the given contextQA's
         :param context_qas: List of ContextQA objects
-        :param word_vectors: a WordVectors objects used to encode
+        :param token_mapping: Dictionary from tokens to indices
+        :param char_mapping: Dictionary from characters to indices
         :returns: List of EncodedContextQuestionAnswer objects
         """
-        return [EncodedContextQuestionAnswer(cqa, word_vectors, char_mapping) for cqa in context_qas]
+        return [EncodedContextQuestionAnswer(cqa, token_mapping, char_mapping) for cqa in context_qas]
 
 
 class SampleCorpus(EncodedCorpus):
@@ -282,15 +294,13 @@ class SampleCorpus(EncodedCorpus):
     """
 
     context_qas: List[ContextQuestionAnswer]
-    vocab: Set[str]
     stats: CorpusStats
-    word_vectors: WordVectors
     encoded_context_qas: List[EncodedContextQuestionAnswer]
     samples: List[EncodedSample]
     n_samples: int
 
-    def __init__(self, corpus: Corpus, word_vectors: WordVectors) -> None:
-        super().__init__(corpus, word_vectors)
+    def __init__(self, corpus: Corpus) -> None:
+        super().__init__(corpus)
         self.samples = SampleCorpus.make_samples(self.encoded_context_qas)
         self.n_samples = len(self.samples)
 
@@ -315,8 +325,8 @@ class QADataset(Dataset):
     corpus: SampleCorpus
     _source_file: Optional[str]
 
-    def __init__(self, corpus: Corpus, word_vectors: WordVectors) -> None:
-        self.corpus = SampleCorpus(corpus, word_vectors)
+    def __init__(self, corpus: Corpus) -> None:
+        self.corpus = SampleCorpus(corpus)
         self._source_file = self.corpus.source_file
 
     def __len__(self):
@@ -354,10 +364,12 @@ class TrainDataset(QADataset):
     (and therefore is the ground truth for character -> id mappinggs)
     """
 
+    token_mapping: Dict[str, int]
     char_mapping: Dict[str, int]
 
-    def __init__(self, corpus: Corpus, word_vectors: WordVectors) -> None:
-        super().__init__(corpus, word_vectors)
+    def __init__(self, corpus: Corpus) -> None:
+        super().__init__(corpus)
+        self.token_mapping = corpus.token_mapping
         self.char_mapping = corpus.char_mapping
 
     @classmethod
@@ -382,8 +394,12 @@ class TrainDataset(QADataset):
         try:
             corpus = Corpus.from_disk(filename)
         except (IOError, pickle.UnpicklingError) as e:
-            corpus = Corpus.from_raw(filename, tokenizer, processor, force_single_answer)
-        return cls(corpus, vectors)
+            corpus = Corpus.from_raw(filename,
+                                     tokenizer,
+                                     processor,
+                                     force_single_answer=force_single_answer,
+                                     word_vectors=vectors)
+        return cls(corpus)
 
 
 class EvalDataset(QADataset):
@@ -392,13 +408,13 @@ class EvalDataset(QADataset):
     (and therefore needs the training dataset's character -> id mappings to be instantiated)
     """
 
-    def __init__(self, corpus: Corpus, word_vectors: WordVectors) -> None:
-        super().__init__(corpus, word_vectors)
+    def __init__(self, corpus: Corpus) -> None:
+        super().__init__(corpus)
 
     @classmethod
     def load_dataset(cls,
                      filename: str,
-                     vectors: WordVectors,
+                     token_mapping: Dict[str, int],
                      char_mapping: Dict[str, int],
                      tokenizer: Tokenizer,
                      processor: TextProcessor,
@@ -407,7 +423,7 @@ class EvalDataset(QADataset):
         Reads the given qa data file and processes it into a TrainDataset using
         the provided word vectors' vocab, tokenizer and text processor
         :param filename: File that contains the QA data
-        :param vectors: WordVectors object whose vocab is used to construct the token encoding
+        :param token_mapping: The token -> id mapping to use from the ground truth dataset
         :param char_mapping: The char -> id mapping to use from the ground truth dataset
         :param tokenizer: Tokenizer object used to tokenize the text
         :param processor: TextProcessor object to apply to the text before tokenization
@@ -419,5 +435,10 @@ class EvalDataset(QADataset):
         try:
             corpus = Corpus.from_disk(filename)
         except (IOError, pickle.UnpicklingError) as e:
-            corpus = Corpus.from_raw(filename, tokenizer, processor, force_single_answer, char_mapping)
-        return cls(corpus, vectors)
+            corpus = Corpus.from_raw(filename,
+                                     tokenizer,
+                                     processor,
+                                     force_single_answer=force_single_answer,
+                                     token_mapping=token_mapping,
+                                     char_mapping=char_mapping)
+        return cls(corpus)

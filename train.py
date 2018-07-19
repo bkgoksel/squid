@@ -51,7 +51,7 @@ def main() -> None:
                                                             processor,
                                                             args.force_single_answer)
     dev_dataset: EvalDataset = EvalDataset.load_dataset(args.dev_file,
-                                                        vectors,
+                                                        train_dataset.token_mapping,
                                                         train_dataset.char_mapping,
                                                         tokenizer,
                                                         processor)
@@ -61,7 +61,7 @@ def main() -> None:
                                                      dropout=args.dropout,
                                                      bidirectional=(not args.lstm_unidirectional)),
                                        batch_size=args.batch_size)
-    word_embedding_config = WordEmbeddorConfig(vectors=vectors, train_vecs=False)
+    word_embedding_config = WordEmbeddorConfig(vectors=vectors, token_mapping=train_dataset.token_mapping, train_vecs=False)
     if args.char_embedding_size:
         char_embedding_config = PoolingCharEmbeddorConfig(embedding_dimension=args.char_embedding_size,
                                                           char_vocab_size=train_dataset.corpus.stats.char_vocab_size)
