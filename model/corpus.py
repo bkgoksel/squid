@@ -327,7 +327,7 @@ class QADataset(Dataset):
 
     def __init__(self, corpus: Corpus) -> None:
         self.corpus = SampleCorpus(corpus)
-        self._source_file = self.corpus.source_file
+        self._source_file = self.corpus._source_file
 
     def __len__(self):
         return self.corpus.n_samples
