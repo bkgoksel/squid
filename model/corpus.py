@@ -60,7 +60,7 @@ class Corpus():
                  char_mapping: Dict[str, int],
                  stats: CorpusStats,
                  source_file: Optional[str]=None) -> None:
-        self.source_file = source_file
+        self._source_file = source_file
         self.context_qas = context_qas
         self.quids_to_context_qas = {qa.question_id: cqa for cqa in context_qas for qa in cqa.qas}
         self.token_mapping = token_mapping
@@ -353,7 +353,7 @@ class QADataset(Dataset):
 
     @property
     def source_file(self) -> str:
-        if self._source_file:
+        if self._source_file is not None:
             return self._source_file
         raise Exception('Dataset file provenance not available for this dataset')
 
