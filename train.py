@@ -80,7 +80,6 @@ def main() -> None:
                                                 predictor_config,
                                                 embeddor_config,
                                                 use_cuda=args.use_cuda,
-                                                force_single_answer=args.force_single_answer,
                                                 fit_one_batch=args.fit_one_batch)
     if args.answer_train_set:
         train_answers = trainer.answer_dataset(train_dataset, model, args.use_cuda)
