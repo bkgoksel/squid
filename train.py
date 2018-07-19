@@ -21,7 +21,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument('--train-file', type=str, default='data/original/train.json')
     parser.add_argument('--dev-file', type=str, default='data/original/dev.json')
     parser.add_argument('--word-vector-file', type=str, default='data/word-vectors/glove/glove.6B.100d.txt')
-    parser.add_argument('--batch-size', type=int, default=64)
+    parser.add_argument('--batch-size', type=int, default=32)
     parser.add_argument('--num-epochs', type=int, default=25)
     parser.add_argument('--lr', type=float, default=1e-4)
     parser.add_argument('--char-embedding-size', type=int, default=200, help='Set to 0 to disable char-level embeddings')
@@ -31,7 +31,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument('--dropout', type=float, default=0.2)
     parser.add_argument('--answer-train-set', action='store_true', help='if specified generate answers to the train set')
     parser.add_argument('--fit-one-batch', action='store_true', help='if specified try to fit a single batch')
-    parser.add_argument('--force-single-answer', action='store_true', help='if specified only train on a single answer span per question')
+    parser.add_argument('--multi-answer', action='store_true', help='if specified don\'t truncate answer spans down to one')
     parser.add_argument('--use-cuda', action='store_true', help='if specified use CUDA')
     parser.add_argument('--config-file', type=str, default='', help='if specified load config from this json file (overwrites cli args)')
 
@@ -49,7 +49,7 @@ def main() -> None:
                                                             vectors,
                                                             tokenizer,
                                                             processor,
-                                                            args.force_single_answer)
+                                                            args.multi_answer)
     dev_dataset: EvalDataset = EvalDataset.load_dataset(args.dev_file,
                                                         train_dataset.token_mapping,
                                                         train_dataset.char_mapping,

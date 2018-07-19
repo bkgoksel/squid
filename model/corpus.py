@@ -379,7 +379,7 @@ class TrainDataset(QADataset):
                      vectors: WordVectors,
                      tokenizer: Tokenizer,
                      processor: TextProcessor,
-                     force_single_answer: bool=False) -> QADataset:
+                     multi_answer: bool=False) -> QADataset:
         """
         Reads the given qa data file and processes it into a TrainDataset using
         the provided word vectors' vocab, tokenizer and text processor
@@ -387,7 +387,7 @@ class TrainDataset(QADataset):
         :param vectors: WordVectors object whose vocab is used to construct the token encoding
         :param tokenizer: Tokenizer object used to tokenize the text
         :param processor: TextProcessor object to apply to the text before tokenization
-        :param force_single_answer: if True only include first answer span as true
+        :param multi_answer: if True include answer spans beyond the first
             (default False)
         :returns: A TrainDataset object
         """
@@ -398,7 +398,7 @@ class TrainDataset(QADataset):
             corpus = Corpus.from_raw(filename,
                                      tokenizer,
                                      processor,
-                                     force_single_answer=force_single_answer,
+                                     force_single_answer=not multi_answer,
                                      word_vectors=vectors)
         return cls(corpus)
 
