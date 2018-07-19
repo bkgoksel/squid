@@ -42,7 +42,7 @@ class SingleClassLossEvaluator(Evaluator):
         super().__init__()
         self.loss_op = MaskedOp(nn.CrossEntropyLoss(),
                                 MaskMode.subtract,
-                                MaskMode.pre,
+                                MaskTime.pre,
                                 mask_value=1e30)
 
     def forward(self,
