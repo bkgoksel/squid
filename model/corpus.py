@@ -106,7 +106,7 @@ class Corpus():
         if char_mapping is None:
             char_mapping = cls.compute_char_indices(context_qas)
         stats = cls.compute_stats(context_qas, token_mapping, char_mapping)
-        return cls(context_qas, char_mapping, token_mapping, stats, data_file)
+        return cls(context_qas, token_mapping, char_mapping, stats, data_file)
 
     @staticmethod
     def read_context_qas(data_file: str,
@@ -162,7 +162,7 @@ class Corpus():
         if word_vectors is not None:
             tokens = set(filter(word_vectors.contains, tokens))
 
-        token_mapping: Dict[str, int] = dict(map(reversed, enumerate(tokens, 2)))  # idx 1 reserved for UNK
+        token_mapping: Dict[str, int] = {tok: idx for idx, tok in enumerate(tokens, 2)}  # idx 1 reserved for UNK
         return token_mapping
 
     @staticmethod
@@ -175,11 +175,11 @@ class Corpus():
         chars: Set[str] = set()
         for ctx in context_qas:
             for tok in ctx.tokens:
-                chars.update(set(tok.word))
+                chars.update(set(char for char in tok.word))
             for qa in ctx.qas:
                 for tok in qa.tokens:
-                    chars.update(set(tok.word))
-        char_mapping: Dict[str, int] = dict(map(reversed, enumerate(chars, 2)))  # idx 1 reserved for UNK
+                    chars.update(set(char for char in tok.word))
+        char_mapping: Dict[str, int] = {char: idx for idx, char in enumerate(chars, 2)}  # idx 1 reserved for UNK
         return char_mapping
 
     @staticmethod
