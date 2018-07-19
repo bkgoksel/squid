@@ -268,7 +268,7 @@ class EncodedCorpus(Corpus):
     encoded_context_qas: List[EncodedContextQuestionAnswer]
 
     def __init__(self, corpus: Corpus) -> None:
-        super().__init__(corpus.context_qas, corpus.token_mapping, corpus.char_mapping, corpus.stats)
+        super().__init__(corpus.context_qas, corpus.token_mapping, corpus.char_mapping, corpus.stats, corpus.source_file)
         self.encoded_context_qas = EncodedCorpus.encode(self.context_qas,
                                                         self.token_mapping,
                                                         self.char_mapping)
@@ -355,7 +355,8 @@ class QADataset(Dataset):
     def source_file(self) -> str:
         if self._source_file is not None:
             return self._source_file
-        raise Exception('Dataset file provenance not available for this dataset')
+        else:
+            raise Exception('Dataset file provenance not available for this dataset')
 
 
 class TrainDataset(QADataset):
