@@ -153,9 +153,11 @@ def evaluate_on_squad_dataset(dataset: QADataset,
     with open(dataset.source_file) as dataset_file:
         dataset_json = json.load(dataset_file)
         dataset_version = dataset_json['version']
-        if dataset_version == '1.1.':
+        if dataset_version == '1.1':
             eval_fn = evaluate_v1_1.evaluate
         elif dataset_version == '2.0':
             eval_fn = evaluate_v2_0.evaluate
+        else:
+            raise Exception('Dataset version malformed: {}'.format(dataset_version))
         dataset_dict = dataset_json['data']
     return eval_fn(dataset_dict, answer_dict)
