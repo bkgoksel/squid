@@ -47,7 +47,9 @@ class MaskedOp(nn.Module):
         :param mask: Mask to apply
         :returns: Result of applying mask to inpt given the Mode
         """
-        mask = mask.unsqueeze(2).float()
+        if mask.size() != inpt.size():
+            mask = mask.view(inpt.size())
+        mask = mask.float()
         if self.mask_mode == MaskMode.subtract:
             return inpt + (mask - 1) * self.mask_value
         elif self.mask_mode == MaskMode.multiply:
