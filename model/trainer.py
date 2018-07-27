@@ -92,7 +92,7 @@ def train_model(train_dataset: TrainDataset,
             epoch_loss = epoch_loss / len(loader)
             epochs.set_postfix(loss=epoch_loss)
             if epoch and epoch % 10 == 9:
-                validate(dev_dataset, predictor, train_evaluator, use_cuda, batch_size)
+                validate(dev_dataset, predictor, train_evaluator, use_cuda, epoch, batch_size)
     return predictor
 
 
@@ -100,14 +100,15 @@ def validate(dataset: QADataset,
              predictor: PredictorModel,
              evaluator: Any,
              use_cuda: bool,
+             epoch: int=0,
              batch_size: int=16) -> None:
-    print('\n=== EPOCH %d: Measuring QA performance on the dev set\n')
+    print('\n=== EPOCH %d: Measuring QA performance on the dev set\n' % epoch)
     try:
         dev_perf = evaluate_on_squad_dataset(dataset, predictor, use_cuda, batch_size)
         print('\n=== Dev set performance: {}\n'.format(json.dumps(dev_perf)))
     except Exception as err:
         print('\nError when trying to get full evaluation: {}\n'.format(err))
-    print('\n=== EPOCH %d: Measuring loss on the dev set\n')
+    print('\n=== EPOCH %d: Measuring loss on the dev set\n' % epoch)
     dev_loss = get_dataset_loss(dataset, predictor, evaluator, use_cuda, batch_size)
     print('\n=== Dev set loss: {}\n'.format(dev_loss))
 
