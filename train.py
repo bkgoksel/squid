@@ -1,17 +1,23 @@
 import argparse
 import json
 
+import torch as t
+
 import model.trainer as trainer
 from model.tokenizer import Tokenizer, NltkTokenizer
 from model.text_processor import TextProcessor
 from model.predictor import (PredictorConfig,
                              GRUConfig,
-                             PredictorModel)
-from model.modules.embeddor import (EmbeddorConfig,
+                             PredictorModel,
+                             BidafPredictor)
+from model.modules.embeddor import (Embeddor,
+                                    EmbeddorConfig,
+                                    make_embeddor,
                                     WordEmbeddorConfig,
                                     PoolingCharEmbeddorConfig)
 from model.corpus import (TrainDataset,
                           EvalDataset)
+from model.util import get_device
 from model.wv import WordVectors
 
 
@@ -34,12 +40,38 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument('--multi-answer', action='store_true', help='if specified don\'t truncate answer spans down to one')
     parser.add_argument('--use-cuda', action='store_true', help='if specified use CUDA')
     parser.add_argument('--config-file', type=str, default='', help='if specified load config from this json file (overwrites cli args)')
+    parser.add_argument('--model-save-file', type=str, default=None, help='if specified, save model parameters to this file during training')
+    parser.add_argument('--model-load-file', type=str, default=None, help='if specified, initialize model parameters from this file (should match model described in config)')
 
     return parser.parse_known_args()[0]
 
 
+def initialize_model(args: argparse.Namespace,
+                     train_dataset: TrainDataset,
+                     vectors: WordVectors) -> PredictorModel:
+    device = get_device(args.use_cuda)
+    predictor_config = PredictorConfig(gru=GRUConfig(hidden_size=args.lstm_hidden_size,
+                                                     num_layers=args.lstm_num_layers,
+                                                     dropout=args.dropout,
+                                                     bidirectional=(not args.lstm_unidirectional)),
+                                       batch_size=args.batch_size)
+    word_embedding_config = WordEmbeddorConfig(vectors=vectors, token_mapping=train_dataset.token_mapping, train_vecs=False)
+    if args.char_embedding_size:
+        char_embedding_config = PoolingCharEmbeddorConfig(embedding_dimension=args.char_embedding_size,
+                                                          char_vocab_size=train_dataset.corpus.stats.char_vocab_size)
+    else:
+        char_embedding_config = None
+
+    embeddor_config = EmbeddorConfig(word_embeddor=word_embedding_config,
+                                     char_embeddor=char_embedding_config)
+    embeddor: Embeddor = make_embeddor(embeddor_config, device)
+    return BidafPredictor(embeddor, predictor_config).to(device)
+
+
 def main() -> None:
     args = parse_args()
+
+    device = get_device(args.use_cuda)
 
     tokenizer: Tokenizer = NltkTokenizer()
     processor: TextProcessor = TextProcessor({'lowercase': True})
@@ -55,32 +87,20 @@ def main() -> None:
                                                         train_dataset.char_mapping,
                                                         tokenizer,
                                                         processor)
-
-    predictor_config = PredictorConfig(gru=GRUConfig(hidden_size=args.lstm_hidden_size,
-                                                     num_layers=args.lstm_num_layers,
-                                                     dropout=args.dropout,
-                                                     bidirectional=(not args.lstm_unidirectional)),
-                                       batch_size=args.batch_size)
-    word_embedding_config = WordEmbeddorConfig(vectors=vectors, token_mapping=train_dataset.token_mapping, train_vecs=False)
-    if args.char_embedding_size:
-        char_embedding_config = PoolingCharEmbeddorConfig(embedding_dimension=args.char_embedding_size,
-                                                          char_vocab_size=train_dataset.corpus.stats.char_vocab_size)
+    if args.model_load_file:
+        print('Loading model to train from {}'.format(args.model_load_file))
+        model: PredictorModel = t.load(args.model_load_file).to(device)
     else:
-        char_embedding_config = None
-
-    embeddor_config = EmbeddorConfig(word_embeddor=word_embedding_config,
-                                     char_embeddor=char_embedding_config)
-    print('Training with config: %s \n vectors: %s \n training file: %s \n dev file: %s \n' %
-          (predictor_config, args.word_vector_file, args.train_file, args.dev_file))
-    model: PredictorModel = trainer.train_model(train_dataset,
-                                                dev_dataset,
-                                                args.lr,
-                                                args.num_epochs,
-                                                args.batch_size,
-                                                predictor_config,
-                                                embeddor_config,
-                                                use_cuda=args.use_cuda,
-                                                fit_one_batch=args.fit_one_batch)
+        model = initialize_model(args, train_dataset, vectors)
+    trainer.train_model(model,
+                        train_dataset,
+                        dev_dataset,
+                        args.lr,
+                        args.num_epochs,
+                        args.batch_size,
+                        use_cuda=args.use_cuda,
+                        fit_one_batch=args.fit_one_batch,
+                        model_checkpoint_path=args.model_save_file)
     if args.answer_train_set:
         train_answers = trainer.answer_dataset(train_dataset, model, args.use_cuda)
         with open('train-pred.json', 'w') as f:
@@ -91,6 +111,9 @@ def main() -> None:
     print('Evaluating on dev')
     eval_results = trainer.evaluate_on_squad_dataset(dev_dataset, model, args.use_cuda, 64)
     print(eval_results)
+    if args.model_save_file:
+        print('Saving model to {}'.format(args.model_save_file))
+        t.save(model, args.model_save_file)
 
 
 if __name__ == '__main__':

@@ -3,7 +3,7 @@ Module that holds the training harness
 """
 
 import json
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 from tqdm import tqdm, trange
 import torch as t
@@ -16,15 +16,9 @@ from model.corpus import (QADataset,
 from model.qa import QuestionId
 from model.batcher import QABatch, collate_batch
 from model.predictor import (PredictorModel,
-                             BidafPredictor,
-                             PredictorConfig,
                              ModelPredictions)
 
 from model.util import get_device
-
-from model.modules.embeddor import (Embeddor,
-                                    EmbeddorConfig,
-                                    make_embeddor)
 
 import model.evaluator as evaluator
 from model.evaluator import (Evaluator,
@@ -35,41 +29,40 @@ import scripts.evaluate_v1_1 as evaluate_v1_1
 import scripts.evaluate_v2_0 as evaluate_v2_0
 
 
-def train_model(train_dataset: TrainDataset,
+def train_model(model: PredictorModel,
+                train_dataset: TrainDataset,
                 dev_dataset: EvalDataset,
                 learning_rate: float,
                 num_epochs: int,
                 batch_size: int,
-                predictor_config: PredictorConfig,
-                embeddor_config: EmbeddorConfig,
                 use_cuda: bool=False,
-                fit_one_batch: bool=False) -> PredictorModel:
+                fit_one_batch: bool=False,
+                model_checkpoint_path: Optional[str]=None) -> None:
     """
     Trains a BidafPredictor model on the given train set with given params and returns
     the trained model instance
 
+    :param model: A PredictorModel to train the parameters of
     :param train_dataset: A Processed TrainDataset object of training data
     :param dev_dataset: A Processed EvalDataset object of dev data
     :param learning_rate: LR for Adam optimizer
     :param num_epochs: Number of epochs to train for
     :param batch_size: Size of each training batch
-    :param predictor_config: A PredictorConfig object specifying parameters of the model
-    :param embeddor_config: An EmbeddorConfig object that specifies the embeddings layer
     :param use_cuda: If True use CUDA (default False)
     :param fit_one_batch: If True train on a single batch (default False)
+    :param model_checkpoint_path: if specified path to save serialized model parameters to
+        (default None-> no checkpoint serialization)
 
     :returns: A Trained PredictorModel object
     """
 
     device = get_device(use_cuda)
-    embeddor: Embeddor = make_embeddor(embeddor_config, device)
-    predictor: PredictorModel = BidafPredictor(embeddor, predictor_config).to(device)
     train_evaluator: Evaluator
     if train_dataset.corpus.stats.single_answer:
         train_evaluator = SingleClassLossEvaluator().to(device)
     else:
         train_evaluator = MultiClassLossEvaluator().to(device)
-    trainable_parameters = filter(lambda p: p.requires_grad, set(predictor.parameters()) | set(embeddor.parameters()))
+    trainable_parameters = filter(lambda p: p.requires_grad, set(model.parameters()))
     optimizer: optim.Optimizer = optim.Adam(trainable_parameters, lr=learning_rate)
     loader: DataLoader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, collate_fn=collate_batch)
     batches = [next(iter(loader)).to(device)] if fit_one_batch else loader
@@ -82,7 +75,7 @@ def train_model(train_dataset: TrainDataset,
                     batch_loop.set_description('Batch %d' % (batch_num + 1))
                     optimizer.zero_grad()
                     batch.to(device)
-                    predictions: ModelPredictions = predictor(batch)
+                    predictions: ModelPredictions = model(batch)
                     loss = train_evaluator(batch, predictions)
                     loss.backward()
                     optimizer.step()
@@ -92,8 +85,10 @@ def train_model(train_dataset: TrainDataset,
             epoch_loss = epoch_loss / len(loader)
             epochs.set_postfix(loss=epoch_loss)
             if epoch and epoch % 10 == 9:
-                validate(dev_dataset, predictor, train_evaluator, use_cuda, epoch, batch_size)
-    return predictor
+                validate(dev_dataset, model, train_evaluator, use_cuda, epoch, batch_size)
+                if model_checkpoint_path is not None:
+                    print('Saving model checkpoint to {}'.format(model_checkpoint_path))
+                    t.save(model, model_checkpoint_path)
 
 
 def validate(dataset: QADataset,
