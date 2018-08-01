@@ -86,9 +86,8 @@ def train_model(model: PredictorModel,
             epochs.set_postfix(loss=epoch_loss)
             if epoch and epoch % 10 == 9:
                 validate(dev_dataset, model, train_evaluator, use_cuda, epoch, batch_size)
-                if model_checkpoint_path is not None:
-                    print('Saving model checkpoint to {}'.format(model_checkpoint_path))
-                    t.save(model, model_checkpoint_path)
+                print('Saving model checkpoint to {}'.format(model_checkpoint_path))
+                t.save(model, model_checkpoint_path)
 
 
 def validate(dataset: QADataset,

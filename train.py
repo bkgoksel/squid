@@ -40,8 +40,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument('--multi-answer', action='store_true', help='if specified don\'t truncate answer spans down to one')
     parser.add_argument('--use-cuda', action='store_true', help='if specified use CUDA')
     parser.add_argument('--config-file', type=str, default='', help='if specified load config from this json file (overwrites cli args)')
-    parser.add_argument('--model-save-file', type=str, default=None, help='if specified, save model parameters to this file during training')
-    parser.add_argument('--model-load-file', type=str, default=None, help='if specified, initialize model parameters from this file (should match model described in config)')
+    parser.add_argument('--model-save-file', type=str, default='model', help='save model parameters to this file during training (default model)')
+    parser.add_argument('--model-load-file', type=str, default='model', help='initialize model parameters from this file (should match model described in config) (default model)')
 
     return parser.parse_known_args()[0]
 
@@ -87,10 +87,11 @@ def main() -> None:
                                                         train_dataset.char_mapping,
                                                         tokenizer,
                                                         processor)
-    if args.model_load_file:
+    try:
         print('Loading model to train from {}'.format(args.model_load_file))
         model: PredictorModel = t.load(args.model_load_file).to(device)
-    else:
+    except IOError as e:
+        print('Can\'t load model: {}, initializing from scratch'.format(e))
         model = initialize_model(args, train_dataset, vectors)
     trainer.train_model(model,
                         train_dataset,
@@ -111,9 +112,8 @@ def main() -> None:
     print('Evaluating on dev')
     eval_results = trainer.evaluate_on_squad_dataset(dev_dataset, model, args.use_cuda, 64)
     print(eval_results)
-    if args.model_save_file:
-        print('Saving model to {}'.format(args.model_save_file))
-        t.save(model, args.model_save_file)
+    print('Saving model to {}'.format(args.model_save_file))
+    t.save(model, args.model_save_file)
 
 
 if __name__ == '__main__':
