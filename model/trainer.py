@@ -84,10 +84,9 @@ def train_model(model: PredictorModel,
                     batch_loop.set_postfix(loss=batch_loss)
             epoch_loss = epoch_loss / len(loader)
             epochs.set_postfix(loss=epoch_loss)
-            if epoch and epoch % 10 == 9:
-                validate(dev_dataset, model, train_evaluator, use_cuda, epoch, batch_size)
-                print('Saving model checkpoint to {}'.format(model_checkpoint_path))
-                t.save(model, model_checkpoint_path)
+            validate(dev_dataset, model, train_evaluator, use_cuda, epoch, batch_size)
+            print('Saving model checkpoint to {}'.format(model_checkpoint_path))
+            t.save(model, model_checkpoint_path)
 
 
 def validate(dataset: QADataset,
