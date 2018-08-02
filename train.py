@@ -40,8 +40,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument('--multi-answer', action='store_true', help='if specified don\'t truncate answer spans down to one')
     parser.add_argument('--use-cuda', action='store_true', help='if specified use CUDA')
     parser.add_argument('--config-file', type=str, default='', help='if specified load config from this json file (overwrites cli args)')
-    parser.add_argument('--model-save-file', type=str, default='model', help='save model parameters to this file during training (default model)')
-    parser.add_argument('--model-load-file', type=str, default='model', help='initialize model parameters from this file (should match model described in config) (default model)')
+    parser.add_argument('--model-save-file', type=str, default='model-latest', help='save model parameters to this file during training (default model)')
+    parser.add_argument('--model-load-file', type=str, default='model-latest', help='initialize model parameters from this file (default model)')
 
     return parser.parse_known_args()[0]
 
