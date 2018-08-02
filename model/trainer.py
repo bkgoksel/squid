@@ -10,19 +10,15 @@ import torch as t
 from torch.utils.data import DataLoader
 import torch.optim as optim
 
-from model.corpus import (QADataset,
-                          TrainDataset,
-                          EvalDataset)
+from model.corpus import (QADataset, TrainDataset, EvalDataset)
 from model.qa import QuestionId
 from model.batcher import QABatch, collate_batch
-from model.predictor import (PredictorModel,
-                             ModelPredictions)
+from model.predictor import (PredictorModel, ModelPredictions)
 
 from model.util import get_device
 
 import model.evaluator as evaluator
-from model.evaluator import (Evaluator,
-                             MultiClassLossEvaluator,
+from model.evaluator import (Evaluator, MultiClassLossEvaluator,
                              SingleClassLossEvaluator)
 
 import scripts.evaluate_v1_1 as evaluate_v1_1
@@ -35,9 +31,9 @@ def train_model(model: PredictorModel,
                 learning_rate: float,
                 num_epochs: int,
                 batch_size: int,
-                use_cuda: bool=False,
-                fit_one_batch: bool=False,
-                model_checkpoint_path: Optional[str]=None) -> None:
+                use_cuda: bool = False,
+                fit_one_batch: bool = False,
+                model_checkpoint_path: Optional[str] = None) -> None:
     """
     Trains a BidafPredictor model on the given train set with given params and returns
     the trained model instance
@@ -62,9 +58,15 @@ def train_model(model: PredictorModel,
         train_evaluator = SingleClassLossEvaluator().to(device)
     else:
         train_evaluator = MultiClassLossEvaluator().to(device)
-    trainable_parameters = filter(lambda p: p.requires_grad, set(model.parameters()))
-    optimizer: optim.Optimizer = optim.Adam(trainable_parameters, lr=learning_rate)
-    loader: DataLoader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, collate_fn=collate_batch)
+    trainable_parameters = filter(lambda p: p.requires_grad,
+                                  set(model.parameters()))
+    optimizer: optim.Optimizer = optim.Adam(
+        trainable_parameters, lr=learning_rate)
+    loader: DataLoader = DataLoader(
+        train_dataset,
+        batch_size=batch_size,
+        shuffle=True,
+        collate_fn=collate_batch)
     batches = [next(iter(loader)).to(device)] if fit_one_batch else loader
     with trange(num_epochs) as epochs:
         for epoch in epochs:
@@ -84,8 +86,10 @@ def train_model(model: PredictorModel,
                     batch_loop.set_postfix(loss=batch_loss)
             epoch_loss = epoch_loss / len(loader)
             epochs.set_postfix(loss=epoch_loss)
-            validate(dev_dataset, model, train_evaluator, use_cuda, epoch, batch_size)
-            print('Saving model checkpoint to {}'.format(model_checkpoint_path))
+            validate(dev_dataset, model, train_evaluator, use_cuda, epoch,
+                     batch_size)
+            print(
+                'Saving model checkpoint to {}'.format(model_checkpoint_path))
             t.save(model, model_checkpoint_path)
 
 
@@ -93,16 +97,19 @@ def validate(dataset: QADataset,
              predictor: PredictorModel,
              evaluator: Any,
              use_cuda: bool,
-             epoch: int=0,
-             batch_size: int=16) -> None:
-    print('\n=== EPOCH %d: Measuring QA performance on the dev set\n' % epoch)
+             epoch: int = 0,
+             batch_size: int = 16) -> None:
+    print('\n=== EPOCH {}: Measuring QA performance on the dev set\n'.format(
+        epoch + 1))
     try:
-        dev_perf = evaluate_on_squad_dataset(dataset, predictor, use_cuda, batch_size)
+        dev_perf = evaluate_on_squad_dataset(dataset, predictor, use_cuda,
+                                             batch_size)
         print('\n=== Dev set performance: {}\n'.format(json.dumps(dev_perf)))
     except Exception as err:
         print('\nError when trying to get full evaluation: {}\n'.format(err))
-    print('\n=== EPOCH %d: Measuring loss on the dev set\n' % epoch)
-    dev_loss = get_dataset_loss(dataset, predictor, evaluator, use_cuda, batch_size)
+    print('\n=== EPOCH %d: Measuring loss on the dev set\n'.format(epoch + 1))
+    dev_loss = get_dataset_loss(dataset, predictor, evaluator, use_cuda,
+                                batch_size)
     print('\n=== Dev set loss: {}\n'.format(dev_loss))
 
 
@@ -110,9 +117,10 @@ def get_dataset_loss(dataset: QADataset,
                      predictor: PredictorModel,
                      evaluator: Any,
                      use_cuda: bool,
-                     batch_size: int=16) -> float:
+                     batch_size: int = 16) -> float:
     device = get_device(use_cuda)
-    loader: DataLoader = DataLoader(dataset, batch_size, collate_fn=collate_batch)
+    loader: DataLoader = DataLoader(
+        dataset, batch_size, collate_fn=collate_batch)
     total_loss = 0.0
     batch: QABatch
     for batch in tqdm(loader, desc='Loss computation batch'):
@@ -126,23 +134,26 @@ def get_dataset_loss(dataset: QADataset,
 def answer_dataset(dataset: QADataset,
                    predictor: PredictorModel,
                    use_cuda: bool,
-                   batch_size: int=16) -> Dict[QuestionId, str]:
+                   batch_size: int = 16) -> Dict[QuestionId, str]:
     device = get_device(use_cuda)
-    loader: DataLoader = DataLoader(dataset, batch_size, collate_fn=collate_batch)
+    loader: DataLoader = DataLoader(
+        dataset, batch_size, collate_fn=collate_batch)
     batch: QABatch
     qid_to_answer: Dict[QuestionId, str] = dict()
-    for batch_num, batch in enumerate(tqdm(loader, desc='Answer generation batch')):
+    for batch_num, batch in enumerate(
+            tqdm(loader, desc='Answer generation batch')):
         with t.no_grad():
             batch.to(device)
             predictions: ModelPredictions = predictor(batch)
-            qid_to_answer.update(evaluator.get_answer_token_idxs(batch, predictions))
+            qid_to_answer.update(
+                evaluator.get_answer_token_idxs(batch, predictions))
     return dataset.get_answer_texts(qid_to_answer)
 
 
 def evaluate_on_squad_dataset(dataset: QADataset,
                               predictor: PredictorModel,
                               use_cuda: bool,
-                              batch_size: int=16) -> Dict[str, str]:
+                              batch_size: int = 16) -> Dict[str, str]:
     answer_dict = answer_dataset(dataset, predictor, use_cuda, batch_size)
     with open(dataset.source_file) as dataset_file:
         dataset_json = json.load(dataset_file)
@@ -152,6 +163,7 @@ def evaluate_on_squad_dataset(dataset: QADataset,
         elif dataset_version == '2.0':
             eval_fn = evaluate_v2_0.evaluate
         else:
-            raise Exception('Dataset version malformed: {}'.format(dataset_version))
+            raise Exception(
+                'Dataset version malformed: {}'.format(dataset_version))
         dataset_dict = dataset_json['data']
     return eval_fn(dataset_dict, answer_dict)
