@@ -35,7 +35,7 @@ def train_model(model: PredictorModel,
                 fit_one_batch: bool = False,
                 model_checkpoint_path: Optional[str] = None) -> None:
     """
-    Trains a BidafPredictor model on the given train set with given params and returns
+    Trains a DocQAPredictor model on the given train set with given params and returns
     the trained model instance
 
     :param model: A PredictorModel to train the parameters of

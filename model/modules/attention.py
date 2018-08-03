@@ -22,7 +22,7 @@ class BaseBidirectionalAttention(nn.Module):
     final_encoding_size: int
     w_question: nn.Parameter
     w_context: nn.Parameter
-    w_multiple: nn.Paramter
+    w_multiple: nn.Parameter
     ctx_softmax: nn.Softmax
     q_softmax: nn.Softmax
     final_linear: MaskedLinear

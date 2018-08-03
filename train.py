@@ -7,7 +7,7 @@ import model.trainer as trainer
 from model.tokenizer import Tokenizer, NltkTokenizer
 from model.text_processor import TextProcessor
 from model.predictor import (PredictorConfig, GRUConfig, PredictorModel,
-                             BidafPredictor)
+                             DocQAPredictor)
 from model.modules.embeddor import (Embeddor, EmbeddorConfig, make_embeddor,
                                     WordEmbeddorConfig,
                                     PoolingCharEmbeddorConfig)
@@ -120,7 +120,7 @@ def initialize_model(args: argparse.Namespace, train_dataset: TrainDataset,
         word_embeddor=word_embedding_config,
         char_embeddor=char_embedding_config)
     embeddor: Embeddor = make_embeddor(embeddor_config, device)
-    return BidafPredictor(embeddor, predictor_config).to(device)
+    return DocQAPredictor(embeddor, predictor_config).to(device)
 
 
 def main() -> None:
