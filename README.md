@@ -9,13 +9,13 @@
 - [x] Add encoding of character-level info as well as word-level info
 - [x] Add unit testing for core components
 - [x] Make GPU compatible
-- [x] Debug simple architecture
 - [x] Add option to read in a single answer span per question for training
-- [x] Make a distinction between train and non-train datasets for proper handling of char/word -> idx mappings (handled by wordvecs for now for word level but what about char level)
+- [x] Make a distinction between train and non-train datasets for proper handling of char/word -> idx mappings
 - [x] Write dev validation during training
 - [x] Implement BiDAF on top
-- [ ] Debug BiDAF implemenation, try to reproduce results
+- [x] Implement self attention as described in DocQA
+- [ ] Test implementation with self attention
+- [ ] Implement char CNN for char embeddings
 - [ ] Add the option to output no-answer probabilities with the output
 - [ ] Add encoding of sentence-level info
 - [ ] Integrate ELMo vectors
-- [ ] Semi-supervised approach to make models resilient to single-word swaps
