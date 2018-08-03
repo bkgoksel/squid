@@ -19,7 +19,7 @@ DEFAULT_ARGS = {
     'train_file': 'data/original/train.json',
     'dev_file': 'data/original/dev.json',
     'word_vector_file': 'data/word-vectors/glove/glove.6B.100d.txt',
-    'batch_size': 64,
+    'batch_size': 40,
     'num_epochs': 15,
     'lr': 1e-4,
     'char_embedding_size': 50,
