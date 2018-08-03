@@ -19,12 +19,12 @@ DEFAULT_ARGS = {
     'train_file': 'data/original/train.json',
     'dev_file': 'data/original/dev.json',
     'word_vector_file': 'data/word-vectors/glove/glove.6B.100d.txt',
-    'batch_size': 32,
-    'num_epochs': 25,
+    'batch_size': 64,
+    'num_epochs': 15,
     'lr': 1e-4,
-    'char_embedding_size': 200,
-    'lstm_hidden_size': 256,
-    'lstm_num_layers': 1,
+    'char_embedding_size': 50,
+    'rnn_hidden_size': 100,
+    'rnn_num_layers': 1,
     'dropout': 0.2,
     'config_file': '',
     'run_name': 'train-run',
@@ -53,12 +53,10 @@ def parse_args() -> argparse.Namespace:
         default=DEFAULT_ARGS['char_embedding_size'],
         help='Set to 0 to disable char-level embeddings')
     parser.add_argument(
-        '--lstm-hidden-size',
-        type=int,
-        default=DEFAULT_ARGS['lstm_hidden_size'])
+        '--rnn-hidden-size', type=int, default=DEFAULT_ARGS['rnn_hidden_size'])
     parser.add_argument(
-        '--lstm-num-layers', type=int, default=DEFAULT_ARGS['lstm_num_layers'])
-    parser.add_argument('--lstm-unidirectional', action='store_true')
+        '--rnn-num-layers', type=int, default=DEFAULT_ARGS['rnn_num_layers'])
+    parser.add_argument('--rnn-unidirectional', action='store_true')
     parser.add_argument(
         '--dropout', type=float, default=DEFAULT_ARGS['dropout'])
     parser.add_argument(
@@ -99,10 +97,10 @@ def initialize_model(args: argparse.Namespace, train_dataset: TrainDataset,
     device = get_device(args.use_cuda)
     predictor_config = PredictorConfig(
         gru=GRUConfig(
-            hidden_size=args.lstm_hidden_size,
-            num_layers=args.lstm_num_layers,
+            hidden_size=args.rnn_hidden_size,
+            num_layers=args.rnn_num_layers,
             dropout=args.dropout,
-            bidirectional=(not args.lstm_unidirectional)),
+            bidirectional=(not args.rnn_unidirectional)),
         batch_size=args.batch_size,
         use_self_attention=(not args.no_self_attention))
     word_embedding_config = WordEmbeddorConfig(
