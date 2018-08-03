@@ -210,10 +210,10 @@ class DocQAPredictor(PredictorModel):
                                          batch.context_orig_idxs)
 
         attended_ctx = self.bi_attention(
-            ctx_processed, q_processed, mask=batch.context_mask)
+            ctx_processed, q_processed, context_mask=batch.context_mask)
         if self.self_attention is not None:
             self_aware_ctx = self.self_attention(
-                attended_ctx, attended_ctx, mask=batch.context_mask)
+                attended_ctx, attended_ctx, context_mask=batch.context_mask)
             attended_ctx = attended_ctx + self_aware_ctx
 
         return self.output_layer(attended_ctx, batch.context_mask,
