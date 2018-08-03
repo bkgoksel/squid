@@ -78,8 +78,9 @@ class BaseBidirectionalAttention(nn.Module):
             dim=3)
 
         if self.self_attention:
-            inf_diag = t.eye(similarity.size(1)).unsqueeze(
-                0) * BaseBidirectionalAttention.NEGATIVE_COEFF
+            inf_diag = t.eye(
+                similarity.size(1), device=similarity.device).unsqueeze(
+                    0) * BaseBidirectionalAttention.NEGATIVE_COEFF
             similarity = similarity + inf_diag
 
         c2q_att = t.bmm(self.ctx_softmax(similarity), question)
