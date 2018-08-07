@@ -11,14 +11,14 @@ MaskTime = Enum('MaskTime', 'pre post')
 
 
 def mask_sequence(input_batch: t.Tensor,
-                  mask_index: float = 0) -> t.ByteTensor:
+                  mask_index: float = 0) -> t.LongTensor:
     """
-    Returns a ByteTensor where masked indices are 0 and rest 1
+    Returns a LongTensor where masked indices are 0 and rest 1
     :param input_batch: Batch first tensor of padded sequences
     :param mask_index: Value that signifies an index that should be masked
-    :returns: A ByteTensor, same shape as input_batch
+    :returns: A LongTensor, same shape as input_batch
     """
-    return t.ByteTensor((input_batch != mask_index), device=input_batch.device)
+    return t.LongTensor((input_batch != mask_index), device=input_batch.device)
 
 
 class MaskedOp(nn.Module):
