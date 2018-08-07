@@ -142,10 +142,10 @@ def collate_batch(batch: List[EncodedSample], device: t.device) -> QABatch:
 
     question_words, question_orig_idxs, question_len_idxs, question_lens = pad_and_sort(question_words_list)
 
-    question_words.to(device)
-    question_orig_idxs.to(device)
-    question_len_idxs.to(device)
-    question_lens.to(device)
+    question_words = question_words.to(device)
+    question_orig_idxs = question_orig_idxs.to(device)
+    question_len_idxs = question_len_idxs.to(device)
+    question_lens = question_lens.to(device)
 
     question_words = question_words[question_orig_idxs]
     question_mask = mask_sequence(question_words)
@@ -160,10 +160,10 @@ def collate_batch(batch: List[EncodedSample], device: t.device) -> QABatch:
 
     context_words, context_orig_idxs, context_len_idxs, context_lens = pad_and_sort(context_words_list)
 
-    context_words.to(device)
-    context_orig_idxs.to(device)
-    context_len_idxs.to(device)
-    context_lens.to(device)
+    context_words = context_words.to(device)
+    context_orig_idxs = context_orig_idxs.to(device)
+    context_len_idxs = context_len_idxs.to(device)
+    context_lens = context_lens.to(device)
 
     context_words = context_words[context_orig_idxs]
     context_mask = mask_sequence(context_words)
