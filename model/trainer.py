@@ -68,14 +68,14 @@ def train_model(model: PredictorModel,
         shuffle=True,
         collate_fn=get_collator(device))
     if debug:
-        debug_run(loader, model, optimizer, train_evaluator)
+        debug_run(loader, model, optimizer, train_evaluator, use_cuda)
     else:
         training_run(loader, model, optimizer, train_evaluator, dev_dataset, num_epochs, use_cuda, model_checkpoint_path)
 
 
-def debug_run(loader, model, optimizer, evaluator, num_epochs: int=1):
+def debug_run(loader, model, optimizer, evaluator, use_cuda: bool, num_epochs: int=1):
     with trange(num_epochs) as epochs:
-        with t.autograd.profiler.profile() as prof:
+        with t.autograd.profiler.profile(use_cuda=use_cuda) as prof:
             for epoch in epochs:
                 epochs.set_description('Epoch %d' % (epoch + 1))
                 epoch_loss = 0.0
