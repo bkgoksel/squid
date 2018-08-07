@@ -18,7 +18,7 @@ def mask_sequence(input_batch: t.Tensor,
     :param mask_index: Value that signifies an index that should be masked
     :returns: A ByteTensor, same shape as input_batch
     """
-    return t.ByteTensor((input_batch != mask_index))
+    return t.ByteTensor((input_batch != mask_index), device=input_batch.device)
 
 
 class MaskedOp(nn.Module):
