@@ -10,10 +10,10 @@ import torch as t
 from torch.utils.data import DataLoader
 import torch.optim as optim
 
-from model.corpus import (QADataset, TrainDataset, EvalDataset)
+from model.corpus import QADataset, TrainDataset, EvalDataset
 from model.qa import QuestionId
-from model.batcher import QABatch, collate_batch
-from model.predictor import (PredictorModel, ModelPredictions)
+from model.batcher import QABatch, get_collator
+from model.predictor import PredictorModel, ModelPredictions
 
 from model.util import get_device
 
@@ -32,7 +32,7 @@ def train_model(model: PredictorModel,
                 num_epochs: int,
                 batch_size: int,
                 use_cuda: bool = False,
-                fit_one_batch: bool = False,
+                debug: bool = False,
                 model_checkpoint_path: Optional[str] = None) -> None:
     """
     Trains a DocQAPredictor model on the given train set with given params and returns
@@ -45,7 +45,7 @@ def train_model(model: PredictorModel,
     :param num_epochs: Number of epochs to train for
     :param batch_size: Size of each training batch
     :param use_cuda: If True use CUDA (default False)
-    :param fit_one_batch: If True train on a single batch (default False)
+    :param debug: If True train on a single batch and profile performance (default False)
     :param model_checkpoint_path: if specified path to save serialized model parameters to
         (default None-> no checkpoint serialization)
 
@@ -55,9 +55,9 @@ def train_model(model: PredictorModel,
     device = get_device(use_cuda)
     train_evaluator: Evaluator
     if train_dataset.corpus.stats.single_answer:
-        train_evaluator = SingleClassLossEvaluator().to(device)
+        train_evaluator = SingleClassLossEvaluator()
     else:
-        train_evaluator = MultiClassLossEvaluator().to(device)
+        train_evaluator = MultiClassLossEvaluator()
     trainable_parameters = filter(lambda p: p.requires_grad,
                                   set(model.parameters()))
     optimizer: optim.Optimizer = optim.Adam(
@@ -66,19 +66,41 @@ def train_model(model: PredictorModel,
         train_dataset,
         batch_size=batch_size,
         shuffle=True,
-        collate_fn=collate_batch)
-    batches = [next(iter(loader)).to(device)] if fit_one_batch else loader
+        collate_fn=get_collator(device))
+    if debug:
+        debug_run(loader, model, optimizer, train_evaluator)
+    else:
+        training_run(loader, model, optimizer, train_evaluator, dev_dataset, num_epochs, use_cuda, model_checkpoint_path)
+
+
+def debug_run(loader, model, optimizer, evaluator, num_epochs: int=1):
+    with trange(num_epochs) as epochs:
+        with t.autograd.profiler.profile() as prof:
+            for epoch in epochs:
+                epochs.set_description('Epoch %d' % (epoch + 1))
+                epoch_loss = 0.0
+                batch = next(iter(loader))
+                optimizer.zero_grad()
+                predictions: ModelPredictions = model(batch)
+                loss = evaluator(batch, predictions)
+                loss.backward()
+                optimizer.step()
+                batch_loss = loss.item()
+                epoch_loss += batch_loss
+        print(prof)
+
+
+def training_run(loader, model, optimizer, evaluator, dev_dataset, num_epochs, use_cuda, model_checkpoint_path):
     with trange(num_epochs) as epochs:
         for epoch in epochs:
             epochs.set_description('Epoch %d' % (epoch + 1))
             epoch_loss = 0.0
-            with tqdm(batches) as batch_loop:
+            with tqdm(loader) as batch_loop:
                 for batch_num, batch in enumerate(batch_loop):
                     batch_loop.set_description('Batch %d' % (batch_num + 1))
                     optimizer.zero_grad()
-                    batch.to(device)
                     predictions: ModelPredictions = model(batch)
-                    loss = train_evaluator(batch, predictions)
+                    loss = evaluator(batch, predictions)
                     loss.backward()
                     optimizer.step()
                     batch_loss = loss.item()
@@ -86,8 +108,7 @@ def train_model(model: PredictorModel,
                     batch_loop.set_postfix(loss=batch_loss)
             epoch_loss = epoch_loss / len(loader)
             epochs.set_postfix(loss=epoch_loss)
-            validate(dev_dataset, model, train_evaluator, use_cuda, epoch,
-                     batch_size)
+            validate(dev_dataset, model, evaluator, use_cuda, epoch)
             print(
                 'Saving model checkpoint to {}'.format(model_checkpoint_path))
             t.save(model, model_checkpoint_path)
@@ -120,7 +141,7 @@ def get_dataset_loss(dataset: QADataset,
                      batch_size: int = 16) -> float:
     device = get_device(use_cuda)
     loader: DataLoader = DataLoader(
-        dataset, batch_size, collate_fn=collate_batch)
+        dataset, batch_size, collate_fn=get_collator(device))
     total_loss = 0.0
     batch: QABatch
     for batch in tqdm(loader, desc='Loss computation batch'):
@@ -137,7 +158,7 @@ def answer_dataset(dataset: QADataset,
                    batch_size: int = 16) -> Dict[QuestionId, str]:
     device = get_device(use_cuda)
     loader: DataLoader = DataLoader(
-        dataset, batch_size, collate_fn=collate_batch)
+        dataset, batch_size, collate_fn=get_collator(device))
     batch: QABatch
     qid_to_answer: Dict[QuestionId, str] = dict()
     for batch_num, batch in enumerate(

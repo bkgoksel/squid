@@ -91,11 +91,16 @@ class ContextualEncoder(nn.Module):
         :returns: Padded, encoded sequences in original order (batch_len, sequence_len, encoding_size)
         """
         len_sorted = embedded_in[length_idxs]
+        del length_idxs
         packed: PackedSequence = pack_padded_sequence(
             len_sorted, lengths, batch_first=True)
+        del len_sorted
+        del lengths
         processed_packed, _ = self.gru(packed)
+        del packed
         processed_len_sorted, _ = pad_packed_sequence(
             processed_packed, batch_first=True)
+        del processed_packed
         return processed_len_sorted[orig_idxs]
 
 
@@ -143,9 +148,11 @@ class BidafOutput(nn.Module):
         start_predictions = self.start_predictor(
             t.cat([context_encoding, start_modeled_ctx], dim=2),
             mask=context_mask).squeeze(2)
+        del start_modeled_ctx
         end_predictions = self.end_predictor(
             t.cat([context_encoding, end_modeled_ctx], dim=2),
             mask=context_mask).squeeze(2)
+        del end_modeled_ctx
 
         context_length_sorted = context_encoding[length_idxs]
         context_packed: PackedSequence = pack_padded_sequence(
@@ -203,14 +210,19 @@ class DocQAPredictor(PredictorModel):
         q_processed = self.q_encoder(q_embedded, batch.question_lens,
                                      batch.question_len_idxs,
                                      batch.question_orig_idxs)
+        del q_embedded
 
         ctx_embedded = self.embed(batch.context_words, batch.context_chars)
         ctx_processed = self.ctx_encoder(ctx_embedded, batch.context_lens,
                                          batch.context_len_idxs,
                                          batch.context_orig_idxs)
+        del ctx_embedded
 
         attended_ctx = self.bi_attention(
             ctx_processed, q_processed, context_mask=batch.context_mask)
+        del q_processed
+        del ctx_processed
+
         if self.self_attention is not None:
             self_aware_ctx = self.self_attention(
                 attended_ctx, attended_ctx, context_mask=batch.context_mask)

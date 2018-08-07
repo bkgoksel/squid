@@ -1,5 +1,6 @@
 import argparse
 import json
+from typing import Tuple
 
 import torch as t
 
@@ -64,9 +65,9 @@ def parse_args() -> argparse.Namespace:
         action='store_true',
         help='if specified generate answers to the train set')
     parser.add_argument(
-        '--fit-one-batch',
+        '--debug',
         action='store_true',
-        help='if specified try to fit a single batch')
+        help='if specified debug by fitting a single batch and profiling')
     parser.add_argument(
         '--multi-answer',
         action='store_true',
@@ -81,8 +82,7 @@ def parse_args() -> argparse.Namespace:
         '--config-file',
         type=str,
         default=DEFAULT_ARGS['config_file'],
-        help=
-        'if specified load config from this json file (overwrites cli args)')
+        help='if specified load config from this json file (overwrites cli args)')
     parser.add_argument(
         '--run-name',
         type=str,
@@ -121,9 +121,7 @@ def initialize_model(args: argparse.Namespace, train_dataset: TrainDataset,
     return DocQAPredictor(embeddor, predictor_config).to(device)
 
 
-def main() -> None:
-    args = parse_args()
-
+def get_model(args: argparse.Namespace) -> Tuple[PredictorModel, TrainDataset, EvalDataset]:
     device = get_device(args.use_cuda)
 
     tokenizer: Tokenizer = NltkTokenizer()
@@ -141,6 +139,14 @@ def main() -> None:
     except IOError as e:
         print('Can\'t load model: {}, initializing from scratch'.format(e))
         model = initialize_model(args, train_dataset, vectors)
+
+    return model, train_dataset, dev_dataset
+
+
+def main() -> None:
+    args = parse_args()
+    model, train_dataset, dev_dataset = get_model(args)
+
     trainer.train_model(
         model,
         train_dataset,
@@ -149,8 +155,8 @@ def main() -> None:
         args.num_epochs,
         args.batch_size,
         use_cuda=args.use_cuda,
-        fit_one_batch=args.fit_one_batch,
-        model_checkpoint_path=args.run_name)
+        model_checkpoint_path=args.run_name,
+        debug=args.debug)
     if args.answer_train_set:
         train_answers = trainer.answer_dataset(train_dataset, model,
                                                args.use_cuda)

@@ -59,29 +59,31 @@ class BaseBidirectionalAttention(nn.Module):
         batch_len, max_context_len, embedding_size = context.size()
         _, max_question_len, _ = question.size()
 
+        similarity_tensors = []
+
         q_weighted = question @ self.w_question  # (batch_len, max_question_len)
+        similarity_tensors.append(q_weighted.unsqueeze(1).unsqueeze(3).expand(
+            (batch_len, max_context_len, max_question_len, 1)))
+        del q_weighted
+
         ctx_weighted = context @ self.w_context  # (batch_len, max_context_len)
+        similarity_tensors.append(ctx_weighted.unsqueeze(2).unsqueeze(3).expand(
+            (batch_len, max_context_len, max_question_len, 1)))
+        del ctx_weighted
+
         multiple_weighted = (
             question.unsqueeze(1) * context.unsqueeze(2)
         ) @ self.w_multiple  # (batch_len, max_context_len, max_question_len)
+        similarity_tensors.append(multiple_weighted.unsqueeze(3))
+        del multiple_weighted
 
-        similarity = t.sum(
-            t.cat(
-                [
-                    q_weighted.unsqueeze(1).unsqueeze(3).expand(
-                        (batch_len, max_context_len, max_question_len, 1)),
-                    ctx_weighted.unsqueeze(2).unsqueeze(3).expand(
-                        (batch_len, max_context_len, max_question_len, 1)),
-                    multiple_weighted.unsqueeze(3)
-                ],
-                dim=3),
-            dim=3)
+        similarity = t.sum(t.cat(similarity_tensors, dim=3), dim=3)
+        del similarity_tensors
 
         if self.self_attention:
-            inf_diag = t.eye(
+            similarity = similarity + t.eye(
                 similarity.size(1), device=similarity.device).unsqueeze(
                     0) * BaseBidirectionalAttention.NEGATIVE_COEFF
-            similarity = similarity + inf_diag
 
         c2q_att = t.bmm(self.ctx_softmax(similarity), question)
         if self.self_attention:
@@ -92,6 +94,8 @@ class BaseBidirectionalAttention(nn.Module):
             attended_tensors = t.cat(
                 [context, c2q_att, context * c2q_att, context * q2c_att],
                 dim=2)
+        del similarity
+
         attended_context = self.final_linear(
             attended_tensors, mask=context_mask)
         return attended_context

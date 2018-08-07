@@ -2,7 +2,7 @@
 Module that handles batching logic
 """
 
-from typing import List, Any, Tuple
+from typing import List, Any, Tuple, Callable
 import numpy as np
 import torch as t
 from torch.nn.utils.rnn import pad_sequence
@@ -94,12 +94,23 @@ class QABatch():
         return self
 
 
-def collate_batch(batch: List[EncodedSample]) -> QABatch:
+def get_collator(device: t.device) -> Callable[[List[EncodedSample]], QABatch]:
     """
-    Takes a list of EncodedSample objects and creates a PyTorch batch
+    Returns an instance of the collate_batch function that prepares the batch
+    on the given device
+    :param device: a Torch device to build the batch on
+    :returns: A lambda that takes a list of encoded samples and returns a QABatch
+    """
+    return lambda batch: collate_batch(batch, device)
+
+
+def collate_batch(batch: List[EncodedSample], device: t.device) -> QABatch:
+    """
+    Takes a list of EncodedSample objects and creates a PyTorch batch on the given device
     For chars:
         context_chars[batch, word, char_idx] -> (batch_len, max_ctx_len, max_word_len)
     :param batch: List[EncodedSample] QA samples
+    :param device: Torchd device to build the batch on
     :returns: a QABatch
     """
     question_words_list = []
@@ -130,41 +141,48 @@ def collate_batch(batch: List[EncodedSample]) -> QABatch:
         min_ctx_word_len = min(min_ctx_word_len, min(word.size for word in sample.context_chars))
 
     question_words, question_orig_idxs, question_len_idxs, question_lens = pad_and_sort(question_words_list)
+
+    question_words.to(device)
+    question_orig_idxs.to(device)
+    question_len_idxs.to(device)
+    question_lens.to(device)
+
     question_words = question_words[question_orig_idxs]
     question_mask = mask_sequence(question_words)
 
     # TODO: Is there a more efficient way of doing this?
     max_question_len = question_lens[0]
-    min_question_len = question_lens[-1]
     question_chars = np.zeros((batch_size, max_question_len, max_question_word_len))
     for batch_idx, q_chars in enumerate(question_chars_list):
         for word_idx, word in enumerate(q_chars):
             question_chars[batch_idx, word_idx, :word.size] = word
-    question_chars = t.LongTensor(question_chars)
+    question_chars = t.LongTensor(question_chars, device=device)
 
     context_words, context_orig_idxs, context_len_idxs, context_lens = pad_and_sort(context_words_list)
+
+    context_words.to(device)
+    context_orig_idxs.to(device)
+    context_len_idxs.to(device)
+    context_lens.to(device)
+
     context_words = context_words[context_orig_idxs]
     context_mask = mask_sequence(context_words)
 
     # TODO: Is there a more efficient way of doing this?
     max_context_len = context_lens[0]
-    min_context_len = context_lens[-1]
     context_chars = np.zeros((batch_size, max_context_len, max_ctx_word_len))
     for batch_idx, c_chars in enumerate(context_chars_list):
         for word_idx, word in enumerate(c_chars):
             context_chars[batch_idx, word_idx, :word.size] = word
-    context_chars = t.LongTensor(context_chars)
+    context_chars = t.LongTensor(context_chars, device=device)
 
-    answer_span_starts, _, _, _ = pad_and_sort(answer_span_starts)
-    answer_span_starts = answer_span_starts[context_orig_idxs]
+    answer_span_start, _, _, _ = pad_and_sort(answer_span_starts)
+    answer_span_start = answer_span_start[context_orig_idxs]
+    answer_span_start = answer_span_start.to(device)
 
-    answer_span_ends, _, _, _ = pad_and_sort(answer_span_ends)
-    answer_span_ends = answer_span_ends[context_orig_idxs]
-
-    assert min_question_word_len > 0, 'Empty word in a question in batch'
-    assert min_question_len > 0, 'Empty question in batch'
-    assert min_ctx_word_len > 0, 'Empty word in a context in batch'
-    assert min_context_len > 0, 'Empty context in batch'
+    answer_span_end, _, _, _ = pad_and_sort(answer_span_ends)
+    answer_span_end = answer_span_end[context_orig_idxs]
+    answer_span_end = answer_span_end.to(device)
 
     return QABatch(question_ids=question_ids,
                    question_words=question_words,
@@ -179,8 +197,8 @@ def collate_batch(batch: List[EncodedSample]) -> QABatch:
                    context_len_idxs=context_len_idxs,
                    context_orig_idxs=context_orig_idxs,
                    context_mask=context_mask,
-                   answer_span_starts=answer_span_starts,
-                   answer_span_ends=answer_span_ends)
+                   answer_span_starts=answer_span_start,
+                   answer_span_ends=answer_span_end)
 
 
 def pad_and_sort(seq: List[Any]) -> Tuple[t.LongTensor, t.LongTensor, t.LongTensor, t.LongTensor]:
