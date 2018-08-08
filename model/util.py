@@ -45,10 +45,11 @@ def get_device(use_cuda: bool):
     return t.device('cpu')
 
 
-def mem_report():
+def mem_report(print_all: bool=False):
     """
     Report the memory usage of the tensor.storage in pytorch
     Both on CPUs and GPUs are reported
+    if print_all is True, print size and shape info for each tensor
     """
     import gc
 
@@ -84,10 +85,11 @@ def mem_report():
             element_type = type(tensor).__name__
             size = tuple(tensor.size())
 
-            print('%s\t\t%s\t\t%.2f' % (
-                element_type,
-                size,
-                mem))
+            if print_all:
+                print('%s\t\t%s\t\t%.2f' % (
+                    element_type,
+                    size,
+                    mem))
         print('-' * LEN)
         print('Total Tensors: %d \tUsed Memory Space: %.2f MBytes' % (total_numel, total_mem))
         print('-' * LEN)
