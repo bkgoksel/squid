@@ -140,7 +140,7 @@ def validate(dataset: QADataset,
              evaluator: Any,
              use_cuda: bool,
              epoch: int = 0,
-             batch_size: int = 16) -> None:
+             batch_size: int = 64) -> None:
     """
     Validates the given model over the given dataset, both using the official
     SQuAD evaluation script to obtain F1 and EM scores and using the evaluator
@@ -164,7 +164,7 @@ def get_dataset_loss(dataset: QADataset,
                      predictor: PredictorModel,
                      evaluator: Any,
                      use_cuda: bool,
-                     batch_size: int = 16) -> float:
+                     batch_size: int = 64) -> float:
     """
     Computes total loss of the model over the entire dataset
     """
@@ -184,7 +184,7 @@ def get_dataset_loss(dataset: QADataset,
 def answer_dataset(dataset: QADataset,
                    predictor: PredictorModel,
                    use_cuda: bool,
-                   batch_size: int = 16) -> Dict[QuestionId, str]:
+                   batch_size: int = 64) -> Dict[QuestionId, str]:
     """
     Generates well-formatted answers for the given dataset using the
     given model.
@@ -207,7 +207,7 @@ def answer_dataset(dataset: QADataset,
 def evaluate_on_squad_dataset(dataset: QADataset,
                               predictor: PredictorModel,
                               use_cuda: bool,
-                              batch_size: int = 16) -> Dict[str, str]:
+                              batch_size: int = 64) -> Dict[str, str]:
     """
     Generates well formatted answers for the given dataset using the given
     model, then runs the official SQuAD evaluation script on it to obtain
