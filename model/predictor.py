@@ -8,7 +8,7 @@ from torch.nn.utils.rnn import (PackedSequence, pack_padded_sequence,
                                 pad_packed_sequence)
 
 from model.batcher import QABatch
-from model.util import get_last_hidden_states, mem_report
+from model.util import get_last_hidden_states
 from model.modules.attention import BidirectionalAttention, SelfAttention
 from model.modules.masked import MaskedLinear
 from model.modules.embeddor import Embeddor
@@ -201,7 +201,7 @@ class DocQAPredictor(PredictorModel):
             self.self_attention = None
         self.output_layer = BidafOutput(self.config)
 
-    def forward(self, batch: QABatch, debug: bool=False) -> ModelPredictions:
+    def forward(self, batch: QABatch) -> ModelPredictions:
         """
         Check base class method for docs
         """
@@ -223,16 +223,10 @@ class DocQAPredictor(PredictorModel):
         del q_processed
         del ctx_processed
 
-        if debug:
-            print("Before self attention")
-            mem_report()
         if self.self_attention is not None:
             self_aware_ctx = self.self_attention(
-                attended_ctx, attended_ctx, context_mask=batch.context_mask, debug=debug)
+                attended_ctx, attended_ctx, context_mask=batch.context_mask)
             attended_ctx = attended_ctx + self_aware_ctx
-        if debug:
-            print("After self attention")
-            mem_report()
 
         return self.output_layer(attended_ctx, batch.context_mask,
                                  batch.context_lens, batch.context_len_idxs,

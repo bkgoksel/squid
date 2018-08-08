@@ -8,7 +8,6 @@ import torch as t
 import torch.nn as nn
 
 from model.modules.masked import MaskedLinear
-from model.util import mem_report
 
 
 class BaseBidirectionalAttention(nn.Module):
@@ -48,7 +47,7 @@ class BaseBidirectionalAttention(nn.Module):
                                          self.final_encoding_size)
 
     def forward(self, context: t.Tensor, question: t.Tensor,
-                context_mask: t.Tensor, debug: bool=False) -> t.Tensor:
+                context_mask: t.Tensor) -> t.Tensor:
         """
         Computes Context2Query and Query2Context attention given context
         and query embeddings
@@ -62,39 +61,24 @@ class BaseBidirectionalAttention(nn.Module):
 
         similarity_tensors = []
 
-        if debug:
-            print("Before q weighted")
-            mem_report()
         q_weighted = question @ self.w_question  # (batch_len, max_question_len)
         similarity_tensors.append(q_weighted.unsqueeze(1).unsqueeze(3).expand(
             (batch_len, max_context_len, max_question_len, 1)))
         del q_weighted
 
-        if debug:
-            print("Before ctx weighted")
-            mem_report()
         ctx_weighted = context @ self.w_context  # (batch_len, max_context_len)
         similarity_tensors.append(ctx_weighted.unsqueeze(2).unsqueeze(3).expand(
             (batch_len, max_context_len, max_question_len, 1)))
         del ctx_weighted
 
-        if debug:
-            print("Before multiple weighted")
-            mem_report()
         multiple_weighted = (
             question.unsqueeze(1) * context.unsqueeze(2)
         ) @ self.w_multiple  # (batch_len, max_context_len, max_question_len)
         similarity_tensors.append(multiple_weighted.unsqueeze(3))
         del multiple_weighted
 
-        if debug:
-            print("Before computing similarity")
-            mem_report()
         similarity = t.sum(t.cat(similarity_tensors, dim=3), dim=3)
         del similarity_tensors
-        if debug:
-            print("After computing similarity")
-            mem_report()
 
         if self.self_attention:
             similarity = similarity + t.eye(

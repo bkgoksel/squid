@@ -85,9 +85,7 @@ def one_train_iteration(optimizer, model, batch, evaluator):
     Returns the batch loss
     """
     optimizer.zero_grad()
-    print("Before predictor allocated tensors")
-    mem_report()
-    predictions: ModelPredictions = model(batch, debug=True)
+    predictions: ModelPredictions = model(batch)
     loss = evaluator(batch, predictions)
     loss.backward()
     optimizer.step()
