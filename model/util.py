@@ -100,7 +100,7 @@ def mem_report():
         try:
             if t.is_tensor(obj) or (hasattr(obj, 'data') and t.is_tensor(obj.data)):
                 tensors.append(obj)
-        except (OSError, NotImplementedError):
+        except (OSError, NotImplementedError, KeyError):
             pass
     cuda_tensors = [tensor for tensor in tensors if tensor.is_cuda]
     host_tensors = [tensor for tensor in tensors if not tensor.is_cuda]
