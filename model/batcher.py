@@ -152,7 +152,7 @@ def collate_batch(batch: List[EncodedSample], device: t.device) -> QABatch:
 
     # TODO: Is there a more efficient way of doing this?
     max_question_len = question_lens[0]
-    question_chars = t.zeros(shape=(batch_size, max_question_len, max_question_word_len), device=device)
+    question_chars = t.zeros((batch_size, max_question_len, max_question_word_len), device=device)
     for batch_idx, q_chars in enumerate(question_chars_list):
         for word_idx, word in enumerate(q_chars):
             question_chars[batch_idx, word_idx, :word.size] = word
@@ -169,7 +169,7 @@ def collate_batch(batch: List[EncodedSample], device: t.device) -> QABatch:
 
     # TODO: Is there a more efficient way of doing this?
     max_context_len = context_lens[0]
-    context_chars = t.zeros(shape=(batch_size, max_context_len, max_ctx_word_len), device=device)
+    context_chars = t.zeros((batch_size, max_context_len, max_ctx_word_len), device=device)
     for batch_idx, c_chars in enumerate(context_chars_list):
         for word_idx, word in enumerate(c_chars):
             context_chars[batch_idx, word_idx, :word.size] = word
