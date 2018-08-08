@@ -95,7 +95,8 @@ def mem_report(print_all: bool=False):
         print('-' * LEN)
 
     LEN = 65
-    print('=' * LEN)
+    if print_all:
+        print('=' * LEN)
     print('%s\t%s\t\t\t%s' % ('Element type', 'Size', 'Used MEM(MBytes)'))
     tensors = []
     for obj in gc.get_objects():
@@ -108,4 +109,5 @@ def mem_report(print_all: bool=False):
     host_tensors = [tensor for tensor in tensors if not tensor.is_cuda]
     _mem_report(cuda_tensors, 'GPU')
     _mem_report(host_tensors, 'CPU')
-    print('=' * LEN)
+    if print_all:
+        print('=' * LEN)
