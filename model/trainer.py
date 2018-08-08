@@ -32,6 +32,7 @@ def train_model(model: PredictorModel,
                 num_epochs: int,
                 batch_size: int,
                 use_cuda: bool = False,
+                loader_num_workers: int=2,
                 debug: bool = False,
                 model_checkpoint_path: Optional[str] = None) -> None:
     """
@@ -45,6 +46,7 @@ def train_model(model: PredictorModel,
     :param num_epochs: Number of epochs to train for
     :param batch_size: Size of each training batch
     :param use_cuda: If True use CUDA (default False)
+    :param loader_num_workers: Number of workers to use for DataLoader (default 2)
     :param debug: If True train on a single batch and profile performance (default False)
     :param model_checkpoint_path: if specified path to save serialized model parameters to
         (default None-> no checkpoint serialization)
@@ -67,6 +69,7 @@ def train_model(model: PredictorModel,
         batch_size=batch_size,
         shuffle=True,
         pin_memory=True,
+        num_workers=loader_num_workers,
         collate_fn=get_collator(device))
     if debug:
         debug_run(loader, model, optimizer, train_evaluator, use_cuda)
@@ -103,8 +106,10 @@ def debug_run(loader, model, optimizer, evaluator, use_cuda: bool, num_epochs: i
                 epoch_loss = 0.0
                 batch_loss = one_train_iteration(optimizer, model, batch, evaluator)
                 epoch_loss += batch_loss
-    print("Debug run complete, printing profile")
-    print(prof)
+    print("Debug run complete, printing CPU profile")
+    prof.table(sort_by='cpu_time_total')
+    print("Debug run complete, printing CUDA profile")
+    prof.table(sort_by='cuda_time_total')
 
 
 def training_run(loader, model, optimizer, evaluator, dev_dataset, num_epochs, use_cuda, model_checkpoint_path):
