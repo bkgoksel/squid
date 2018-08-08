@@ -18,7 +18,7 @@ def mask_sequence(input_batch: t.Tensor,
     :param mask_index: Value that signifies an index that should be masked
     :returns: A LongTensor, same shape as input_batch
     """
-    return t.LongTensor((input_batch != mask_index), device=input_batch.device)
+    return (input_batch != mask_index).double()
 
 
 class MaskedOp(nn.Module):
