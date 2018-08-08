@@ -94,9 +94,14 @@ def mem_report():
 
     LEN = 65
     print('=' * LEN)
-    objects = gc.get_objects()
     print('%s\t%s\t\t\t%s' % ('Element type', 'Size', 'Used MEM(MBytes)'))
-    tensors = [obj for obj in objects if t.is_tensor(obj) or (hasattr(obj, 'data') and t.is_tensor(obj.data))]
+    tensors = []
+    for obj in gc.get_objects():
+        try:
+            if t.is_tensor(obj) or (hasattr(obj, 'data') and t.is_tensor(obj.data)):
+                tensors.append(obj)
+        except OSError:
+            pass
     cuda_tensors = [tensor for tensor in tensors if tensor.is_cuda]
     host_tensors = [tensor for tensor in tensors if not tensor.is_cuda]
     _mem_report(cuda_tensors, 'GPU')
