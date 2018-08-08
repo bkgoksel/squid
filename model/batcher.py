@@ -94,25 +94,22 @@ class QABatch():
         return self
 
 
-def get_collator(device: t.device, max_question_size: Optional[int]=None, max_context_size: Optional[int]=None) -> Callable[[List[EncodedSample]], QABatch]:
+def get_collator(max_question_size: Optional[int]=None, max_context_size: Optional[int]=None) -> Callable[[List[EncodedSample]], QABatch]:
     """
-    Returns an instance of the collate_batch function that prepares the batch
-    on the given device
-    :param device: a Torch device to build the batch on
+    Returns an instance of the collate_batch function that prepares the batch with the given length limits
     :param max_question_size: Questions beyond this size are trimmed (default None: unlimited)
     :param max_context_size: Contexts beyond this size are trimmed (default None: unlimited)
     :returns: A lambda that takes a list of encoded samples and returns a QABatch
     """
-    return lambda batch: collate_batch(batch, device, max_question_size, max_context_size)
+    return lambda batch: collate_batch(batch, max_question_size, max_context_size)
 
 
-def collate_batch(batch: List[EncodedSample], device: t.device, max_question_size: Optional[int]=None, max_context_size: Optional[int]=None) -> QABatch:
+def collate_batch(batch: List[EncodedSample], max_question_size: Optional[int]=None, max_context_size: Optional[int]=None) -> QABatch:
     """
-    Takes a list of EncodedSample objects and creates a PyTorch batch on the given device
+    Takes a list of EncodedSample objects and creates a PyTorch batch limiting context and question lengths if specified
     For chars:
         context_chars[batch, word, char_idx] -> (batch_len, max_ctx_len, max_word_len)
     :param batch: List[EncodedSample] QA samples
-    :param device: Torchd device to build the batch on
     :param max_question_size: Questions beyond this size are trimmed (default None: unlimited)
     :param max_context_size: Contexts beyond this size are trimmed (default None: unlimited)
     :returns: a QABatch
@@ -144,12 +141,7 @@ def collate_batch(batch: List[EncodedSample], device: t.device, max_question_siz
         max_ctx_word_len = max(max_ctx_word_len, max(word.size for word in sample.context_chars))
         min_ctx_word_len = min(min_ctx_word_len, min(word.size for word in sample.context_chars))
 
-    question_words, question_orig_idxs, question_len_idxs, question_lens = pad_and_sort(question_words_list, device, max_question_size)
-
-    question_words = question_words.to(device)
-    question_orig_idxs = question_orig_idxs.to(device)
-    question_len_idxs = question_len_idxs.to(device)
-    question_lens = question_lens.to(device)
+    question_words, question_orig_idxs, question_len_idxs, question_lens = pad_and_sort(question_words_list, max_question_size)
 
     question_words = question_words[question_orig_idxs]
     question_mask = mask_sequence(question_words)
@@ -162,14 +154,9 @@ def collate_batch(batch: List[EncodedSample], device: t.device, max_question_siz
             if max_question_size is not None and word_idx >= max_question_size:
                 break
             question_chars[batch_idx, word_idx, :word.size] = word
-    question_chars = t.LongTensor(question_chars, device=device).to(device)
+    question_chars = t.LongTensor(question_chars)
 
-    context_words, context_orig_idxs, context_len_idxs, context_lens = pad_and_sort(context_words_list, device, max_context_size)
-
-    context_words = context_words.to(device)
-    context_orig_idxs = context_orig_idxs.to(device)
-    context_len_idxs = context_len_idxs.to(device)
-    context_lens = context_lens.to(device)
+    context_words, context_orig_idxs, context_len_idxs, context_lens = pad_and_sort(context_words_list, max_context_size)
 
     context_words = context_words[context_orig_idxs]
     context_mask = mask_sequence(context_words)
@@ -182,15 +169,13 @@ def collate_batch(batch: List[EncodedSample], device: t.device, max_question_siz
             if max_context_size is not None and word_idx >= max_context_size:
                 break
             context_chars[batch_idx, word_idx, :word.size] = word
-    context_chars = t.LongTensor(context_chars, device=device).to(device)
+    context_chars = t.LongTensor(context_chars)
 
-    answer_span_start, _, _, _ = pad_and_sort(answer_span_starts, device, max_context_size)
-    answer_span_start = answer_span_start[context_orig_idxs]
-    answer_span_start = answer_span_start.to(device)
+    answer_span_starts, _, _, _ = pad_and_sort(answer_span_starts, max_context_size)
+    answer_span_starts = answer_span_starts[context_orig_idxs]
 
-    answer_span_end, _, _, _ = pad_and_sort(answer_span_ends, device, max_context_size)
-    answer_span_end = answer_span_end[context_orig_idxs]
-    answer_span_end = answer_span_end.to(device)
+    answer_span_ends, _, _, _ = pad_and_sort(answer_span_ends, max_context_size)
+    answer_span_ends = answer_span_ends[context_orig_idxs]
 
     return QABatch(question_ids=question_ids,
                    question_words=question_words,
@@ -205,16 +190,15 @@ def collate_batch(batch: List[EncodedSample], device: t.device, max_question_siz
                    context_len_idxs=context_len_idxs,
                    context_orig_idxs=context_orig_idxs,
                    context_mask=context_mask,
-                   answer_span_starts=answer_span_start,
-                   answer_span_ends=answer_span_end)
+                   answer_span_starts=answer_span_starts,
+                   answer_span_ends=answer_span_ends)
 
 
-def pad_and_sort(seq: List[Any], device: t.device=t.device('cpu'), max_sequence_size: Optional[int]=None) -> Tuple[t.LongTensor, t.LongTensor, t.LongTensor, t.LongTensor]:
+def pad_and_sort(seq: List[Any], max_sequence_size: Optional[int]=None) -> Tuple[t.LongTensor, t.LongTensor, t.LongTensor, t.LongTensor]:
     """
     Pads a list of sequences with 0's to make them all the same
     length as the longest sequence
     :param seq: A list of sequences
-    :param device: A Torch device to place the resulting tensors in
     :param max_sequence_size: If specified sequences are left trimmed to that size
     :returns:
         - Batch of padded sequences
@@ -223,16 +207,16 @@ def pad_and_sort(seq: List[Any], device: t.device=t.device('cpu'), max_sequence_
         - lengths of sequences
     """
     if len(seq) == 1:
-        batch = t.LongTensor(seq, device=device)
-        orig_idxs = t.zeros((1), device=device)
-        length_idxs = t.zeros((1), device=device)
-        lengths = t.LongTensor([len(seq[0])], device=device)
+        batch = t.LongTensor(seq)
+        orig_idxs = t.zeros((1))
+        length_idxs = t.zeros((1))
+        lengths = t.LongTensor([len(seq[0])])
         return batch, orig_idxs, length_idxs, lengths
     if max_sequence_size is not None:
         seq = [el[:max_sequence_size] for el in seq]
-    lengths = t.LongTensor([el.shape[0] for el in seq], device=device)
+    lengths = t.LongTensor([el.shape[0] for el in seq])
     lengths, length_idxs = lengths.sort(0, descending=True)
-    seq = [t.LongTensor(seq[i], device=device) for i in length_idxs]
+    seq = [t.LongTensor(seq[i]) for i in length_idxs]
     batch = pad_sequence(seq, batch_first=True)
     _, orig_idxs = length_idxs.sort()
     return batch, orig_idxs, length_idxs, lengths

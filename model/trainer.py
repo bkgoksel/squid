@@ -58,7 +58,6 @@ def train_model(model: PredictorModel,
     :returns: A Trained PredictorModel object
     """
 
-    device = get_device(use_cuda)
     train_evaluator: Evaluator
     if train_dataset.corpus.stats.single_answer:
         train_evaluator = SingleClassLossEvaluator()
@@ -74,7 +73,7 @@ def train_model(model: PredictorModel,
         shuffle=True,
         pin_memory=True,
         num_workers=loader_num_workers,
-        collate_fn=get_collator(device, max_question_size, max_context_size))
+        collate_fn=get_collator(max_question_size, max_context_size))
     if debug:
         debug_run(loader, model, optimizer, train_evaluator, use_cuda)
     else:
@@ -102,6 +101,7 @@ def debug_run(loader, model, optimizer, evaluator, use_cuda: bool, num_epochs: i
     Runs the given model setup while profiling with the torch autograd profiler
     and tracking memory allocation of tensors across batches.
     """
+    device = get_device(use_cuda)
     with t.autograd.profiler.profile(use_cuda=use_cuda) as prof:
         with trange(num_epochs) as epochs:
             for epoch in epochs:
@@ -109,6 +109,7 @@ def debug_run(loader, model, optimizer, evaluator, use_cuda: bool, num_epochs: i
                 epoch_loss = 0.0
                 with tqdm(loader) as batch_loop:
                     for batch_num, batch in enumerate(batch_loop):
+                        batch.to(device)
                         batch_loop.set_description('Batch %d' % (batch_num + 1))
                         print("Before batch {}, allocated tensors:".format(batch_num + 1))
                         mem_report()
@@ -128,12 +129,14 @@ def training_run(loader, model, optimizer, evaluator, dev_dataset, num_epochs, u
     Trains the given model over the entire data loader for as many epochs as specified, validating on dev
     after every epoch and saving the model to disk after every epoch
     """
+    device = get_device(use_cuda)
     with trange(num_epochs) as epochs:
         for epoch in epochs:
             epochs.set_description('Epoch %d' % (epoch + 1))
             epoch_loss = 0.0
             with tqdm(loader) as batch_loop:
                 for batch_num, batch in enumerate(batch_loop):
+                    batch.to(device)
                     batch_loop.set_description('Batch %d' % (batch_num + 1))
                     batch_loss = one_train_iteration(optimizer, model, batch, evaluator)
                     epoch_loss += batch_loss
@@ -181,7 +184,7 @@ def get_dataset_loss(dataset: QADataset,
     """
     device = get_device(use_cuda)
     loader: DataLoader = DataLoader(
-        dataset, batch_size, collate_fn=get_collator(device))
+        dataset, batch_size, collate_fn=get_collator())
     total_loss = 0.0
     batch: QABatch
     for batch in tqdm(loader, desc='Loss computation batch'):
@@ -202,7 +205,7 @@ def answer_dataset(dataset: QADataset,
     """
     device = get_device(use_cuda)
     loader: DataLoader = DataLoader(
-        dataset, batch_size, collate_fn=get_collator(device))
+        dataset, batch_size, collate_fn=get_collator())
     batch: QABatch
     qid_to_answer: Dict[QuestionId, str] = dict()
     for batch_num, batch in enumerate(
