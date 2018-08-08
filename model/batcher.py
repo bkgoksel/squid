@@ -140,7 +140,7 @@ def collate_batch(batch: List[EncodedSample], device: t.device) -> QABatch:
         max_ctx_word_len = max(max_ctx_word_len, max(word.size for word in sample.context_chars))
         min_ctx_word_len = min(min_ctx_word_len, min(word.size for word in sample.context_chars))
 
-    question_words, question_orig_idxs, question_len_idxs, question_lens = pad_and_sort(question_words_list)
+    question_words, question_orig_idxs, question_len_idxs, question_lens = pad_and_sort(question_words_list, device)
 
     question_words = question_words.to(device)
     question_orig_idxs = question_orig_idxs.to(device)
@@ -158,7 +158,7 @@ def collate_batch(batch: List[EncodedSample], device: t.device) -> QABatch:
             question_chars[batch_idx, word_idx, :word.size] = word
     question_chars = t.LongTensor(question_chars, device=device).to(device)
 
-    context_words, context_orig_idxs, context_len_idxs, context_lens = pad_and_sort(context_words_list)
+    context_words, context_orig_idxs, context_len_idxs, context_lens = pad_and_sort(context_words_list, device)
 
     context_words = context_words.to(device)
     context_orig_idxs = context_orig_idxs.to(device)
@@ -176,11 +176,11 @@ def collate_batch(batch: List[EncodedSample], device: t.device) -> QABatch:
             context_chars[batch_idx, word_idx, :word.size] = word
     context_chars = t.LongTensor(context_chars, device=device).to(device)
 
-    answer_span_start, _, _, _ = pad_and_sort(answer_span_starts)
+    answer_span_start, _, _, _ = pad_and_sort(answer_span_starts, device)
     answer_span_start = answer_span_start[context_orig_idxs]
     answer_span_start = answer_span_start.to(device)
 
-    answer_span_end, _, _, _ = pad_and_sort(answer_span_ends)
+    answer_span_end, _, _, _ = pad_and_sort(answer_span_ends, device)
     answer_span_end = answer_span_end[context_orig_idxs]
     answer_span_end = answer_span_end.to(device)
 
@@ -201,11 +201,12 @@ def collate_batch(batch: List[EncodedSample], device: t.device) -> QABatch:
                    answer_span_ends=answer_span_end)
 
 
-def pad_and_sort(seq: List[Any]) -> Tuple[t.LongTensor, t.LongTensor, t.LongTensor, t.LongTensor]:
+def pad_and_sort(seq: List[Any], device: t.device=t.device('cpu')) -> Tuple[t.LongTensor, t.LongTensor, t.LongTensor, t.LongTensor]:
     """
     Pads a list of sequences with 0's to make them all the same
     length as the longest sequence
     :param seq: A list of sequences
+    :param device: A Torch device to place the resulting tensors in
     :returns:
         - Batch of padded sequences
         - Original-to-length sort indices (meaning seq[length_idxs] == batch)
@@ -213,14 +214,14 @@ def pad_and_sort(seq: List[Any]) -> Tuple[t.LongTensor, t.LongTensor, t.LongTens
         - lengths of sequences
     """
     if len(seq) == 1:
-        batch = t.LongTensor(seq)
-        orig_idxs = t.LongTensor([0])
-        length_idxs = t.LongTensor([0])
-        lengths = t.LongTensor([len(seq[0])])
+        batch = t.LongTensor(seq, device=device)
+        orig_idxs = t.zeros((1), device=device)
+        length_idxs = t.zeros((1), device=device)
+        lengths = t.LongTensor([len(seq[0])], device=device)
         return batch, orig_idxs, length_idxs, lengths
-    lengths = t.LongTensor([el.shape[0] for el in seq])
+    lengths = t.LongTensor([el.shape[0] for el in seq], device=device)
     lengths, length_idxs = lengths.sort(0, descending=True)
-    seq = [t.LongTensor(seq[i]) for i in length_idxs]
+    seq = [t.LongTensor(seq[i], device=device) for i in length_idxs]
     batch = pad_sequence(seq, batch_first=True)
     _, orig_idxs = length_idxs.sort()
     return batch, orig_idxs, length_idxs, lengths

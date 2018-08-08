@@ -66,6 +66,7 @@ def train_model(model: PredictorModel,
         train_dataset,
         batch_size=batch_size,
         shuffle=True,
+        pin_memory=True,
         collate_fn=get_collator(device))
     if debug:
         debug_run(loader, model, optimizer, train_evaluator, use_cuda)
@@ -73,24 +74,44 @@ def train_model(model: PredictorModel,
         training_run(loader, model, optimizer, train_evaluator, dev_dataset, num_epochs, use_cuda, model_checkpoint_path)
 
 
+def one_train_iteration(optimizer, model, batch, evaluator):
+    """
+    Runs one train iteration of the given model on the given batch,
+    evaluating using the given evaluator and updating parameters
+    using the given optimizer.
+    Returns the batch loss
+    """
+    optimizer.zero_grad()
+    predictions: ModelPredictions = model(batch)
+    loss = evaluator(batch, predictions)
+    loss.backward()
+    optimizer.step()
+    batch_loss = loss.item()
+    return batch_loss
+
+
 def debug_run(loader, model, optimizer, evaluator, use_cuda: bool, num_epochs: int=1):
-    with trange(num_epochs) as epochs:
-        with t.autograd.profiler.profile(use_cuda=use_cuda) as prof:
+    """
+    Runs the given model setup on a single batch while profiling with the torch
+    autograd profiler
+    """
+    with t.autograd.profiler.profile(use_cuda=use_cuda) as prof:
+        batch = next(iter(loader))
+        with trange(num_epochs) as epochs:
             for epoch in epochs:
                 epochs.set_description('Epoch %d' % (epoch + 1))
                 epoch_loss = 0.0
-                batch = next(iter(loader))
-                optimizer.zero_grad()
-                predictions: ModelPredictions = model(batch)
-                loss = evaluator(batch, predictions)
-                loss.backward()
-                optimizer.step()
-                batch_loss = loss.item()
+                batch_loss = one_train_iteration(optimizer, model, batch, evaluator)
                 epoch_loss += batch_loss
-        print(prof)
+    print("Debug run complete, printing profile")
+    print(prof)
 
 
 def training_run(loader, model, optimizer, evaluator, dev_dataset, num_epochs, use_cuda, model_checkpoint_path):
+    """
+    Trains the given model over the entire data loader for as many epochs as specified, validating on dev
+    after every epoch and saving the model to disk after every epoch
+    """
     with trange(num_epochs) as epochs:
         for epoch in epochs:
             epochs.set_description('Epoch %d' % (epoch + 1))
@@ -98,12 +119,7 @@ def training_run(loader, model, optimizer, evaluator, dev_dataset, num_epochs, u
             with tqdm(loader) as batch_loop:
                 for batch_num, batch in enumerate(batch_loop):
                     batch_loop.set_description('Batch %d' % (batch_num + 1))
-                    optimizer.zero_grad()
-                    predictions: ModelPredictions = model(batch)
-                    loss = evaluator(batch, predictions)
-                    loss.backward()
-                    optimizer.step()
-                    batch_loss = loss.item()
+                    batch_loss = one_train_iteration(optimizer, model, batch, evaluator)
                     epoch_loss += batch_loss
                     batch_loop.set_postfix(loss=batch_loss)
             epoch_loss = epoch_loss / len(loader)
@@ -120,6 +136,11 @@ def validate(dataset: QADataset,
              use_cuda: bool,
              epoch: int = 0,
              batch_size: int = 16) -> None:
+    """
+    Validates the given model over the given dataset, both using the official
+    SQuAD evaluation script to obtain F1 and EM scores and using the evaluator
+    to get loss values
+    """
     print('\n=== EPOCH {}: Measuring QA performance on the dev set\n'.format(
         epoch + 1))
     try:
@@ -139,6 +160,9 @@ def get_dataset_loss(dataset: QADataset,
                      evaluator: Any,
                      use_cuda: bool,
                      batch_size: int = 16) -> float:
+    """
+    Computes total loss of the model over the entire dataset
+    """
     device = get_device(use_cuda)
     loader: DataLoader = DataLoader(
         dataset, batch_size, collate_fn=get_collator(device))
@@ -156,6 +180,10 @@ def answer_dataset(dataset: QADataset,
                    predictor: PredictorModel,
                    use_cuda: bool,
                    batch_size: int = 16) -> Dict[QuestionId, str]:
+    """
+    Generates well-formatted answers for the given dataset using the
+    given model.
+    """
     device = get_device(use_cuda)
     loader: DataLoader = DataLoader(
         dataset, batch_size, collate_fn=get_collator(device))
@@ -175,6 +203,11 @@ def evaluate_on_squad_dataset(dataset: QADataset,
                               predictor: PredictorModel,
                               use_cuda: bool,
                               batch_size: int = 16) -> Dict[str, str]:
+    """
+    Generates well formatted answers for the given dataset using the given
+    model, then runs the official SQuAD evaluation script on it to obtain
+    f1 and em scores.
+    """
     answer_dict = answer_dataset(dataset, predictor, use_cuda, batch_size)
     with open(dataset.source_file) as dataset_file:
         dataset_json = json.load(dataset_file)
