@@ -32,6 +32,8 @@ def train_model(model: PredictorModel,
                 num_epochs: int,
                 batch_size: int,
                 use_cuda: bool = False,
+                max_question_size: Optional[int]=100,
+                max_context_size: Optional[int]=300,
                 loader_num_workers: int=2,
                 debug: bool = False,
                 model_checkpoint_path: Optional[str] = None) -> None:
@@ -45,6 +47,8 @@ def train_model(model: PredictorModel,
     :param learning_rate: LR for Adam optimizer
     :param num_epochs: Number of epochs to train for
     :param batch_size: Size of each training batch
+    :param max_question_size: If not None, trims longer questions to this length
+    :param max_context_size: If not None, trims longer contexts to this length
     :param use_cuda: If True use CUDA (default False)
     :param loader_num_workers: Number of workers to use for DataLoader (default 2)
     :param debug: If True train on a single batch and profile performance (default False)
@@ -70,7 +74,7 @@ def train_model(model: PredictorModel,
         shuffle=True,
         pin_memory=True,
         num_workers=loader_num_workers,
-        collate_fn=get_collator(device))
+        collate_fn=get_collator(device, max_question_size, max_context_size))
     if debug:
         debug_run(loader, model, optimizer, train_evaluator, use_cuda)
     else:

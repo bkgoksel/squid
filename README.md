@@ -14,7 +14,9 @@
 - [x] Write dev validation during training
 - [x] Implement BiDAF on top
 - [x] Implement self attention as described in DocQA
-- [ ] Test implementation with self attention
+- [x] Test implementation with self attention
+- [ ] Add max context size
+- [ ] Add UNK char vector for OOV chars
 - [ ] Implement char CNN for char embeddings
 - [ ] Add the option to output no-answer probabilities with the output
 - [ ] Add encoding of sentence-level info
