@@ -15,7 +15,7 @@ from model.qa import QuestionId
 from model.batcher import QABatch, get_collator
 from model.predictor import PredictorModel, ModelPredictions
 
-from model.util import get_device
+from model.util import get_device, mem_report
 
 import model.evaluator as evaluator
 from model.evaluator import (Evaluator, MultiClassLossEvaluator,
@@ -98,20 +98,6 @@ def debug_run(loader, model, optimizer, evaluator, use_cuda: bool, num_epochs: i
     Runs the given model setup while profiling with the torch autograd profiler
     and tracking memory allocation of tensors across batches.
     """
-    import gc
-
-    def print_all_tensors(message: str):
-        print(message)
-        sizes = []
-        for obj in gc.get_objects():
-            try:
-                if t.is_tensor(obj) or (hasattr(obj, 'data') and t.is_tensor(obj.data)):
-                    print(type(obj), obj.size)
-                    sizes.append(obj.size)
-            except Exception:
-                pass
-            print("Total size of {} tensors allocated: {}".format(len(sizes), sum(sizes)))
-
     with t.autograd.profiler.profile(use_cuda=use_cuda) as prof:
         with trange(num_epochs) as epochs:
             for epoch in epochs:
@@ -120,9 +106,11 @@ def debug_run(loader, model, optimizer, evaluator, use_cuda: bool, num_epochs: i
                 with tqdm(loader) as batch_loop:
                     for batch_num, batch in enumerate(batch_loop):
                         batch_loop.set_description('Batch %d' % (batch_num + 1))
-                        print_all_tensors("Before batch {}, allocated tensors:".format(batch_num + 1))
+                        print("Before batch {}, allocated tensors:".format(batch_num + 1))
+                        mem_report()
                         batch_loss = one_train_iteration(optimizer, model, batch, evaluator)
-                        print_all_tensors("After batch {}, allocated tensors:".format(batch_num + 1))
+                        print("After batch {}, allocated tensors:".format(batch_num + 1))
+                        mem_report()
                         epoch_loss += batch_loss
                         batch_loop.set_postfix(loss=batch_loss)
     print("Debug run complete, printing CPU profile")
