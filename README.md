@@ -14,6 +14,8 @@
 - [x] Write dev validation during training
 - [x] Implement BiDAF on top
 - [x] Implement self attention as described in DocQA
+- [ ] Figure out the memory problems
+- [ ] Add UNK token for OOV chars (like words)
 - [ ] Test implementation with self attention
 - [ ] Implement char CNN for char embeddings
 - [ ] Add the option to output no-answer probabilities with the output
