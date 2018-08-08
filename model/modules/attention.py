@@ -71,6 +71,7 @@ class BaseBidirectionalAttention(nn.Module):
             (batch_len, max_context_len, max_question_len, 1)))
         del ctx_weighted
 
+        # TODO: Make this not build a (B x H x H x E) tensor
         multiple_weighted = (
             question.unsqueeze(1) * context.unsqueeze(2)
         ) @ self.w_multiple  # (batch_len, max_context_len, max_question_len)

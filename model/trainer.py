@@ -65,7 +65,7 @@ def train_model(model: PredictorModel,
         train_evaluator = MultiClassLossEvaluator()
     trainable_parameters = filter(lambda p: p.requires_grad,
                                   set(model.parameters()))
-    optimizer: optim.Optimizer = optim.Adam(
+    optimizer: optim.Optimizer = optim.Adadelta(
         trainable_parameters, lr=learning_rate)
     loader: DataLoader = DataLoader(
         train_dataset,
