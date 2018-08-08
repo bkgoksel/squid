@@ -159,6 +159,8 @@ def collate_batch(batch: List[EncodedSample], device: t.device, max_question_siz
     question_chars = np.zeros((batch_size, max_question_len, max_question_word_len))
     for batch_idx, q_chars in enumerate(question_chars_list):
         for word_idx, word in enumerate(q_chars):
+            if max_question_size is not None and word_idx >= max_question_size:
+                break
             question_chars[batch_idx, word_idx, :word.size] = word
     question_chars = t.LongTensor(question_chars, device=device).to(device)
 
@@ -177,6 +179,8 @@ def collate_batch(batch: List[EncodedSample], device: t.device, max_question_siz
     context_chars = np.zeros((batch_size, max_context_len, max_ctx_word_len))
     for batch_idx, c_chars in enumerate(context_chars_list):
         for word_idx, word in enumerate(c_chars):
+            if max_context_size is not None and word_idx >= max_context_size:
+                break
             context_chars[batch_idx, word_idx, :word.size] = word
     context_chars = t.LongTensor(context_chars, device=device).to(device)
 
