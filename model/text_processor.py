@@ -5,7 +5,7 @@ Module to store various text processors
 from typing import Set, Dict
 
 
-class TextProcessor():
+class TextProcessor:
     """
     Base class for text processors
     """
@@ -21,4 +21,4 @@ class TextProcessor():
         :param text: String to be processed
         :returns: String of processed text
         """
-        return text.lower() if self.config['lowercase'] else text
+        return text.lower() if self.config["lowercase"] else text

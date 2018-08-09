@@ -9,13 +9,15 @@ import numpy as np
 from typing import List
 from model.text_processor import TextProcessor
 from model.tokenizer import Tokenizer, Token
-from model.qa import (Answer,
-                      QuestionAnswer,
-                      ContextQuestionAnswer,
-                      EncodedAnswer,
-                      EncodedQuestionAnswer,
-                      EncodedContextQuestionAnswer,
-                      EncodedSample)
+from model.qa import (
+    Answer,
+    QuestionAnswer,
+    ContextQuestionAnswer,
+    EncodedAnswer,
+    EncodedQuestionAnswer,
+    EncodedContextQuestionAnswer,
+    EncodedSample,
+)
 from model.wv import WordVectors
 
 
@@ -28,7 +30,10 @@ class EncodingTestCase(unittest.TestCase):
             toks = txt.split()
             starts = [3 * start for start in range(len(toks))]
             ends = [(3 * end - 1) for end in range(1, len(toks) + 1)]
-            return [Token(word=tok[0], span=(tok[1], tok[2])) for tok in zip(toks, starts, ends)]
+            return [
+                Token(word=tok[0], span=(tok[1], tok[2]))
+                for tok in zip(toks, starts, ends)
+            ]
 
         self.tokenizer = Mock(Tokenizer)
         self.tokenizer.tokenize.side_effect = lambda txt: split_tokenize(txt)
@@ -38,9 +43,11 @@ class EncodingTestCase(unittest.TestCase):
         """
         Tests that Answer object are initialized correctly
         """
-        answer_text = 'a0 a1 a2'
+        answer_text = "a0 a1 a2"
         answer_start = 0
-        answer_obj: Answer = Answer(answer_text, answer_start, self.tokenizer, self.processor)
+        answer_obj: Answer = Answer(
+            answer_text, answer_start, self.tokenizer, self.processor
+        )
         self.assertEqual(answer_obj.text, answer_text)
         self.assertEqual(answer_obj.span_start, answer_start)
         self.assertEqual(answer_obj.span_end, answer_start + len(answer_text))
@@ -49,12 +56,17 @@ class EncodingTestCase(unittest.TestCase):
         """
         Tests that QuestionAnswer objects are initialized successfully
         """
-        answers = [Answer('a00 a01', 0, self.tokenizer, self.processor), Answer('a10', 2, self.tokenizer, self.processor)]
-        question_id = 'qid_0'
-        question_text = 'q0 q1 q2 q3'
+        answers = [
+            Answer("a00 a01", 0, self.tokenizer, self.processor),
+            Answer("a10", 2, self.tokenizer, self.processor),
+        ]
+        question_id = "qid_0"
+        question_text = "q0 q1 q2 q3"
         question_tokens = self.tokenizer.tokenize(question_text)
 
-        question_obj: QuestionAnswer = QuestionAnswer(question_id, question_text, answers, self.tokenizer, self.processor)
+        question_obj: QuestionAnswer = QuestionAnswer(
+            question_id, question_text, answers, self.tokenizer, self.processor
+        )
 
         self.assertEqual(question_obj.question_id, question_id)
         self.assertEqual(question_obj.text, question_text)
@@ -65,16 +77,21 @@ class EncodingTestCase(unittest.TestCase):
         """
         Tests that ContextQuestionAnswer objects are initialized properly
         """
-        qas: List[QuestionAnswer] = [QuestionAnswer('qa_%d' % i,
-                                                    'question %d' % i,
-                                                    [Answer('c%d' % i, 3 * i, self.tokenizer, self.processor)],
-                                                    self.tokenizer,
-                                                    self.processor)
-                                     for i in range(2)]
-        context_text = 'c0 c1 c2'
+        qas: List[QuestionAnswer] = [
+            QuestionAnswer(
+                "qa_%d" % i,
+                "question %d" % i,
+                [Answer("c%d" % i, 3 * i, self.tokenizer, self.processor)],
+                self.tokenizer,
+                self.processor,
+            )
+            for i in range(2)
+        ]
+        context_text = "c0 c1 c2"
         context_tokens = self.tokenizer.tokenize(context_text)
         cqa_obj: ContextQuestionAnswer = ContextQuestionAnswer(
-            context_text, qas, self.tokenizer, self.processor)
+            context_text, qas, self.tokenizer, self.processor
+        )
         self.assertEqual(qas, cqa_obj.qas)
         self.assertEqual(context_text, cqa_obj.text)
         self.assertEqual(context_tokens, cqa_obj.tokens)
@@ -86,7 +103,7 @@ class EncodingTestCase(unittest.TestCase):
         """
         context_text: str = "c0 c1 c2 a0 a1 c5 c6"
         context_tokens: List[Token] = self.tokenizer.tokenize(context_text)
-        answer: Answer = Answer('a0 a1', 9, self.tokenizer, self.processor)
+        answer: Answer = Answer("a0 a1", 9, self.tokenizer, self.processor)
         encoded_answer: EncodedAnswer = EncodedAnswer(answer, context_tokens)
         self.assertEqual(encoded_answer.span_start, 3)
         self.assertEqual(encoded_answer.span_end, 4)
@@ -95,31 +112,51 @@ class EncodingTestCase(unittest.TestCase):
         """
         Tests that EncodedQuestionAnswer objects are initialized correctly
         """
-        token_id_mapping = {'c0': 0, 'c1': 1, 'c2': 2, 'a0': 3, 'a1': 4}
-        char_mapping = {'0': 0, '1': 1, '2': 2, 'c': 3, 'a': 4}
+        token_id_mapping = {"c0": 0, "c1": 1, "c2": 2, "a0": 3, "a1": 4}
+        char_mapping = {"0": 0, "1": 1, "2": 2, "c": 3, "a": 4}
 
         context_text: str = "c0 c1 c2 a0 a1"
         context_tokens = self.tokenizer.tokenize(context_text)
 
-        answers = [Answer('a0 a1', 9, self.tokenizer, self.processor), Answer('a0', 9, self.tokenizer, self.processor)]
+        answers = [
+            Answer("a0 a1", 9, self.tokenizer, self.processor),
+            Answer("a0", 9, self.tokenizer, self.processor),
+        ]
         encoded_answers = [EncodedAnswer(ans, context_tokens) for ans in answers]
 
-        question_id = 'qid_0'
-        question_text = 'c0 c1 c2'
+        question_id = "qid_0"
+        question_text = "c0 c1 c2"
         question_tokens = self.tokenizer.tokenize(question_text)
-        question_word_encoding = np.array([token_id_mapping[tok.word] for tok in question_tokens])
-        question_char_encoding = [np.array([char_mapping[char] for char in tok.word]) for tok in question_tokens]
+        question_word_encoding = np.array(
+            [token_id_mapping[tok.word] for tok in question_tokens]
+        )
+        question_char_encoding = [
+            np.array([char_mapping[char] for char in tok.word])
+            for tok in question_tokens
+        ]
 
-        question_obj: QuestionAnswer = QuestionAnswer(question_id, question_text, answers, self.tokenizer, self.processor)
+        question_obj: QuestionAnswer = QuestionAnswer(
+            question_id, question_text, answers, self.tokenizer, self.processor
+        )
 
         self.vectors.__getitem__.side_effect = lambda tok: token_id_mapping[tok]
 
         encoded_qa_obj: EncodedQuestionAnswer = EncodedQuestionAnswer(
-            question_obj, self.vectors, char_mapping, context_tokens)
+            question_obj, self.vectors, char_mapping, context_tokens
+        )
 
         self.assertEqual(encoded_qa_obj.question_id, question_id)
-        self.assertTrue(np.allclose(encoded_qa_obj.word_encoding, question_word_encoding))
-        self.assertTrue(all(np.allclose(obj_encoding, gold_encoding) for obj_encoding, gold_encoding in zip(encoded_qa_obj.char_encoding, question_char_encoding)))
+        self.assertTrue(
+            np.allclose(encoded_qa_obj.word_encoding, question_word_encoding)
+        )
+        self.assertTrue(
+            all(
+                np.allclose(obj_encoding, gold_encoding)
+                for obj_encoding, gold_encoding in zip(
+                    encoded_qa_obj.char_encoding, question_char_encoding
+                )
+            )
+        )
         self.assertEqual(encoded_qa_obj.answers, encoded_answers)
 
     def test_encoded_cqa(self):
@@ -127,31 +164,50 @@ class EncodingTestCase(unittest.TestCase):
         Tests that the EncodedContextQuestionAnswer object encodes the context
         correctly
         """
-        token_id_mapping = {'c0': 0, 'c1': 1, 'c2': 2, 'a0': 3, 'a1': 4}
-        char_mapping = {'0': 0, '1': 1, '2': 2, 'c': 3, 'a': 4}
+        token_id_mapping = {"c0": 0, "c1": 1, "c2": 2, "a0": 3, "a1": 4}
+        char_mapping = {"0": 0, "1": 1, "2": 2, "c": 3, "a": 4}
 
         context_text: str = "c0 c1 c2 a0 a1"
         context_tokens = self.tokenizer.tokenize(context_text)
-        context_word_encoding = np.array([token_id_mapping[tok.word] for tok in context_tokens])
-        context_char_encoding = [np.array([char_mapping[char] for char in tok.word]) for tok in context_tokens]
+        context_word_encoding = np.array(
+            [token_id_mapping[tok.word] for tok in context_tokens]
+        )
+        context_char_encoding = [
+            np.array([char_mapping[char] for char in tok.word])
+            for tok in context_tokens
+        ]
 
-        answers = [Answer('a0 a1', 9, self.tokenizer, self.processor), Answer('a0', 9, self.tokenizer, self.processor)]
+        answers = [
+            Answer("a0 a1", 9, self.tokenizer, self.processor),
+            Answer("a0", 9, self.tokenizer, self.processor),
+        ]
 
-        question_id = 'qid_0'
-        question_text = 'c0 c1 c2'
+        question_id = "qid_0"
+        question_text = "c0 c1 c2"
 
-        question_obj: QuestionAnswer = QuestionAnswer(question_id, question_text, answers, self.tokenizer, self.processor)
-        cqa_obj: ContextQuestionAnswer = ContextQuestionAnswer(context_text,
-                                                               [question_obj],
-                                                               self.tokenizer,
-                                                               self.processor)
+        question_obj: QuestionAnswer = QuestionAnswer(
+            question_id, question_text, answers, self.tokenizer, self.processor
+        )
+        cqa_obj: ContextQuestionAnswer = ContextQuestionAnswer(
+            context_text, [question_obj], self.tokenizer, self.processor
+        )
 
         self.vectors.__getitem__.side_effect = lambda tok: token_id_mapping[tok]
 
         encoded_cqa_obj: EncodedContextQuestionAnswer = EncodedContextQuestionAnswer(
-            cqa_obj, self.vectors, char_mapping)
-        self.assertTrue(np.allclose(encoded_cqa_obj.word_encoding, context_word_encoding))
-        self.assertTrue(all(np.allclose(obj_encoding, gold_encoding) for obj_encoding, gold_encoding in zip(encoded_cqa_obj.char_encoding, context_char_encoding)))
+            cqa_obj, self.vectors, char_mapping
+        )
+        self.assertTrue(
+            np.allclose(encoded_cqa_obj.word_encoding, context_word_encoding)
+        )
+        self.assertTrue(
+            all(
+                np.allclose(obj_encoding, gold_encoding)
+                for obj_encoding, gold_encoding in zip(
+                    encoded_cqa_obj.char_encoding, context_char_encoding
+                )
+            )
+        )
 
     def test_encoded_sample(self):
         """
@@ -159,37 +215,73 @@ class EncodingTestCase(unittest.TestCase):
         and answer_span arrays correctly given a context_encoding and
         EncodedQuestionAnswer objects
         """
-        token_id_mapping = {'c0': 0, 'c1': 1, 'c2': 2, 'a0': 3, 'a1': 4}
-        char_mapping = {'0': 0, '1': 1, '2': 2, 'c': 3, 'a': 4}
+        token_id_mapping = {"c0": 0, "c1": 1, "c2": 2, "a0": 3, "a1": 4}
+        char_mapping = {"0": 0, "1": 1, "2": 2, "c": 3, "a": 4}
 
         context_text: str = "c0 c1 c2 a0 a1"
         context_tokens = self.tokenizer.tokenize(context_text)
-        context_word_encoding = np.array([token_id_mapping[tok.word] for tok in context_tokens])
-        context_char_encoding = [np.array([char_mapping[char] for char in tok.word]) for tok in context_tokens]
+        context_word_encoding = np.array(
+            [token_id_mapping[tok.word] for tok in context_tokens]
+        )
+        context_char_encoding = [
+            np.array([char_mapping[char] for char in tok.word])
+            for tok in context_tokens
+        ]
 
-        answers = [Answer('a0 a1', 9, self.tokenizer, self.processor), Answer('a0', 9, self.tokenizer, self.processor)]
+        answers = [
+            Answer("a0 a1", 9, self.tokenizer, self.processor),
+            Answer("a0", 9, self.tokenizer, self.processor),
+        ]
         answer_starts = np.array([0, 0, 0, 1, 0])
         answer_ends = np.array([0, 0, 0, 1, 1])
 
-        question_id = 'qid_0'
-        question_text = 'c0 c1 c2'
+        question_id = "qid_0"
+        question_text = "c0 c1 c2"
         question_tokens = self.tokenizer.tokenize(question_text)
-        question_word_encoding = np.array([token_id_mapping[tok.word] for tok in question_tokens])
-        question_char_encoding = [np.array([char_mapping[char] for char in tok.word]) for tok in question_tokens]
+        question_word_encoding = np.array(
+            [token_id_mapping[tok.word] for tok in question_tokens]
+        )
+        question_char_encoding = [
+            np.array([char_mapping[char] for char in tok.word])
+            for tok in question_tokens
+        ]
 
-        question_obj: QuestionAnswer = QuestionAnswer(question_id, question_text, answers, self.tokenizer, self.processor)
+        question_obj: QuestionAnswer = QuestionAnswer(
+            question_id, question_text, answers, self.tokenizer, self.processor
+        )
 
         self.vectors.__getitem__.side_effect = lambda tok: token_id_mapping[tok]
 
         encoded_qa_obj: EncodedQuestionAnswer = EncodedQuestionAnswer(
-            question_obj, self.vectors, char_mapping, context_tokens)
-        encoded_sample = EncodedSample(context_word_encoding, context_char_encoding, encoded_qa_obj)
+            question_obj, self.vectors, char_mapping, context_tokens
+        )
+        encoded_sample = EncodedSample(
+            context_word_encoding, context_char_encoding, encoded_qa_obj
+        )
 
         self.assertEqual(encoded_sample.question_id, question_id)
-        self.assertTrue(np.allclose(encoded_sample.question_words, question_word_encoding))
-        self.assertTrue(np.allclose(encoded_sample.context_words, context_word_encoding))
-        self.assertTrue(all(np.allclose(obj_encoding, gold_encoding) for obj_encoding, gold_encoding in zip(encoded_sample.question_chars, question_char_encoding)))
-        self.assertTrue(all(np.allclose(obj_encoding, gold_encoding) for obj_encoding, gold_encoding in zip(encoded_sample.context_chars, context_char_encoding)))
+        self.assertTrue(
+            np.allclose(encoded_sample.question_words, question_word_encoding)
+        )
+        self.assertTrue(
+            np.allclose(encoded_sample.context_words, context_word_encoding)
+        )
+        self.assertTrue(
+            all(
+                np.allclose(obj_encoding, gold_encoding)
+                for obj_encoding, gold_encoding in zip(
+                    encoded_sample.question_chars, question_char_encoding
+                )
+            )
+        )
+        self.assertTrue(
+            all(
+                np.allclose(obj_encoding, gold_encoding)
+                for obj_encoding, gold_encoding in zip(
+                    encoded_sample.context_chars, context_char_encoding
+                )
+            )
+        )
         self.assertTrue(encoded_sample.has_answer)
         self.assertTrue(np.allclose(encoded_sample.span_starts, answer_starts))
         self.assertTrue(np.allclose(encoded_sample.span_ends, answer_ends))

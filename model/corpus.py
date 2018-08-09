@@ -4,46 +4,45 @@ Module that deals with preparing QA corpora
 
 import json
 import pickle
-from typing import (Any,
-                    Optional,
-                    List,
-                    Dict,
-                    Set,
-                    Tuple,
-                    NamedTuple,
-                    cast)
+from typing import Any, Optional, List, Dict, Set, Tuple, NamedTuple, cast
 
 from torch.utils.data import Dataset
 
 from model.text_processor import TextProcessor
 from model.tokenizer import Tokenizer
-from model.qa import (Answer,
-                      QuestionAnswer,
-                      ContextQuestionAnswer,
-                      EncodedContextQuestionAnswer,
-                      EncodedSample,
-                      QuestionId)
+from model.qa import (
+    Answer,
+    QuestionAnswer,
+    ContextQuestionAnswer,
+    EncodedContextQuestionAnswer,
+    EncodedSample,
+    QuestionId,
+)
 
 from model.wv import WordVectors
 
-CorpusStats = NamedTuple('CorpusStats', [
-    ('n_contexts', int),
-    ('n_questions', int),
-    ('n_answerable', int),
-    ('n_unanswerable', int),
-    ('max_context_len', int),
-    ('max_q_len', int),
-    ('max_word_len', int),
-    ('single_answer', bool),
-    ('word_vocab_size', int),
-    ('char_vocab_size', int)
-])
+CorpusStats = NamedTuple(
+    "CorpusStats",
+    [
+        ("n_contexts", int),
+        ("n_questions", int),
+        ("n_answerable", int),
+        ("n_unanswerable", int),
+        ("max_context_len", int),
+        ("max_q_len", int),
+        ("max_word_len", int),
+        ("single_answer", bool),
+        ("word_vocab_size", int),
+        ("char_vocab_size", int),
+    ],
+)
 
 
-class Corpus():
+class Corpus:
     """
     Class that contains a corpus
     """
+
     source_file: Optional[str]
     context_qas: List[ContextQuestionAnswer]
     quids_to_context_qas: Dict[QuestionId, ContextQuestionAnswer]
@@ -51,15 +50,19 @@ class Corpus():
     char_mapping: Dict[str, int]
     stats: CorpusStats
 
-    def __init__(self,
-                 context_qas: List[ContextQuestionAnswer],
-                 token_mapping: Dict[str, int],
-                 char_mapping: Dict[str, int],
-                 stats: CorpusStats,
-                 source_file: Optional[str]=None) -> None:
+    def __init__(
+        self,
+        context_qas: List[ContextQuestionAnswer],
+        token_mapping: Dict[str, int],
+        char_mapping: Dict[str, int],
+        stats: CorpusStats,
+        source_file: Optional[str] = None,
+    ) -> None:
         self.source_file = source_file
         self.context_qas = context_qas
-        self.quids_to_context_qas = {qa.question_id: cqa for cqa in context_qas for qa in cqa.qas}
+        self.quids_to_context_qas = {
+            qa.question_id: cqa for cqa in context_qas for qa in cqa.qas
+        }
         self.token_mapping = token_mapping
         self.char_mapping = char_mapping
         self.stats = stats
@@ -71,18 +74,20 @@ class Corpus():
         :param serialized_file: Name of the pickle file to load
         :returns: A Corpus object
         """
-        with open(serialized_file, 'rb') as f:
+        with open(serialized_file, "rb") as f:
             return pickle.load(f)
 
     @classmethod
-    def from_raw(cls,
-                 data_file: str,
-                 tokenizer: Tokenizer,
-                 processor: TextProcessor,
-                 force_single_answer: bool=False,
-                 word_vectors: Optional[WordVectors]=None,
-                 token_mapping: Optional[Dict[str, int]]=None,
-                 char_mapping: Optional[Dict[str, int]]=None):
+    def from_raw(
+        cls,
+        data_file: str,
+        tokenizer: Tokenizer,
+        processor: TextProcessor,
+        force_single_answer: bool = False,
+        word_vectors: Optional[WordVectors] = None,
+        token_mapping: Optional[Dict[str, int]] = None,
+        char_mapping: Optional[Dict[str, int]] = None,
+    ):
         """
         Reads a Corpus of QA questions from a file
         :param data_file: File to read from
@@ -97,7 +102,9 @@ class Corpus():
         :param char_mapping: Optional mapping from chars to ints, will be computed
             from scratch if not specified
         """
-        context_qas = cls.read_context_qas(data_file, tokenizer, processor, force_single_answer)
+        context_qas = cls.read_context_qas(
+            data_file, tokenizer, processor, force_single_answer
+        )
         if token_mapping is None:
             token_mapping = cls.compute_token_indices(context_qas, word_vectors)
         if char_mapping is None:
@@ -106,10 +113,12 @@ class Corpus():
         return cls(context_qas, token_mapping, char_mapping, stats, data_file)
 
     @staticmethod
-    def read_context_qas(data_file: str,
-                         tokenizer: Tokenizer,
-                         processor: TextProcessor,
-                         force_single_answer: bool) -> List[ContextQuestionAnswer]:
+    def read_context_qas(
+        data_file: str,
+        tokenizer: Tokenizer,
+        processor: TextProcessor,
+        force_single_answer: bool,
+    ) -> List[ContextQuestionAnswer]:
         """
         Reads a SQUAD formattted JSON file into ContextQuestionAnswer objects
         :param data_file: filename of the JSON questions file
@@ -119,31 +128,39 @@ class Corpus():
         :returns: List[ContextQuestionAnswer], list of all the contexts and questions
         """
         contexts: List[ContextQuestionAnswer] = []
-        with open(data_file, 'r') as f:
+        with open(data_file, "r") as f:
             json_dict = json.load(f)
-            for doc in json_dict['data']:
-                for paragraph in doc['paragraphs']:
-                    context: str = paragraph['context']
+            for doc in json_dict["data"]:
+                for paragraph in doc["paragraphs"]:
+                    context: str = paragraph["context"]
                     qas: List[QuestionAnswer] = []
-                    for qa in paragraph['qas']:
-                        q_text: str = qa['question']
-                        q_id: QuestionId = cast(QuestionId, qa['id'])
+                    for qa in paragraph["qas"]:
+                        q_text: str = qa["question"]
+                        q_id: QuestionId = cast(QuestionId, qa["id"])
                         answers: Set[Answer] = set()
-                        for answer in qa['answers']:
-                            text: str = answer['text']
-                            span_start: int = answer['answer_start']
-                            tokenized_answer = Answer(text, span_start, tokenizer, processor)
+                        for answer in qa["answers"]:
+                            text: str = answer["text"]
+                            span_start: int = answer["answer_start"]
+                            tokenized_answer = Answer(
+                                text, span_start, tokenizer, processor
+                            )
                             answers.add(tokenized_answer)
                             if force_single_answer:
                                 break
-                        tokenized_question = QuestionAnswer(q_id, q_text, answers, tokenizer, processor)
+                        tokenized_question = QuestionAnswer(
+                            q_id, q_text, answers, tokenizer, processor
+                        )
                         qas.append(tokenized_question)
-                    tokenized_context = ContextQuestionAnswer(context, qas, tokenizer, processor)
+                    tokenized_context = ContextQuestionAnswer(
+                        context, qas, tokenizer, processor
+                    )
                     contexts.append(tokenized_context)
         return contexts
 
     @staticmethod
-    def compute_token_indices(context_qas: List[ContextQuestionAnswer], word_vectors: Optional[WordVectors]) -> Dict[str, int]:
+    def compute_token_indices(
+        context_qas: List[ContextQuestionAnswer], word_vectors: Optional[WordVectors]
+    ) -> Dict[str, int]:
         """
         Takes in a list of contexts and qas and returns the set of all words in them
         :param context_qas: List[ContextQuestionAnswer] all the context qa's
@@ -159,11 +176,15 @@ class Corpus():
         if word_vectors is not None:
             tokens = set(filter(word_vectors.contains, tokens))
 
-        token_mapping: Dict[str, int] = {tok: idx for idx, tok in enumerate(tokens, 2)}  # idx 1 reserved for UNK
+        token_mapping: Dict[str, int] = {
+            tok: idx for idx, tok in enumerate(tokens, 2)
+        }  # idx 1 reserved for UNK
         return token_mapping
 
     @staticmethod
-    def compute_char_indices(context_qas: List[ContextQuestionAnswer]) -> Dict[str, int]:
+    def compute_char_indices(
+        context_qas: List[ContextQuestionAnswer]
+    ) -> Dict[str, int]:
         """
         Takes in a list of contexts and qas and returns a mapping from each char seen to an index
         :param context_qas: List[ContextQuestionAnswer] all the context qa's
@@ -176,13 +197,17 @@ class Corpus():
             for qa in ctx.qas:
                 for tok in qa.tokens:
                     chars.update(set(char for char in tok.word))
-        char_mapping: Dict[str, int] = {char: idx for idx, char in enumerate(chars, 2)}  # idx 1 reserved for UNK
+        char_mapping: Dict[str, int] = {
+            char: idx for idx, char in enumerate(chars, 2)
+        }  # idx 1 reserved for UNK
         return char_mapping
 
     @staticmethod
-    def compute_stats(context_qas: List[ContextQuestionAnswer],
-                      token_mapping: Dict[str, int],
-                      char_mapping: Dict[str, int]) -> CorpusStats:
+    def compute_stats(
+        context_qas: List[ContextQuestionAnswer],
+        token_mapping: Dict[str, int],
+        char_mapping: Dict[str, int],
+    ) -> CorpusStats:
         """
         Method that computes statistics given list of context qas and vocab
         :param context_qas: List of contextQA objects
@@ -191,9 +216,15 @@ class Corpus():
         """
         n_contexts: int = len(context_qas)
         n_questions: int = sum(len(ctx.qas) for ctx in context_qas)
-        n_answerable: int = sum(len([qa for qa in ctx.qas if qa.answers]) for ctx in context_qas)
-        n_unanswerable: int = sum(len([qa for qa in ctx.qas if not qa.answers]) for ctx in context_qas)
-        single_answer: bool = all(all(len(qa.answers) <= 1 for qa in ctx.qas) for ctx in context_qas)
+        n_answerable: int = sum(
+            len([qa for qa in ctx.qas if qa.answers]) for ctx in context_qas
+        )
+        n_unanswerable: int = sum(
+            len([qa for qa in ctx.qas if not qa.answers]) for ctx in context_qas
+        )
+        single_answer: bool = all(
+            all(len(qa.answers) <= 1 for qa in ctx.qas) for ctx in context_qas
+        )
         max_context_len: int = max(len(ctx.tokens) for ctx in context_qas)
         max_q_len: int = max(len(qa.tokens) for ctx in context_qas for qa in ctx.qas)
 
@@ -207,18 +238,22 @@ class Corpus():
                 max_word_len = max(max_curr_len, max_word_len)
                 max_num_answer_spans = max(max_num_answer_spans, len(qa.answers))
 
-        return CorpusStats(n_contexts=n_contexts,
-                           n_questions=n_questions,
-                           n_answerable=n_answerable,
-                           n_unanswerable=n_unanswerable,
-                           max_context_len=max_context_len,
-                           max_q_len=max_q_len,
-                           max_word_len=max_word_len,
-                           single_answer=single_answer,
-                           word_vocab_size=max(token_mapping.values()) + 1,
-                           char_vocab_size=max(char_mapping.values()) + 1)
+        return CorpusStats(
+            n_contexts=n_contexts,
+            n_questions=n_questions,
+            n_answerable=n_answerable,
+            n_unanswerable=n_unanswerable,
+            max_context_len=max_context_len,
+            max_q_len=max_q_len,
+            max_word_len=max_word_len,
+            single_answer=single_answer,
+            word_vocab_size=max(token_mapping.values()) + 1,
+            char_vocab_size=max(char_mapping.values()) + 1,
+        )
 
-    def get_single_answer_text(self, qid: QuestionId, span_start: int, span_end: int) -> str:
+    def get_single_answer_text(
+        self, qid: QuestionId, span_start: int, span_end: int
+    ) -> str:
         """
         Turns a single qid, span_start, span_end triplet into a string
         of concatenated tokens
@@ -228,10 +263,12 @@ class Corpus():
         :returns: All tokens (inclusive) from the tokenized context,
             space separated
         """
-        tokens = self.quids_to_context_qas[qid].tokens[span_start: span_end + 1]
-        return ' '.join([tok.word for tok in tokens])
+        tokens = self.quids_to_context_qas[qid].tokens[span_start : span_end + 1]
+        return " ".join([tok.word for tok in tokens])
 
-    def get_answer_texts(self, answer_token_idxs: Dict[QuestionId, Tuple[Any, ...]]) -> Dict[QuestionId, str]:
+    def get_answer_texts(
+        self, answer_token_idxs: Dict[QuestionId, Tuple[Any, ...]]
+    ) -> Dict[QuestionId, str]:
         """
         Given a mapping from questions id's to answer token indices, returns
         a SQuAD eval script readable version of the answer
@@ -241,7 +278,10 @@ class Corpus():
             end prediction of the model
         :returns: A Mapping from QuestionId's to strings
         """
-        return {qid: self.get_single_answer_text(qid, span_start, span_end) for qid, (span_start, span_end) in answer_token_idxs.items()}
+        return {
+            qid: self.get_single_answer_text(qid, span_start, span_end)
+            for qid, (span_start, span_end) in answer_token_idxs.items()
+        }
 
     def save(self, file_name: str) -> None:
         """
@@ -249,7 +289,7 @@ class Corpus():
         :param file_name: File name to save corpus to
         :returns: None
         """
-        with open(file_name, 'wb') as f:
+        with open(file_name, "wb") as f:
             pickle.dump(self, f)
 
 
@@ -265,16 +305,23 @@ class EncodedCorpus(Corpus):
     encoded_context_qas: List[EncodedContextQuestionAnswer]
 
     def __init__(self, corpus: Corpus) -> None:
-        super().__init__(corpus.context_qas, corpus.token_mapping, corpus.char_mapping, corpus.stats, corpus.source_file)
-        self.encoded_context_qas = EncodedCorpus.encode(self.context_qas,
-                                                        self.token_mapping,
-                                                        self.char_mapping)
+        super().__init__(
+            corpus.context_qas,
+            corpus.token_mapping,
+            corpus.char_mapping,
+            corpus.stats,
+            corpus.source_file,
+        )
+        self.encoded_context_qas = EncodedCorpus.encode(
+            self.context_qas, self.token_mapping, self.char_mapping
+        )
 
     @staticmethod
-    def encode(context_qas: List[ContextQuestionAnswer],
-               token_mapping: Dict[str, int],
-               char_mapping: Dict[str, int],
-               ) -> List[EncodedContextQuestionAnswer]:
+    def encode(
+        context_qas: List[ContextQuestionAnswer],
+        token_mapping: Dict[str, int],
+        char_mapping: Dict[str, int],
+    ) -> List[EncodedContextQuestionAnswer]:
         """
         Method that encodes all the given contextQA's
         :param context_qas: List of ContextQA objects
@@ -282,7 +329,10 @@ class EncodedCorpus(Corpus):
         :param char_mapping: Dictionary from characters to indices
         :returns: List of EncodedContextQuestionAnswer objects
         """
-        return [EncodedContextQuestionAnswer(cqa, token_mapping, char_mapping) for cqa in context_qas]
+        return [
+            EncodedContextQuestionAnswer(cqa, token_mapping, char_mapping)
+            for cqa in context_qas
+        ]
 
 
 class SampleCorpus(EncodedCorpus):
@@ -302,7 +352,9 @@ class SampleCorpus(EncodedCorpus):
         self.n_samples = len(self.samples)
 
     @staticmethod
-    def make_samples(context_qas: List[EncodedContextQuestionAnswer]) -> List[EncodedSample]:
+    def make_samples(
+        context_qas: List[EncodedContextQuestionAnswer]
+    ) -> List[EncodedSample]:
         """
         Method that converts a list of EncodedContextQA objects that store
         a given context with all its methods into EncodedSample objects
@@ -310,7 +362,11 @@ class SampleCorpus(EncodedCorpus):
         :param context_qas: List of EncodedContextQuestionAnswer objects
         :returns: List of EncodedSample objects
         """
-        return [EncodedSample(ctx.word_encoding, ctx.char_encoding, qa) for ctx in context_qas for qa in ctx.qas]
+        return [
+            EncodedSample(ctx.word_encoding, ctx.char_encoding, qa)
+            for ctx in context_qas
+            for qa in ctx.qas
+        ]
 
 
 class QADataset(Dataset):
@@ -332,7 +388,9 @@ class QADataset(Dataset):
     def __getitem__(self, idx):
         return self.corpus.samples[idx]
 
-    def get_answer_texts(self, answer_token_idxs: Dict[QuestionId, Tuple[Any, ...]]) -> Dict[QuestionId, str]:
+    def get_answer_texts(
+        self, answer_token_idxs: Dict[QuestionId, Tuple[Any, ...]]
+    ) -> Dict[QuestionId, str]:
         """
         Given a mapping from questions id's to answer token indices, returns
         a SQuAD eval script readable version of the answer
@@ -353,7 +411,7 @@ class QADataset(Dataset):
         if self._source_file is not None:
             return self._source_file
         else:
-            raise Exception('Dataset file provenance not available for this dataset')
+            raise Exception("Dataset file provenance not available for this dataset")
 
 
 class TrainDataset(QADataset):
@@ -371,12 +429,14 @@ class TrainDataset(QADataset):
         self.char_mapping = corpus.char_mapping
 
     @classmethod
-    def load_dataset(cls,
-                     filename: str,
-                     vectors: WordVectors,
-                     tokenizer: Tokenizer,
-                     processor: TextProcessor,
-                     multi_answer: bool=False) -> QADataset:
+    def load_dataset(
+        cls,
+        filename: str,
+        vectors: WordVectors,
+        tokenizer: Tokenizer,
+        processor: TextProcessor,
+        multi_answer: bool = False,
+    ) -> QADataset:
         """
         Reads the given qa data file and processes it into a TrainDataset using
         the provided word vectors' vocab, tokenizer and text processor
@@ -392,11 +452,13 @@ class TrainDataset(QADataset):
         try:
             corpus = Corpus.from_disk(filename)
         except (IOError, pickle.UnpicklingError) as e:
-            corpus = Corpus.from_raw(filename,
-                                     tokenizer,
-                                     processor,
-                                     force_single_answer=not multi_answer,
-                                     word_vectors=vectors)
+            corpus = Corpus.from_raw(
+                filename,
+                tokenizer,
+                processor,
+                force_single_answer=not multi_answer,
+                word_vectors=vectors,
+            )
         return cls(corpus)
 
 
@@ -410,13 +472,15 @@ class EvalDataset(QADataset):
         super().__init__(corpus)
 
     @classmethod
-    def load_dataset(cls,
-                     filename: str,
-                     token_mapping: Dict[str, int],
-                     char_mapping: Dict[str, int],
-                     tokenizer: Tokenizer,
-                     processor: TextProcessor,
-                     force_single_answer: bool=False) -> QADataset:
+    def load_dataset(
+        cls,
+        filename: str,
+        token_mapping: Dict[str, int],
+        char_mapping: Dict[str, int],
+        tokenizer: Tokenizer,
+        processor: TextProcessor,
+        force_single_answer: bool = False,
+    ) -> QADataset:
         """
         Reads the given qa data file and processes it into a TrainDataset using
         the provided word vectors' vocab, tokenizer and text processor
@@ -433,10 +497,12 @@ class EvalDataset(QADataset):
         try:
             corpus = Corpus.from_disk(filename)
         except (IOError, pickle.UnpicklingError) as e:
-            corpus = Corpus.from_raw(filename,
-                                     tokenizer,
-                                     processor,
-                                     force_single_answer=force_single_answer,
-                                     token_mapping=token_mapping,
-                                     char_mapping=char_mapping)
+            corpus = Corpus.from_raw(
+                filename,
+                tokenizer,
+                processor,
+                force_single_answer=force_single_answer,
+                token_mapping=token_mapping,
+                char_mapping=char_mapping,
+            )
         return cls(corpus)

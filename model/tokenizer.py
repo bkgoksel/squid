@@ -6,16 +6,14 @@ from typing import List, Tuple, NamedTuple
 from nltk.tokenize import WordPunctTokenizer
 
 
-Token = NamedTuple('Token', [
-    ('word', str),
-    ('span', Tuple[int, int])
-])
+Token = NamedTuple("Token", [("word", str), ("span", Tuple[int, int])])
 
 
-class Tokenizer():
+class Tokenizer:
     """
     Base class for tokenizer wrappers
     """
+
     def tokenize(self, text: str) -> List[Token]:
         """
         Takes a string text and tokenizes it
@@ -31,6 +29,7 @@ class NltkTokenizer(Tokenizer):
     """
     Tokenizer that uses WordPunctTokenizer from NLTK
     """
+
     tokenizer: WordPunctTokenizer
 
     def __init__(self):

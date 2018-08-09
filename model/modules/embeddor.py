@@ -9,29 +9,32 @@ import torch.nn as nn
 from model.wv import WordVectors
 
 
-WordEmbeddorConfig = NamedTuple('WordEmbeddorConfig', [
-    ('vectors', WordVectors),
-    ('token_mapping', Dict[str, int]),
-    ('train_vecs', bool)
-])
+WordEmbeddorConfig = NamedTuple(
+    "WordEmbeddorConfig",
+    [("vectors", WordVectors), ("token_mapping", Dict[str, int]), ("train_vecs", bool)],
+)
 
 
-PoolingCharEmbeddorConfig = NamedTuple('PoolingCharEmbeddorConfig', [
-    ('char_vocab_size', int),
-    ('embedding_dimension', int)
-])
+PoolingCharEmbeddorConfig = NamedTuple(
+    "PoolingCharEmbeddorConfig",
+    [("char_vocab_size", int), ("embedding_dimension", int)],
+)
 
 
-EmbeddorConfig = NamedTuple('EmbeddorConfig', [
-    ('word_embeddor', Optional[WordEmbeddorConfig]),
-    ('char_embeddor', Optional[PoolingCharEmbeddorConfig])
-])
+EmbeddorConfig = NamedTuple(
+    "EmbeddorConfig",
+    [
+        ("word_embeddor", Optional[WordEmbeddorConfig]),
+        ("char_embeddor", Optional[PoolingCharEmbeddorConfig]),
+    ],
+)
 
 
 class Embeddor(nn.Module):
     """
     Base class for embeddors
     """
+
     embedding_dim: int
 
     def __init__(self, embedding_dim: int) -> None:
@@ -54,17 +57,23 @@ class WordEmbeddor(Embeddor):
     """
     Module that embeds words using pretrained word vectors
     """
+
     embed: nn.Embedding
 
-    def __init__(self,
-                 word_vectors: WordVectors,
-                 token_mapping: Dict[str, int],
-                 train_vecs: bool,
-                 device: Any=t.device('cpu')) -> None:
+    def __init__(
+        self,
+        word_vectors: WordVectors,
+        token_mapping: Dict[str, int],
+        train_vecs: bool,
+        device: Any = t.device("cpu"),
+    ) -> None:
         super().__init__(word_vectors.dim)
-        embedding_matrix = t.Tensor(word_vectors.build_embeddings_matrix_for(token_mapping)).to(device)
-        self.embed = nn.Embedding.from_pretrained(embedding_matrix,
-                                                  freeze=(not train_vecs))
+        embedding_matrix = t.Tensor(
+            word_vectors.build_embeddings_matrix_for(token_mapping)
+        ).to(device)
+        self.embed = nn.Embedding.from_pretrained(
+            embedding_matrix, freeze=(not train_vecs)
+        )
         self.to(device)
 
     def forward(self, words: t.LongTensor, chars: t.LongTensor) -> t.Tensor:
@@ -82,12 +91,20 @@ class PoolingCharEmbeddor(Embeddor):
     """
     Module that embeds words by training character-level embeddings and max pooling over them
     """
+
     embed: nn.Embedding
 
-    def __init__(self, char_vocab_size: int, embedding_dimension: int, device: Any=t.device('cpu')) -> None:
+    def __init__(
+        self,
+        char_vocab_size: int,
+        embedding_dimension: int,
+        device: Any = t.device("cpu"),
+    ) -> None:
         super().__init__(embedding_dimension)
         self.vocab_size = char_vocab_size + 1
-        self.embed = nn.Embedding(char_vocab_size + 1, embedding_dimension, padding_idx=0)
+        self.embed = nn.Embedding(
+            char_vocab_size + 1, embedding_dimension, padding_idx=0
+        )
         self.to(device)
 
     def forward(self, words: t.LongTensor, chars: t.LongTensor) -> t.Tensor:
@@ -102,7 +119,9 @@ class PoolingCharEmbeddor(Embeddor):
         # Flatten the word length dimension to make Tensor 2D for embedding
         chars = chars.view(-1, max_num_chars)
         embeddings = self.embed(chars)
-        embeddings = embeddings.view(batch_size, max_num_words, max_num_chars, self.embedding_dim)
+        embeddings = embeddings.view(
+            batch_size, max_num_words, max_num_chars, self.embedding_dim
+        )
         pooled, _ = embeddings.max(2)
         return pooled
 
@@ -111,6 +130,7 @@ class ConcatenatingEmbeddor(Embeddor):
     """
     Module that takes multiple Embeddors and concatenates their outputs to produce final embeddings
     """
+
     embeddors: List[Embeddor]
 
     def __init__(self, *args) -> None:
@@ -138,12 +158,24 @@ def make_embeddor(config: EmbeddorConfig, device: Any) -> Embeddor:
     :returns: An Embeddor module as described by the config
     """
     embeddors = []
-    assert config.word_embeddor or config.char_embeddor, "At least one of WordEmbeddor and CharEmbeddor needs to be specified"
+    assert (
+        config.word_embeddor or config.char_embeddor
+    ), "At least one of WordEmbeddor and CharEmbeddor needs to be specified"
     if config.word_embeddor:
-        embeddors.append(WordEmbeddor(config.word_embeddor.vectors,
-                                      config.word_embeddor.token_mapping,
-                                      config.word_embeddor.train_vecs,
-                                      device))
+        embeddors.append(
+            WordEmbeddor(
+                config.word_embeddor.vectors,
+                config.word_embeddor.token_mapping,
+                config.word_embeddor.train_vecs,
+                device,
+            )
+        )
     if config.char_embeddor:
-        embeddors.append(PoolingCharEmbeddor(config.char_embeddor.char_vocab_size, config.char_embeddor.embedding_dimension, device))
+        embeddors.append(
+            PoolingCharEmbeddor(
+                config.char_embeddor.char_vocab_size,
+                config.char_embeddor.embedding_dimension,
+                device,
+            )
+        )
     return ConcatenatingEmbeddor(*embeddors)

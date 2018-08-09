@@ -4,8 +4,7 @@ Module that holds classes that can be used for answer prediction
 from typing import NamedTuple, Optional
 import torch as t
 import torch.nn as nn
-from torch.nn.utils.rnn import (PackedSequence, pack_padded_sequence,
-                                pad_packed_sequence)
+from torch.nn.utils.rnn import PackedSequence, pack_padded_sequence, pad_packed_sequence
 
 from model.batcher import QABatch
 from model.util import get_last_hidden_states
@@ -14,8 +13,9 @@ from model.modules.masked import MaskedLinear
 from model.modules.embeddor import Embeddor
 
 ModelPredictions = NamedTuple(
-    'ModelPredictions', [('start_logits', t.Tensor), ('end_logits', t.Tensor),
-                         ('no_ans_logits', t.Tensor)])
+    "ModelPredictions",
+    [("start_logits", t.Tensor), ("end_logits", t.Tensor), ("no_ans_logits", t.Tensor)],
+)
 
 
 class PredictorModel(nn.Module):
@@ -35,12 +35,18 @@ class PredictorModel(nn.Module):
         raise NotImplementedError
 
 
-GRUConfig = NamedTuple('GRUConfig',
-                       [('hidden_size', int), ('num_layers', int),
-                        ('dropout', float), ('bidirectional', bool)])
+GRUConfig = NamedTuple(
+    "GRUConfig",
+    [
+        ("hidden_size", int),
+        ("num_layers", int),
+        ("dropout", float),
+        ("bidirectional", bool),
+    ],
+)
 
 
-class PredictorConfig():
+class PredictorConfig:
     """
     Object that holds config values for a Predictor model
     """
@@ -50,8 +56,9 @@ class PredictorConfig():
     n_directions: int
     use_self_attention: bool
 
-    def __init__(self, gru: GRUConfig, batch_size: int,
-                 use_self_attention: bool) -> None:
+    def __init__(
+        self, gru: GRUConfig, batch_size: int, use_self_attention: bool
+    ) -> None:
         self.gru = gru
         self.n_directions = 1 + int(self.gru.bidirectional)
         self.total_hidden_size = self.n_directions * self.gru.hidden_size
@@ -76,11 +83,16 @@ class ContextualEncoder(nn.Module):
             self.config.num_layers,
             dropout=self.config.dropout if self.config.num_layers > 0 else 0,
             batch_first=True,
-            bidirectional=self.config.bidirectional)
+            bidirectional=self.config.bidirectional,
+        )
 
-    def forward(self, embedded_in: t.Tensor, lengths: t.LongTensor,
-                length_idxs: t.LongTensor,
-                orig_idxs: t.LongTensor) -> t.Tensor:
+    def forward(
+        self,
+        embedded_in: t.Tensor,
+        lengths: t.LongTensor,
+        length_idxs: t.LongTensor,
+        orig_idxs: t.LongTensor,
+    ) -> t.Tensor:
         """
         Takes in a given padded sequence alongside its length and sorting info and
         encodes it through a bidirectional GRU
@@ -93,13 +105,15 @@ class ContextualEncoder(nn.Module):
         len_sorted = embedded_in[length_idxs]
         del length_idxs
         packed: PackedSequence = pack_padded_sequence(
-            len_sorted, lengths, batch_first=True)
+            len_sorted, lengths, batch_first=True
+        )
         del len_sorted
         del lengths
         processed_packed, _ = self.gru(packed)
         del packed
         processed_len_sorted, _ = pad_packed_sequence(
-            processed_packed, batch_first=True)
+            processed_packed, batch_first=True
+        )
         del processed_packed
         return processed_len_sorted[orig_idxs]
 
@@ -109,6 +123,7 @@ class BidafOutput(nn.Module):
     Module that produces prediction logits given a context encoding
     as described in the BiDAF paper
     """
+
     config: PredictorConfig
     start_modeling_encoder: ContextualEncoder
     end_modeling_encoder: ContextualEncoder
@@ -121,11 +136,12 @@ class BidafOutput(nn.Module):
         super().__init__()
         self.config = config
         self.start_modeling_encoder = ContextualEncoder(
-            self.config.total_hidden_size * 4, self.config.gru)
+            self.config.total_hidden_size * 4, self.config.gru
+        )
         self.end_modeling_encoder = ContextualEncoder(
-            self.config.total_hidden_size * 4, self.config.gru)
-        self.start_predictor = MaskedLinear(self.config.total_hidden_size * 5,
-                                            1)
+            self.config.total_hidden_size * 4, self.config.gru
+        )
+        self.start_predictor = MaskedLinear(self.config.total_hidden_size * 5, 1)
         self.end_predictor = MaskedLinear(self.config.total_hidden_size * 5, 1)
         self.no_answer_gru = nn.GRU(
             self.config.total_hidden_size * 4,
@@ -133,42 +149,54 @@ class BidafOutput(nn.Module):
             1,
             dropout=self.config.gru.dropout,
             batch_first=True,
-            bidirectional=self.config.gru.bidirectional)
+            bidirectional=self.config.gru.bidirectional,
+        )
         self.no_answer_predictor = nn.Linear(self.config.total_hidden_size, 1)
 
-    def forward(self, context_encoding: t.Tensor, context_mask: t.LongTensor,
-                lengths: t.LongTensor, length_idxs: t.LongTensor,
-                orig_idxs: t.LongTensor) -> ModelPredictions:
+    def forward(
+        self,
+        context_encoding: t.Tensor,
+        context_mask: t.LongTensor,
+        lengths: t.LongTensor,
+        length_idxs: t.LongTensor,
+        orig_idxs: t.LongTensor,
+    ) -> ModelPredictions:
         start_modeled_ctx = self.start_modeling_encoder(
-            context_encoding, lengths, length_idxs, orig_idxs)
+            context_encoding, lengths, length_idxs, orig_idxs
+        )
 
-        end_modeled_ctx = self.end_modeling_encoder(context_encoding, lengths,
-                                                    length_idxs, orig_idxs)
+        end_modeled_ctx = self.end_modeling_encoder(
+            context_encoding, lengths, length_idxs, orig_idxs
+        )
 
         start_predictions = self.start_predictor(
-            t.cat([context_encoding, start_modeled_ctx], dim=2),
-            mask=context_mask).squeeze(2)
+            t.cat([context_encoding, start_modeled_ctx], dim=2), mask=context_mask
+        ).squeeze(2)
         del start_modeled_ctx
         end_predictions = self.end_predictor(
-            t.cat([context_encoding, end_modeled_ctx], dim=2),
-            mask=context_mask).squeeze(2)
+            t.cat([context_encoding, end_modeled_ctx], dim=2), mask=context_mask
+        ).squeeze(2)
         del end_modeled_ctx
 
         context_length_sorted = context_encoding[length_idxs]
         context_packed: PackedSequence = pack_padded_sequence(
-            context_length_sorted, lengths, batch_first=True)
+            context_length_sorted, lengths, batch_first=True
+        )
 
         _, no_answer_out_len_sorted = self.no_answer_gru(context_packed)
         no_answer_out_len_sorted = get_last_hidden_states(
-            no_answer_out_len_sorted, self.config.n_directions,
-            self.config.total_hidden_size)
+            no_answer_out_len_sorted,
+            self.config.n_directions,
+            self.config.total_hidden_size,
+        )
         no_answer_out = no_answer_out_len_sorted[orig_idxs]
         no_answer_predictions = self.no_answer_predictor(no_answer_out)
 
         return ModelPredictions(
             start_logits=start_predictions,
             end_logits=end_predictions,
-            no_ans_logits=no_answer_predictions)
+            no_ans_logits=no_answer_predictions,
+        )
 
 
 class DocQAPredictor(PredictorModel):
@@ -188,15 +216,11 @@ class DocQAPredictor(PredictorModel):
         super().__init__()
         self.config = config
         self.embed = embeddor
-        self.q_encoder = ContextualEncoder(self.embed.embedding_dim,
-                                           self.config.gru)
-        self.ctx_encoder = ContextualEncoder(self.embed.embedding_dim,
-                                             self.config.gru)
-        self.bi_attention = BidirectionalAttention(
-            self.config.total_hidden_size)
+        self.q_encoder = ContextualEncoder(self.embed.embedding_dim, self.config.gru)
+        self.ctx_encoder = ContextualEncoder(self.embed.embedding_dim, self.config.gru)
+        self.bi_attention = BidirectionalAttention(self.config.total_hidden_size)
         if self.config.use_self_attention:
-            self.self_attention = SelfAttention(
-                self.bi_attention.final_encoding_size)
+            self.self_attention = SelfAttention(self.bi_attention.final_encoding_size)
         else:
             self.self_attention = None
         self.output_layer = BidafOutput(self.config)
@@ -207,27 +231,39 @@ class DocQAPredictor(PredictorModel):
         """
 
         q_embedded = self.embed(batch.question_words, batch.question_chars)
-        q_processed = self.q_encoder(q_embedded, batch.question_lens,
-                                     batch.question_len_idxs,
-                                     batch.question_orig_idxs)
+        q_processed = self.q_encoder(
+            q_embedded,
+            batch.question_lens,
+            batch.question_len_idxs,
+            batch.question_orig_idxs,
+        )
         del q_embedded
 
         ctx_embedded = self.embed(batch.context_words, batch.context_chars)
-        ctx_processed = self.ctx_encoder(ctx_embedded, batch.context_lens,
-                                         batch.context_len_idxs,
-                                         batch.context_orig_idxs)
+        ctx_processed = self.ctx_encoder(
+            ctx_embedded,
+            batch.context_lens,
+            batch.context_len_idxs,
+            batch.context_orig_idxs,
+        )
         del ctx_embedded
 
         attended_ctx = self.bi_attention(
-            ctx_processed, q_processed, context_mask=batch.context_mask)
+            ctx_processed, q_processed, context_mask=batch.context_mask
+        )
         del q_processed
         del ctx_processed
 
         if self.self_attention is not None:
             self_aware_ctx = self.self_attention(
-                attended_ctx, attended_ctx, context_mask=batch.context_mask)
+                attended_ctx, attended_ctx, context_mask=batch.context_mask
+            )
             attended_ctx = attended_ctx + self_aware_ctx
 
-        return self.output_layer(attended_ctx, batch.context_mask,
-                                 batch.context_lens, batch.context_len_idxs,
-                                 batch.context_orig_idxs)
+        return self.output_layer(
+            attended_ctx,
+            batch.context_mask,
+            batch.context_lens,
+            batch.context_len_idxs,
+            batch.context_orig_idxs,
+        )

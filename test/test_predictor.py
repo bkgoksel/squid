@@ -8,8 +8,12 @@ from unittest.mock import Mock
 import numpy as np
 import torch as t
 import torch.nn as nn
-from torch.nn.utils.rnn import (PackedSequence, pack_padded_sequence,
-                                pad_packed_sequence, pad_sequence)
+from torch.nn.utils.rnn import (
+    PackedSequence,
+    pack_padded_sequence,
+    pad_packed_sequence,
+    pad_sequence,
+)
 
 from model.predictor import PredictorConfig
 from model.util import get_last_hidden_states
@@ -42,7 +46,8 @@ class PredictorTestCase(unittest.TestCase):
             self.hidden_size,
             num_layers,
             batch_first=True,
-            bidirectional=bidirectional)
+            bidirectional=bidirectional,
+        )
         return rnn
 
     def check_match(self, all_states, last_hidden_state, seq_lens):
@@ -51,16 +56,19 @@ class PredictorTestCase(unittest.TestCase):
         all_states[sample][0][hidden_size:] (backward last hidden state)
         """
         for sample in range(self.batch_size):
-            hidden = t.cat([
-                all_states[sample][seq_lens[sample] -
-                                   1][:self.hidden_size].detach(),
-                all_states[sample][0][self.hidden_size:].detach()
-            ])
+            hidden = t.cat(
+                [
+                    all_states[sample][seq_lens[sample] - 1][
+                        : self.hidden_size
+                    ].detach(),
+                    all_states[sample][0][self.hidden_size :].detach(),
+                ]
+            )
             self.assertTrue(
                 np.allclose(hidden, last_hidden_state[sample].detach()),
-                'Calculated last hidden state doesn\'t match expected. \n Calculated: %s \n Expected: %s'
-                % (last_hidden_state[sample],
-                   all_states[sample][seq_lens[sample] - 1]))
+                "Calculated last hidden state doesn't match expected. \n Calculated: %s \n Expected: %s"
+                % (last_hidden_state[sample], all_states[sample][seq_lens[sample] - 1]),
+            )
 
     def test_get_last_hidden_states_simple(self):
         """
@@ -73,7 +81,8 @@ class PredictorTestCase(unittest.TestCase):
         all_states, lens = pad_packed_sequence(all_states)
         all_states.transpose_(0, 1)
         last_hidden_state = get_last_hidden_states(
-            states, self.config.n_directions, self.config.total_hidden_size)
+            states, self.config.n_directions, self.config.total_hidden_size
+        )
         self.check_match(all_states, last_hidden_state, lens)
 
     def test_get_last_hidden_states_two_layers(self):
@@ -87,7 +96,8 @@ class PredictorTestCase(unittest.TestCase):
         all_states, lens = pad_packed_sequence(all_states)
         all_states.transpose_(0, 1)
         last_hidden_state = get_last_hidden_states(
-            states, self.config.n_directions, self.config.total_hidden_size)
+            states, self.config.n_directions, self.config.total_hidden_size
+        )
         self.check_match(all_states, last_hidden_state, lens)
 
     def test_get_last_hidden_states_bidirectional(self):
@@ -101,7 +111,8 @@ class PredictorTestCase(unittest.TestCase):
         all_states, lens = pad_packed_sequence(all_states)
         all_states.transpose_(0, 1)
         last_hidden_state = get_last_hidden_states(
-            states, self.config.n_directions, self.config.total_hidden_size)
+            states, self.config.n_directions, self.config.total_hidden_size
+        )
         self.check_match(all_states, last_hidden_state, lens)
 
     def test_get_last_hidden_states_bidirectional_two_layer(self):
@@ -115,5 +126,6 @@ class PredictorTestCase(unittest.TestCase):
         all_states, lens = pad_packed_sequence(all_states)
         all_states.transpose_(0, 1)
         last_hidden_state = get_last_hidden_states(
-            states, self.config.n_directions, self.config.total_hidden_size)
+            states, self.config.n_directions, self.config.total_hidden_size
+        )
         self.check_match(all_states, last_hidden_state, lens)

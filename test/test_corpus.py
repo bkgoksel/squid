@@ -10,29 +10,31 @@ from unittest.mock import Mock
 
 from model.text_processor import TextProcessor
 from model.tokenizer import Tokenizer, Token
-from model.qa import (Answer,
-                      QuestionAnswer,
-                      ContextQuestionAnswer,
-                      QuestionId)
+from model.qa import Answer, QuestionAnswer, ContextQuestionAnswer, QuestionId
 
-from model.corpus import (Corpus,
-                          CorpusStats,
-                          EncodedCorpus,
-                          SampleCorpus,
-                          QADataset,
-                          TrainDataset,
-                          EvalDataset)
+from model.corpus import (
+    Corpus,
+    CorpusStats,
+    EncodedCorpus,
+    SampleCorpus,
+    QADataset,
+    TrainDataset,
+    EvalDataset,
+)
 
 
 class RawCorpusTestCase(unittest.TestCase):
     def setUp(self):
-        self.tempfile = tempfile.NamedTemporaryFile(mode='w')
+        self.tempfile = tempfile.NamedTemporaryFile(mode="w")
 
         def split_tokenize(txt: str):
             toks = txt.split()
             starts = [3 * start for start in range(len(toks))]
             ends = [(3 * end - 1) for end in range(1, len(toks) + 1)]
-            return [Token(word=tok[0], span=(tok[1], tok[2])) for tok in zip(toks, starts, ends)]
+            return [
+                Token(word=tok[0], span=(tok[1], tok[2]))
+                for tok in zip(toks, starts, ends)
+            ]
 
         self.tokenizer = Mock(Tokenizer)
         self.tokenizer.tokenize.side_effect = lambda txt: split_tokenize(txt)
@@ -52,58 +54,65 @@ class RawCorpusTestCase(unittest.TestCase):
                 parameters
         """
         input_dict = {
-            'data': [
+            "data": [
                 {
-                    'paragraphs': [
+                    "paragraphs": [
                         {
-                            'context': 'c0 c1 c2.c3 c4\'c5',
-                            'qas': [
+                            "context": "c0 c1 c2.c3 c4'c5",
+                            "qas": [
                                 {
-                                    'answers': [
-                                        {
-                                            'answer_start': 0,
-                                            'text': 'c0 c1'
-                                        }
-                                    ],
-                                    'id': '0x0001',
-                                    'question': 'q00 q01 q02 q03?'
-                                },
-                            ]
+                                    "answers": [{"answer_start": 0, "text": "c0 c1"}],
+                                    "id": "0x0001",
+                                    "question": "q00 q01 q02 q03?",
+                                }
+                            ],
                         }
                     ]
-                },
+                }
             ]
         }
-        answer: Answer = Answer('c0 c1', 0, self.tokenizer, self.processor)
-        qa: QuestionAnswer = QuestionAnswer(QuestionId('0x0001'), 'q00 q01 q02 q03?', set([answer]), self.tokenizer, self.processor)
-        cqa: ContextQuestionAnswer = ContextQuestionAnswer('c0 c1 c2.c3 c4\'c5', [qa], self.tokenizer, self.processor)
+        answer: Answer = Answer("c0 c1", 0, self.tokenizer, self.processor)
+        qa: QuestionAnswer = QuestionAnswer(
+            QuestionId("0x0001"),
+            "q00 q01 q02 q03?",
+            set([answer]),
+            self.tokenizer,
+            self.processor,
+        )
+        cqa: ContextQuestionAnswer = ContextQuestionAnswer(
+            "c0 c1 c2.c3 c4'c5", [qa], self.tokenizer, self.processor
+        )
         json.dump(input_dict, self.tempfile)
         self.tempfile.flush()
-        cqas: List[ContextQuestionAnswer] = Corpus.read_context_qas(self.tempfile.name, self.tokenizer, self.processor)
+        cqas: List[ContextQuestionAnswer] = Corpus.read_context_qas(
+            self.tempfile.name, self.tokenizer, self.processor
+        )
         self.assertEqual(cqas, [cqa])
 
     def test_no_answer(self):
         input_dict = {
-            'data': [
+            "data": [
                 {
-                    'paragraphs': [
+                    "paragraphs": [
                         {
-                            'context': 'c0 c1 c2.c3 c4\'c5',
-                            'qas': [
+                            "context": "c0 c1 c2.c3 c4'c5",
+                            "qas": [
                                 {
-                                    'answers': [],
-                                    'id': '0x0001',
-                                    'question': 'q00 q01 q02 q03?'
-                                },
-                            ]
+                                    "answers": [],
+                                    "id": "0x0001",
+                                    "question": "q00 q01 q02 q03?",
+                                }
+                            ],
                         }
                     ]
-                },
+                }
             ]
         }
         json.dump(input_dict, self.tempfile)
         self.tempfile.flush()
-        cqas: List[ContextQuestionAnswer] = Corpus.read_context_qas(self.tempfile.name, self.tokenizer, self.processor)
+        cqas: List[ContextQuestionAnswer] = Corpus.read_context_qas(
+            self.tempfile.name, self.tokenizer, self.processor
+        )
         self.assertEqual(len(cqas), 1)
         self.assertEqual(len(cqas[0].qas), 1)
         self.assertEqual(len(cqas[0].qas[0].answers), 0)

@@ -16,6 +16,7 @@ class BaseBidirectionalAttention(nn.Module):
     Attention Flow, with added ability to compute self-attention as described
     in DocumentQA
     """
+
     NEGATIVE_COEFF: ClassVar[float] = -1e30
 
     self_attention: bool
@@ -43,11 +44,13 @@ class BaseBidirectionalAttention(nn.Module):
         self.ctx_softmax = nn.Softmax(dim=2)
         self.q_softmax = nn.Softmax(dim=1)
 
-        self.final_linear = MaskedLinear(self.final_encoding_size,
-                                         self.final_encoding_size)
+        self.final_linear = MaskedLinear(
+            self.final_encoding_size, self.final_encoding_size
+        )
 
-    def forward(self, context: t.Tensor, question: t.Tensor,
-                context_mask: t.Tensor) -> t.Tensor:
+    def forward(
+        self, context: t.Tensor, question: t.Tensor, context_mask: t.Tensor
+    ) -> t.Tensor:
         """
         Computes Context2Query and Query2Context attention given context
         and query embeddings
@@ -62,13 +65,19 @@ class BaseBidirectionalAttention(nn.Module):
         similarity_tensors = []
 
         q_weighted = question @ self.w_question  # (batch_len, max_question_len)
-        similarity_tensors.append(q_weighted.unsqueeze(1).unsqueeze(3).expand(
-            (batch_len, max_context_len, max_question_len, 1)))
+        similarity_tensors.append(
+            q_weighted.unsqueeze(1)
+            .unsqueeze(3)
+            .expand((batch_len, max_context_len, max_question_len, 1))
+        )
         del q_weighted
 
         ctx_weighted = context @ self.w_context  # (batch_len, max_context_len)
-        similarity_tensors.append(ctx_weighted.unsqueeze(2).unsqueeze(3).expand(
-            (batch_len, max_context_len, max_question_len, 1)))
+        similarity_tensors.append(
+            ctx_weighted.unsqueeze(2)
+            .unsqueeze(3)
+            .expand((batch_len, max_context_len, max_question_len, 1))
+        )
         del ctx_weighted
 
         # TODO: Make this not build a (B x H x H x E) tensor
@@ -82,23 +91,23 @@ class BaseBidirectionalAttention(nn.Module):
         del similarity_tensors
 
         if self.self_attention:
-            similarity = similarity + t.eye(
-                similarity.size(1), device=similarity.device).unsqueeze(
-                    0) * BaseBidirectionalAttention.NEGATIVE_COEFF
+            similarity = (
+                similarity
+                + t.eye(similarity.size(1), device=similarity.device).unsqueeze(0)
+                * BaseBidirectionalAttention.NEGATIVE_COEFF
+            )
 
         c2q_att = t.bmm(self.ctx_softmax(similarity), question)
         if self.self_attention:
             attended_tensors = c2q_att
         else:
-            q2c_att = t.bmm(
-                self.q_softmax(similarity.max(2)[0]).unsqueeze(1), context)
+            q2c_att = t.bmm(self.q_softmax(similarity.max(2)[0]).unsqueeze(1), context)
             attended_tensors = t.cat(
-                [context, c2q_att, context * c2q_att, context * q2c_att],
-                dim=2)
+                [context, c2q_att, context * c2q_att, context * q2c_att], dim=2
+            )
         del similarity
 
-        attended_context = self.final_linear(
-            attended_tensors, mask=context_mask)
+        attended_context = self.final_linear(attended_tensors, mask=context_mask)
         return attended_context
 
 

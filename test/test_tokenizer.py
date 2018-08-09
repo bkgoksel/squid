@@ -7,9 +7,7 @@ from unittest.mock import Mock, MagicMock
 from nltk.tokenize import WordPunctTokenizer
 
 from typing import List
-from model.tokenizer import (Tokenizer,
-                             NltkTokenizer,
-                             Token)
+from model.tokenizer import Tokenizer, NltkTokenizer, Token
 
 
 class BatcherTestCase(unittest.TestCase):

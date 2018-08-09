@@ -8,12 +8,13 @@ import torch as t
 from typing import Tuple, List, Dict, Any, ClassVar
 
 
-class WordVectors():
+class WordVectors:
     """
     Class that reads, stores and saves pre-trained word vectors from disk
     """
-    UNK_TOKEN: ClassVar[str] = '<UNK_TOKEN>'
-    PAD_TOKEN: ClassVar[str] = '<PAD_TOKEN>'
+
+    UNK_TOKEN: ClassVar[str] = "<UNK_TOKEN>"
+    PAD_TOKEN: ClassVar[str] = "<PAD_TOKEN>"
 
     file_name: str
     idx_to_word: Dict[int, str]
@@ -21,10 +22,9 @@ class WordVectors():
     vectors: Any  # numpy array
     dim: int
 
-    def __init__(self,
-                 vectors: Any,
-                 idx_to_word: Dict[int, str],
-                 word_to_idx: Dict[str, int]) -> None:
+    def __init__(
+        self, vectors: Any, idx_to_word: Dict[int, str], word_to_idx: Dict[str, int]
+    ) -> None:
         self.vectors = vectors
         self.dim = vectors.shape[1]
         self.idx_to_word = idx_to_word
@@ -51,9 +51,15 @@ class WordVectors():
             - index 0 is an all-0 padding vector
             - index 1 is a randomly initialized UNK vector
         """
-        if not all(token in self.word_to_idx for token, idx in token_mapping.items() if idx != 1):
+        if not all(
+            token in self.word_to_idx
+            for token, idx in token_mapping.items()
+            if idx != 1
+        ):
             raise Exception("Token not in word vector vocab")
-        idx_sorted_tokens = [WordVectors.PAD_TOKEN, WordVectors.UNK_TOKEN] + [tok for tok, idx in sorted(token_mapping.items(), key=lambda x: x[1])]
+        idx_sorted_tokens = [WordVectors.PAD_TOKEN, WordVectors.UNK_TOKEN] + [
+            tok for tok, idx in sorted(token_mapping.items(), key=lambda x: x[1])
+        ]
         vector_indices = [self.word_to_idx[tok] for tok in idx_sorted_tokens]
         return np.take(self.vectors, vector_indices, axis=0)
 
@@ -78,18 +84,16 @@ class WordVectors():
         :param file_name: Prefix of pickle files for these vectors
         :returns: a WordVectors object
         """
-        with open(file_name + '-idx-to-word.pkl', 'rb') as f:
+        with open(file_name + "-idx-to-word.pkl", "rb") as f:
             idx_to_word: Dict[int, str] = pickle.load(f)
-        with open(file_name + '-word-to-idx.pkl', 'rb') as f:
+        with open(file_name + "-word-to-idx.pkl", "rb") as f:
             word_to_idx: Dict[str, int] = pickle.load(f)
-        with open(file_name + '-vectors.npy', 'rb') as f:
+        with open(file_name + "-vectors.npy", "rb") as f:
             vectors: Any = np.load(f)
         return cls(vectors, idx_to_word, word_to_idx)
 
     @classmethod
-    def from_text_vectors(cls,
-                          vector_file: str,
-                          consume_first_line: bool=False):
+    def from_text_vectors(cls, vector_file: str, consume_first_line: bool = False):
         """
         Class method that creates a WordVectors object from a text formatted
         word vectors file on disk
@@ -97,12 +101,15 @@ class WordVectors():
         :param consume_first_line: If True skip first line (to be used when first line is metadata)
         :returns: A WordVectors object initialized from the given file
         """
-        vectors, word_to_idx, idx_to_word = cls.read_vectors(vector_file, consume_first_line)
+        vectors, word_to_idx, idx_to_word = cls.read_vectors(
+            vector_file, consume_first_line
+        )
         return cls(vectors, idx_to_word, word_to_idx)
 
     @staticmethod
-    def read_vectors(vector_file: str,
-                     consume_first_line: bool) -> Tuple[Any, Dict[str, int], Dict[int, str]]:
+    def read_vectors(
+        vector_file: str, consume_first_line: bool
+    ) -> Tuple[Any, Dict[str, int], Dict[int, str]]:
         """
         Class method that reads word vectors into a word->numpy array dict
         :param vector_file: Name of the word vector file to read from disk
@@ -114,12 +121,14 @@ class WordVectors():
         """
         vectors_list: List[Any] = []
         vocab: List[str] = []
-        with open(vector_file, 'r') as f:
+        with open(vector_file, "r") as f:
             if consume_first_line:
                 next(f)
             for line in f:
-                word, vec_data = line.rstrip('\n').split(' ', 1)
-                vector = np.array([float(num) for num in vec_data.split(' ')], dtype=np.float32)
+                word, vec_data = line.rstrip("\n").split(" ", 1)
+                vector = np.array(
+                    [float(num) for num in vec_data.split(" ")], dtype=np.float32
+                )
                 vectors_list.append(vector)
                 vocab.append(word)
         pad_vector = np.zeros_like(vectors_list[0])
@@ -142,9 +151,9 @@ class WordVectors():
             - <file_name>-vectors.pkl
         :param file_name: Prefix for files to be saved
         """
-        with open(file_name + '-idx-to-word.pkl', 'wb') as f:
+        with open(file_name + "-idx-to-word.pkl", "wb") as f:
             pickle.dump(self.idx_to_word, f)
-        with open(file_name + '-word-to-idx.pkl', 'wb') as f:
+        with open(file_name + "-word-to-idx.pkl", "wb") as f:
             pickle.dump(self.word_to_idx, f)
-        with open(file_name + '-vectors.npy', 'wb') as f:
+        with open(file_name + "-vectors.npy", "wb") as f:
             np.save(f, self.vectors)
