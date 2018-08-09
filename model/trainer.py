@@ -186,6 +186,7 @@ class Trainer:
             setattr(cls, "one_train_iteration", unwrapped_iteration)
             setattr(cls, "training_run", unwrapped_train_run)
 
+    @classmethod
     def validate(
         cls,
         dataset: QADataset,
@@ -220,6 +221,7 @@ class Trainer:
         dev_loss = cls.get_dataset_loss(dataset, model, evaluator, device, batch_size)
         print("\n=== Dev set loss: {}\n".format(dev_loss))
 
+    @classmethod
     def get_dataset_loss(
         cls,
         dataset: QADataset,
@@ -246,6 +248,7 @@ class Trainer:
                 total_loss += evaluator(batch, predictions).item()
         return total_loss
 
+    @classmethod
     def answer_dataset(
         cls,
         dataset: QADataset,
@@ -271,6 +274,7 @@ class Trainer:
                 qid_to_answer.update(get_answer_token_idxs(batch, predictions))
         return dataset.get_answer_texts(qid_to_answer)
 
+    @classmethod
     def evaluate_on_squad_dataset(
         cls,
         dataset: QADataset,
