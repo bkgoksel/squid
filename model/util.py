@@ -35,10 +35,16 @@ def get_last_hidden_states(states, n_directions: int, total_hidden_size: int):
     return out
 
 
-def get_device(use_cuda: bool):
-    if use_cuda:
+def get_device(disable_cuda: bool) -> t.device:
+    """
+    Takes a bool flag disabling CUDA and checks whether CUDA is available.
+    If disable flag is True or CUDA unavailable, returns CPU device.
+    Otherwise returns default CUDA device.
+    :param disable_cuda: Bool that if True CPU device is returned
+    :returns: a Torch device, either CPU or CUDA
+    """
+    if not disable_cuda:
         if t.cuda.is_available:
             return t.device("cuda")
-        print("[WARNING]: CUDA requested but is unavailable, defaulting to CPU")
-        return t.device("cpu")
+        print("[WARNING]: CUDA enabled but is unavailable, defaulting to CPU")
     return t.device("cpu")

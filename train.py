@@ -31,6 +31,7 @@ DEFAULT_ARGS = {
     "rnn_num_layers": 1,
     "max_context_size": 250,
     "max_question_size": 100,
+    "loader_num_workers": 2,
     "dropout": 0.2,
     "config_file": "",
     "run_name": "train-run",
@@ -62,6 +63,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--disable-cuda", action="store_true", help="if specified don\t use CUDA even if available")
     parser.add_argument("--config-file", type=str, default=DEFAULT_ARGS["config_file"], help="if specified load config from this json file (overwrites cli args)")
     parser.add_argument("--run-name", type=str, default=DEFAULT_ARGS["run_name"], help="name of run (also used for model saving and initialization)",)
+    parser.add_argument("--loader-num-workers", type=int, default=DEFAULT_ARGS["loader_num_workers"], help="number of worker processes to use for DataLoader (default 2)")
     # fmt: on
 
     return parser.parse_known_args()[0]
@@ -156,7 +158,7 @@ def get_training_config(args: argparse.Namespace) -> Trainer.TrainingConfig:
         batch_size=args.batch_size,
         max_question_size=args.max_question_size,
         max_context_size=args.max_context_size,
-        use_cuda=not args.disable_cuda,
+        device=get_device(args.disable_cuda),
         loader_num_workers=args.loader_num_workers,
         model_checkpoint_path=args.run_name,
     )
@@ -171,15 +173,17 @@ def main() -> None:
         model, train_dataset, dev_dataset, training_config, debug=args.debug
     )
     if args.answer_train_set:
-        train_answers = Trainer.answer_dataset(train_dataset, model, args.disable_cuda)
+        train_answers = Trainer.answer_dataset(
+            train_dataset, model, training_config.use_cuda
+        )
         with open("train-pred.json", "w") as f:
             json.dump(train_answers, f)
-    dev_answers = Trainer.answer_dataset(dev_dataset, model, args.disable_cuda)
+    dev_answers = Trainer.answer_dataset(dev_dataset, model, training_config.use_cuda)
     with open("dev-pred.json", "w") as f:
         json.dump(dev_answers, f)
     print("Final evaluation on dev")
     eval_results = Trainer.evaluate_on_squad_dataset(
-        dev_dataset, model, args.disable_cuda, 64
+        dev_dataset, model, training_config.use_cuda
     )
     print(eval_results)
     print("Saving model to {args.run_name}")

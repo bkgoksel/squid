@@ -16,8 +16,6 @@ from model.batcher import QABatch, get_collator
 from model.predictor import PredictorModel, ModelPredictions
 from model.profiler import memory_profiled, autograd_profiled
 
-from model.util import get_device
-
 from model.evaluator import (
     Evaluator,
     MultiClassLossEvaluator,
@@ -41,7 +39,7 @@ class Trainer:
         :batch_size: Size of each training batch
         :max_question_size: Trims longer questions to this length
         :max_context_size: Trims longer contexts to this length
-        :use_cuda: If True use CUDA
+        :device: Torch device to use for training
         :loader_num_workers: Number of workers to use for DataLoader
         :model_checkpoint_path: Path to save serialized model parameters to
     """
@@ -53,7 +51,7 @@ class Trainer:
             ("batch_size", int),
             ("max_question_size", int),
             ("max_context_size", int),
-            ("use_cuda", bool),
+            ("device", t.device),
             ("loader_num_workers", int),
             ("model_checkpoint_path", str),
         ],
@@ -105,14 +103,13 @@ class Trainer:
         :param dev_dataset: EvalDataset to validate on
         :param training_config: TrainingConfig object describing parameters for training
         """
-        device = get_device(training_config.use_cuda)
         with trange(training_config.num_epochs) as epochs:
             for epoch in epochs:
                 epochs.set_description("Epoch %d" % (epoch + 1))
                 epoch_loss = 0.0
                 with tqdm(loader) as batch_loop:
                     for batch_num, batch in enumerate(batch_loop):
-                        batch.to(device)
+                        batch.to(training_config.device)
                         batch_loop.set_description("Batch %d" % (batch_num + 1))
                         batch_loss = cls.one_train_iteration(
                             batch, model, evaluator, optimizer
@@ -122,7 +119,7 @@ class Trainer:
                 epoch_loss = epoch_loss / len(loader)
                 epochs.set_postfix(loss=epoch_loss)
                 cls.validate(
-                    dev_dataset, model, evaluator, training_config.use_cuda, epoch
+                    dev_dataset, model, evaluator, training_config.device, epoch
                 )
                 print(
                     "Saving model checkpoint to {}".format(
@@ -181,11 +178,7 @@ class Trainer:
             setattr(
                 cls, "one_train_iteration", memory_profiled(cls.one_train_iteration)
             )
-            setattr(
-                cls,
-                "training_run",
-                autograd_profiled(cls.training_run, use_cuda=training_config.use_cuda),
-            )
+            setattr(cls, "training_run", autograd_profiled(cls.training_run))
         cls.training_run(
             loader, model, train_evaluator, optimizer, dev_dataset, training_config
         )
@@ -198,7 +191,7 @@ class Trainer:
         dataset: QADataset,
         model: PredictorModel,
         evaluator: Evaluator,
-        use_cuda: bool,
+        device: t.device,
         epoch: int = 0,
         batch_size: int = 64,
     ) -> None:
@@ -209,7 +202,7 @@ class Trainer:
         :param dataset: QADataset object to validate on
         :param model: PredictorModel to validate
         :param evaluator: Evaluator to compute loss
-        :param use_cuda: Whether to use cuda
+        :param device: Device to run model on
         :param epoch: Current epoch number for logging
         :param batch_size: Batch size to use when forward passing over the dataset
         """
@@ -219,14 +212,12 @@ class Trainer:
             )
         )
         try:
-            dev_perf = cls.evaluate_on_squad_dataset(
-                dataset, model, use_cuda, batch_size
-            )
+            dev_perf = cls.evaluate_on_squad_dataset(dataset, model, device, batch_size)
             print("\n=== Dev set performance: {}\n".format(json.dumps(dev_perf)))
         except Exception as err:
             print("\nError when trying to get full evaluation: {}\n".format(err))
         print("\n=== EPOCH %d: Measuring loss on the dev set\n".format(epoch + 1))
-        dev_loss = cls.get_dataset_loss(dataset, model, evaluator, use_cuda, batch_size)
+        dev_loss = cls.get_dataset_loss(dataset, model, evaluator, device, batch_size)
         print("\n=== Dev set loss: {}\n".format(dev_loss))
 
     def get_dataset_loss(
@@ -234,7 +225,7 @@ class Trainer:
         dataset: QADataset,
         model: PredictorModel,
         evaluator: Evaluator,
-        use_cuda: bool,
+        device: t.device,
         batch_size: int = 64,
     ) -> float:
         """
@@ -242,10 +233,9 @@ class Trainer:
         :param dataset: QADataset object to validate on
         :param model: PredictorModel to validate
         :param evaluator: Evaluator to compute loss
-        :param use_cuda: Whether to use cuda
+        :param device: Device to run model on
         :param batch_size: Batch size to use when forward passing over the dataset
         """
-        device = get_device(use_cuda)
         loader: DataLoader = DataLoader(dataset, batch_size, collate_fn=get_collator())
         total_loss = 0.0
         batch: QABatch
@@ -260,7 +250,7 @@ class Trainer:
         cls,
         dataset: QADataset,
         model: PredictorModel,
-        use_cuda: bool,
+        device: t.device,
         batch_size: int = 64,
     ) -> Dict[QuestionId, str]:
         """
@@ -268,10 +258,9 @@ class Trainer:
         given model.
         :param dataset: QADataset object to validate on
         :param model: PredictorModel to validate
-        :param use_cuda: Whether to use cuda
+        :param device: Device to run model on
         :param batch_size: Batch size to use when forward passing over the dataset
         """
-        device = get_device(use_cuda)
         loader: DataLoader = DataLoader(dataset, batch_size, collate_fn=get_collator())
         batch: QABatch
         qid_to_answer: Dict[QuestionId, str] = dict()
@@ -286,7 +275,7 @@ class Trainer:
         cls,
         dataset: QADataset,
         model: PredictorModel,
-        use_cuda: bool,
+        device: t.device,
         batch_size: int = 64,
     ) -> Dict[str, str]:
         """
@@ -295,10 +284,10 @@ class Trainer:
         f1 and em scores.
         :param dataset: QADataset object to validate on
         :param model: PredictorModel to validate
-        :param use_cuda: Whether to use cuda
+        :param device: Device to run model on
         :param batch_size: Batch size to use when forward passing over the dataset
         """
-        answer_dict = cls.answer_dataset(dataset, model, use_cuda, batch_size)
+        answer_dict = cls.answer_dataset(dataset, model, device, batch_size)
         with open(dataset.source_file) as dataset_file:
             dataset_json = json.load(dataset_file)
             dataset_version = dataset_json["version"]
