@@ -78,7 +78,7 @@ def initialize_model(
     :param vectors: WordVectors object to use in the model
     :returns: A new PredictorModel
     """
-    device = get_device(args.use_cuda)
+    device = get_device(args.disable_cuda)
     predictor_config = PredictorConfig(
         gru=GRUConfig(
             hidden_size=args.rnn_hidden_size,
@@ -117,7 +117,7 @@ def get_model(
     :param args: CLI args to get the model and datasets
     :returns: a Tuple of the model, the training dataset and the dev dataset
     """
-    device = get_device(args.use_cuda)
+    device = get_device(args.disable_cuda)
 
     tokenizer: Tokenizer = NltkTokenizer()
     processor: TextProcessor = TextProcessor({"lowercase": True})
@@ -171,15 +171,15 @@ def main() -> None:
         model, train_dataset, dev_dataset, training_config, debug=args.debug
     )
     if args.answer_train_set:
-        train_answers = Trainer.answer_dataset(train_dataset, model, args.use_cuda)
+        train_answers = Trainer.answer_dataset(train_dataset, model, args.disable_cuda)
         with open("train-pred.json", "w") as f:
             json.dump(train_answers, f)
-    dev_answers = Trainer.answer_dataset(dev_dataset, model, args.use_cuda)
+    dev_answers = Trainer.answer_dataset(dev_dataset, model, args.disable_cuda)
     with open("dev-pred.json", "w") as f:
         json.dump(dev_answers, f)
     print("Final evaluation on dev")
     eval_results = Trainer.evaluate_on_squad_dataset(
-        dev_dataset, model, args.use_cuda, 64
+        dev_dataset, model, args.disable_cuda, 64
     )
     print(eval_results)
     print("Saving model to {args.run_name}")
