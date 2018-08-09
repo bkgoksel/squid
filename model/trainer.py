@@ -119,7 +119,12 @@ class Trainer:
                 epoch_loss = epoch_loss / len(loader)
                 epochs.set_postfix(loss=epoch_loss)
                 cls.validate(
-                    dev_dataset, model, evaluator, training_config.device, epoch
+                    dev_dataset,
+                    model,
+                    evaluator,
+                    training_config.device,
+                    epoch,
+                    training_config.batch_size,
                 )
                 print(
                     "Saving model checkpoint to {}".format(
@@ -194,7 +199,7 @@ class Trainer:
         evaluator: Evaluator,
         device: t.device,
         epoch: int = 0,
-        batch_size: int = 32,
+        batch_size: int = 20,
     ) -> None:
         """
         Validates the given model over the given dataset, both using the official
@@ -228,7 +233,7 @@ class Trainer:
         model: PredictorModel,
         evaluator: Evaluator,
         device: t.device,
-        batch_size: int = 32,
+        batch_size,
     ) -> float:
         """
         Computes total loss of the model over the entire dataset
@@ -250,11 +255,7 @@ class Trainer:
 
     @classmethod
     def answer_dataset(
-        cls,
-        dataset: QADataset,
-        model: PredictorModel,
-        device: t.device,
-        batch_size: int = 32,
+        cls, dataset: QADataset, model: PredictorModel, device: t.device, batch_size
     ) -> Dict[QuestionId, str]:
         """
         Generates well-formatted answers for the given dataset using the
@@ -276,11 +277,7 @@ class Trainer:
 
     @classmethod
     def evaluate_on_squad_dataset(
-        cls,
-        dataset: QADataset,
-        model: PredictorModel,
-        device: t.device,
-        batch_size: int = 32,
+        cls, dataset: QADataset, model: PredictorModel, device: t.device, batch_size
     ) -> Dict[str, str]:
         """
         Generates well formatted answers for the given dataset using the given
