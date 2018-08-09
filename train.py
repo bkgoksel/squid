@@ -26,6 +26,8 @@ DEFAULT_ARGS = {
     'char_embedding_size': 50,
     'rnn_hidden_size': 100,
     'rnn_num_layers': 1,
+    'max_context_size': 250,
+    'max_question_size': 100,
     'dropout': 0.2,
     'config_file': '',
     'run_name': 'train-run',
@@ -54,6 +56,16 @@ def parse_args() -> argparse.Namespace:
         default=DEFAULT_ARGS['char_embedding_size'],
         help='Set to 0 to disable char-level embeddings')
     parser.add_argument(
+        '--max-context-size',
+        type=int,
+        default=DEFAULT_ARGS['max_context_size'],
+        help='Trim all context values to this length during training (0 for unlimited)')
+    parser.add_argument(
+        '--max-question-size',
+        type=int,
+        default=DEFAULT_ARGS['max_question_size'],
+        help='Trim all context values to this length during training (0 for unlimited)')
+    parser.add_argument(
         '--rnn-hidden-size', type=int, default=DEFAULT_ARGS['rnn_hidden_size'])
     parser.add_argument(
         '--rnn-num-layers', type=int, default=DEFAULT_ARGS['rnn_num_layers'])
@@ -77,7 +89,7 @@ def parse_args() -> argparse.Namespace:
         action='store_true',
         help='if specified don\'t use self attention')
     parser.add_argument(
-        '--use-cuda', action='store_true', help='if specified use CUDA')
+        '--disable-cuda', action='store_true', help='if specified don\t use CUDA even if available')
     parser.add_argument(
         '--config-file',
         type=str,
@@ -143,19 +155,32 @@ def get_model(args: argparse.Namespace) -> Tuple[PredictorModel, TrainDataset, E
     return model, train_dataset, dev_dataset
 
 
+def get_training_config(args: argparse.Namespace) -> trainer.TrainingConfig:
+    """
+    Given command line args builds a TrainingConfig object
+    """
+    return trainer.TrainingConfig(
+        learning_rate=args.learning_rate,
+        num_epochs=args.num_epochs,
+        batch_size=args.batch_size,
+        max_question_size=args.max_question_size,
+        max_context_size=args.max_context_size,
+        use_cuda=not args.disable_cuda,
+        loader_num_workers=args.loader_num_workers,
+        model_checkpoint_path=args.run_name
+    )
+
+
 def main() -> None:
     args = parse_args()
     model, train_dataset, dev_dataset = get_model(args)
+    training_config = get_training_config(args)
 
     trainer.train_model(
         model,
         train_dataset,
         dev_dataset,
-        args.lr,
-        args.num_epochs,
-        args.batch_size,
-        use_cuda=args.use_cuda,
-        model_checkpoint_path=args.run_name,
+        training_config,
         debug=args.debug)
     if args.answer_train_set:
         train_answers = trainer.answer_dataset(train_dataset, model,

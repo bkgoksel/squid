@@ -138,7 +138,7 @@ def make_embeddor(config: EmbeddorConfig, device: Any) -> Embeddor:
     :returns: An Embeddor module as described by the config
     """
     embeddors = []
-    assert(config.word_embeddor or config.char_embeddor)
+    assert config.word_embeddor or config.char_embeddor, "At least one of WordEmbeddor and CharEmbeddor needs to be specified"
     if config.word_embeddor:
         embeddors.append(WordEmbeddor(config.word_embeddor.vectors,
                                       config.word_embeddor.token_mapping,

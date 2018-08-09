@@ -3,7 +3,7 @@ Module that holds the training harness
 """
 
 import json
-from typing import Any, Dict, Optional
+from typing import Any, Dict, NamedTuple
 
 from tqdm import tqdm, trange
 import torch as t
@@ -25,18 +25,34 @@ import scripts.evaluate_v1_1 as evaluate_v1_1
 import scripts.evaluate_v2_0 as evaluate_v2_0
 
 
+"""
+Config for training runs:
+    :learning_rate: LR for Adam optimizer
+    :num_epochs: Number of epochs to train for
+    :batch_size: Size of each training batch
+    :max_question_size: Trims longer questions to this length
+    :max_context_size: Trims longer contexts to this length
+    :use_cuda: If True use CUDA
+    :loader_num_workers: Number of workers to use for DataLoader
+    :model_checkpoint_path: Path to save serialized model parameters to
+"""
+TrainingConfig = NamedTuple('TrainingConfig', [
+    ('learning_rate', float),
+    ('num_epochs', int),
+    ('batch_size', int),
+    ('max_question_size', int),
+    ('max_context_size', int),
+    ('use_cuda', bool),
+    ('loader_num_workers', int),
+    ('model_checkpoint_path', str)
+])
+
+
 def train_model(model: PredictorModel,
                 train_dataset: TrainDataset,
                 dev_dataset: EvalDataset,
-                learning_rate: float,
-                num_epochs: int,
-                batch_size: int,
-                use_cuda: bool = False,
-                max_question_size: Optional[int]=100,
-                max_context_size: Optional[int]=300,
-                loader_num_workers: int=2,
-                debug: bool = False,
-                model_checkpoint_path: Optional[str] = None) -> None:
+                training_config: TrainingConfig,
+                debug: bool = False) -> None:
     """
     Trains a DocQAPredictor model on the given train set with given params and returns
     the trained model instance
@@ -44,16 +60,8 @@ def train_model(model: PredictorModel,
     :param model: A PredictorModel to train the parameters of
     :param train_dataset: A Processed TrainDataset object of training data
     :param dev_dataset: A Processed EvalDataset object of dev data
-    :param learning_rate: LR for Adam optimizer
-    :param num_epochs: Number of epochs to train for
-    :param batch_size: Size of each training batch
-    :param max_question_size: If not None, trims longer questions to this length
-    :param max_context_size: If not None, trims longer contexts to this length
-    :param use_cuda: If True use CUDA (default False)
-    :param loader_num_workers: Number of workers to use for DataLoader (default 2)
+    :param training_config: TrainingConfig object describing parameters of training run
     :param debug: If True train on a single batch and profile performance (default False)
-    :param model_checkpoint_path: if specified path to save serialized model parameters to
-        (default None-> no checkpoint serialization)
 
     :returns: A Trained PredictorModel object
     """
@@ -66,18 +74,18 @@ def train_model(model: PredictorModel,
     trainable_parameters = filter(lambda p: p.requires_grad,
                                   set(model.parameters()))
     optimizer: optim.Optimizer = optim.Adadelta(
-        trainable_parameters, lr=learning_rate)
+        trainable_parameters, lr=training_config.learning_rate)
     loader: DataLoader = DataLoader(
         train_dataset,
-        batch_size=batch_size,
+        batch_size=training_config.batch_size,
         shuffle=True,
         pin_memory=True,
-        num_workers=loader_num_workers,
-        collate_fn=get_collator(max_question_size, max_context_size))
+        num_workers=training_config.loader_num_workers,
+        collate_fn=get_collator(training_config.max_question_size, training_config.max_context_size))
     if debug:
-        debug_run(loader, model, optimizer, train_evaluator, use_cuda)
+        debug_run(loader, model, optimizer, train_evaluator, training_config.use_cuda)
     else:
-        training_run(loader, model, optimizer, train_evaluator, dev_dataset, num_epochs, use_cuda, model_checkpoint_path)
+        training_run(loader, model, optimizer, train_evaluator, dev_dataset, training_config)
 
 
 def one_train_iteration(optimizer, model, batch, evaluator):
@@ -124,13 +132,13 @@ def debug_run(loader, model, optimizer, evaluator, use_cuda: bool, num_epochs: i
     prof.table(sort_by='cuda_time_total')
 
 
-def training_run(loader, model, optimizer, evaluator, dev_dataset, num_epochs, use_cuda, model_checkpoint_path):
+def training_run(loader, model, optimizer, evaluator, dev_dataset, training_config):
     """
     Trains the given model over the entire data loader for as many epochs as specified, validating on dev
     after every epoch and saving the model to disk after every epoch
     """
-    device = get_device(use_cuda)
-    with trange(num_epochs) as epochs:
+    device = get_device(training_config.use_cuda)
+    with trange(training_config.num_epochs) as epochs:
         for epoch in epochs:
             epochs.set_description('Epoch %d' % (epoch + 1))
             epoch_loss = 0.0
@@ -143,10 +151,10 @@ def training_run(loader, model, optimizer, evaluator, dev_dataset, num_epochs, u
                     batch_loop.set_postfix(loss=batch_loss)
             epoch_loss = epoch_loss / len(loader)
             epochs.set_postfix(loss=epoch_loss)
-            validate(dev_dataset, model, evaluator, use_cuda, epoch)
+            validate(dev_dataset, model, evaluator, training_config.use_cuda, epoch)
             print(
-                'Saving model checkpoint to {}'.format(model_checkpoint_path))
-            t.save(model, model_checkpoint_path)
+                'Saving model checkpoint to {}'.format(training_config.model_checkpoint_path))
+            t.save(model, training_config.model_checkpoint_path)
 
 
 def validate(dataset: QADataset,

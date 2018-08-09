@@ -43,9 +43,6 @@ CorpusStats = NamedTuple('CorpusStats', [
 class Corpus():
     """
     Class that contains a corpus
-    This probably needs to store:
-        - all the tokenized context-qas objects
-        - the word vocab
     """
     source_file: Optional[str]
     context_qas: List[ContextQuestionAnswer]

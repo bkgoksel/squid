@@ -18,6 +18,7 @@
 - [x] Test implementation with self attention
 - [ ] Add UNK char vector for OOV chars
 - [ ] Reproduce DocQA Performance
+- [ ] Do trimming in the Dataset classes ?
 - [ ] Do better structured config objects to pass around instead of bajillion parameters as it is used now
 - [ ] Implement char CNN for char embeddings
 - [ ] Add the option to output no-answer probabilities with the output
