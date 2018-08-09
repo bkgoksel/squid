@@ -26,7 +26,7 @@ DEFAULT_ARGS = {
     "batch_size": 40,
     "num_epochs": 15,
     "lr": 1e-4,
-    "char_embedding_size": 50,
+    "char_embedding_size": 100,
     "rnn_hidden_size": 100,
     "rnn_num_layers": 1,
     "max_context_size": 250,
@@ -151,7 +151,7 @@ def get_training_config(args: argparse.Namespace) -> Trainer.TrainingConfig:
         for training the model
     """
     return Trainer.TrainingConfig(
-        learning_rate=args.learning_rate,
+        learning_rate=args.lr,
         num_epochs=args.num_epochs,
         batch_size=args.batch_size,
         max_question_size=args.max_question_size,
