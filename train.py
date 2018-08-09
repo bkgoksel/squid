@@ -29,7 +29,7 @@ DEFAULT_ARGS = {
     "char_embedding_size": 100,
     "rnn_hidden_size": 100,
     "rnn_num_layers": 1,
-    "max_context_size": 250,
+    "max_context_size": 200,
     "max_question_size": 100,
     "loader_num_workers": 2,
     "dropout": 0.2,
