@@ -2,7 +2,7 @@
 Module that handles batching logic
 """
 
-from typing import List, Any, Tuple, Callable, Optional
+from typing import List, Any, Tuple, Callable
 import numpy as np
 import torch as t
 from torch.nn.utils.rnn import pad_sequence
@@ -98,29 +98,27 @@ class QABatch:
 
 
 def get_collator(
-    max_question_size: Optional[int] = None, max_context_size: Optional[int] = None
+    max_question_size: int = 0, max_context_size: int = 0
 ) -> Callable[[List[EncodedSample]], QABatch]:
     """
     Returns an instance of the collate_batch function that prepares the batch with the given length limits
-    :param max_question_size: Questions beyond this size are trimmed (default None: unlimited)
-    :param max_context_size: Contexts beyond this size are trimmed (default None: unlimited)
+    :param max_question_size: Questions beyond this size are trimmed (default 0: unlimited)
+    :param max_context_size: Contexts beyond this size are trimmed (default 0: unlimited)
     :returns: A lambda that takes a list of encoded samples and returns a QABatch
     """
     return lambda batch: collate_batch(batch, max_question_size, max_context_size)
 
 
 def collate_batch(
-    batch: List[EncodedSample],
-    max_question_size: Optional[int] = None,
-    max_context_size: Optional[int] = None,
+    batch: List[EncodedSample], max_question_size: int = 0, max_context_size: int = 0
 ) -> QABatch:
     """
     Takes a list of EncodedSample objects and creates a PyTorch batch limiting context and question lengths if specified
     For chars:
         context_chars[batch, word, char_idx] -> (batch_len, max_ctx_len, max_word_len)
     :param batch: List[EncodedSample] QA samples
-    :param max_question_size: Questions beyond this size are trimmed (default None: unlimited)
-    :param max_context_size: Contexts beyond this size are trimmed (default None: unlimited)
+    :param max_question_size: Questions beyond this size are trimmed (default 0: unlimited)
+    :param max_context_size: Contexts beyond this size are trimmed (default 0: unlimited)
     :returns: a QABatch
     """
     question_words_list = []
@@ -170,7 +168,7 @@ def collate_batch(
     question_chars = np.zeros((batch_size, max_question_len, max_question_word_len))
     for batch_idx, q_chars in enumerate(question_chars_list):
         for word_idx, word in enumerate(q_chars):
-            if max_question_size is not None and word_idx >= max_question_size:
+            if max_question_size > 0 and word_idx >= max_question_size:
                 break
             question_chars[batch_idx, word_idx, : word.size] = word
     question_chars = t.LongTensor(question_chars)
@@ -187,7 +185,7 @@ def collate_batch(
     context_chars = np.zeros((batch_size, max_context_len, max_ctx_word_len))
     for batch_idx, c_chars in enumerate(context_chars_list):
         for word_idx, word in enumerate(c_chars):
-            if max_context_size is not None and word_idx >= max_context_size:
+            if max_context_size > 0 and word_idx >= max_context_size:
                 break
             context_chars[batch_idx, word_idx, : word.size] = word
     context_chars = t.LongTensor(context_chars)
@@ -218,13 +216,13 @@ def collate_batch(
 
 
 def pad_and_sort(
-    seq: List[Any], max_sequence_size: Optional[int] = None
+    seq: List[Any], max_sequence_size: int = 0
 ) -> Tuple[t.LongTensor, t.LongTensor, t.LongTensor, t.LongTensor]:
     """
     Pads a list of sequences with 0's to make them all the same
     length as the longest sequence
     :param seq: A list of sequences
-    :param max_sequence_size: If specified sequences are left trimmed to that size
+    :param max_sequence_size: If nonzero sequences are trimmed to that size
     :returns:
         - Batch of padded sequences
         - Original-to-length sort indices (meaning seq[length_idxs] == batch)
@@ -237,7 +235,7 @@ def pad_and_sort(
         length_idxs = t.zeros((1))
         lengths = t.LongTensor([len(seq[0])])
         return batch, orig_idxs, length_idxs, lengths
-    if max_sequence_size is not None:
+    if max_sequence_size > 0:
         seq = [el[:max_sequence_size] for el in seq]
     lengths = t.LongTensor([el.shape[0] for el in seq])
     lengths, length_idxs = lengths.sort(0, descending=True)
