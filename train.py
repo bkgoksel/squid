@@ -56,7 +56,6 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--rnn-num-layers", type=int, default=DEFAULT_ARGS["rnn_num_layers"])
     parser.add_argument("--rnn-unidirectional", action="store_true")
     parser.add_argument("--dropout", type=float, default=DEFAULT_ARGS["dropout"])
-    parser.add_argument("--answer-train-set", action="store_true", help="if specified generate answers to the train set")
     parser.add_argument("--debug", action="store_true", help="if specified debug by fitting a single batch and profiling")
     parser.add_argument("--multi-answer", action="store_true", help="if specified don't truncate answer spans down to one")
     parser.add_argument("--no-self-attention", action="store_true", help="if specified don't use self attention")
@@ -172,12 +171,6 @@ def main() -> None:
     Trainer.train_model(
         model, train_dataset, dev_dataset, training_config, debug=args.debug
     )
-    if args.answer_train_set:
-        train_answers = Trainer.answer_dataset(
-            train_dataset, model, training_config.use_cuda
-        )
-        with open("train-pred.json", "w") as f:
-            json.dump(train_answers, f)
     dev_answers = Trainer.answer_dataset(dev_dataset, model, training_config.use_cuda)
     with open("dev-pred.json", "w") as f:
         json.dump(dev_answers, f)
