@@ -4,7 +4,7 @@ from typing import Tuple
 
 import torch as t
 
-import model.trainer as trainer
+from model.trainer import Trainer
 from model.tokenizer import Tokenizer, NltkTokenizer
 from model.text_processor import TextProcessor
 from model.predictor import PredictorConfig, GRUConfig, PredictorModel, DocQAPredictor
@@ -143,14 +143,14 @@ def get_model(
     return model, train_dataset, dev_dataset
 
 
-def get_training_config(args: argparse.Namespace) -> trainer.TrainingConfig:
+def get_training_config(args: argparse.Namespace) -> Trainer.TrainingConfig:
     """
     Parse the command line args builds a TrainingConfig object
     :param args: argparse namespace object from the CLI invocation
     :returns: A well formatted TrainingConfig object that can be used
         for training the model
     """
-    return trainer.TrainingConfig(
+    return Trainer.TrainingConfig(
         learning_rate=args.learning_rate,
         num_epochs=args.num_epochs,
         batch_size=args.batch_size,
@@ -167,18 +167,18 @@ def main() -> None:
     model, train_dataset, dev_dataset = get_model(args)
     training_config = get_training_config(args)
 
-    trainer.train_model(
+    Trainer.train_model(
         model, train_dataset, dev_dataset, training_config, debug=args.debug
     )
     if args.answer_train_set:
-        train_answers = trainer.answer_dataset(train_dataset, model, args.use_cuda)
+        train_answers = Trainer.answer_dataset(train_dataset, model, args.use_cuda)
         with open("train-pred.json", "w") as f:
             json.dump(train_answers, f)
-    dev_answers = trainer.answer_dataset(dev_dataset, model, args.use_cuda)
+    dev_answers = Trainer.answer_dataset(dev_dataset, model, args.use_cuda)
     with open("dev-pred.json", "w") as f:
         json.dump(dev_answers, f)
     print("Final evaluation on dev")
-    eval_results = trainer.evaluate_on_squad_dataset(
+    eval_results = Trainer.evaluate_on_squad_dataset(
         dev_dataset, model, args.use_cuda, 64
     )
     print(eval_results)

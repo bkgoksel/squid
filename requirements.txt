@@ -1,7 +1,5 @@
 numpy
 matplotlib
 torch
-torchvision
-mypy
 nltk
 tqdm

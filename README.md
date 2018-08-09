@@ -1,3 +1,7 @@
+An extensible, clean implementation of DocumentQA, and a basis for developing RCQA models
+
+[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/ambv/black)
+
 # Work plan:
 
 - [x] Prepare harness for tokenization, batch building and evaluation
@@ -14,12 +18,13 @@
 - [x] Write dev validation during training
 - [x] Implement BiDAF on top
 - [x] Implement self attention as described in DocQA
+- [x] Implement memory and runtime profiling
 - [x] Add max context size
 - [x] Test implementation with self attention
+- [x] Do better structured config objects to pass around instead of bajillion parameters as it is used now
 - [ ] Add UNK char vector for OOV chars
 - [ ] Reproduce DocQA Performance
 - [ ] Do trimming in the Dataset classes ?
-- [ ] Do better structured config objects to pass around instead of bajillion parameters as it is used now
 - [ ] Implement char CNN for char embeddings
 - [ ] Add the option to output no-answer probabilities with the output
 - [ ] Add encoding of sentence-level info

@@ -5,8 +5,6 @@ Includes utilities for profiling memory and time usage of model training
 import gc
 from functools import wraps
 import torch as t
-from model.util import get_device
-from model.trainer import one_train_iteration
 
 
 def mem_report(print_all: bool = False):
