@@ -118,14 +118,7 @@ class Trainer:
                         batch_loop.set_postfix(loss=batch_loss)
                 epoch_loss = epoch_loss / len(loader)
                 epochs.set_postfix(loss=epoch_loss)
-                cls.validate(
-                    dev_dataset,
-                    model,
-                    evaluator,
-                    training_config.device,
-                    epoch,
-                    training_config.batch_size,
-                )
+                cls.validate(dev_dataset, model, evaluator, training_config, epoch)
                 print(
                     "Saving model checkpoint to {}".format(
                         training_config.model_checkpoint_path
@@ -197,9 +190,8 @@ class Trainer:
         dataset: QADataset,
         model: PredictorModel,
         evaluator: Evaluator,
-        device: t.device,
+        training_config: TrainingConfig,
         epoch: int = 0,
-        batch_size: int = 20,
     ) -> None:
         """
         Validates the given model over the given dataset, both using the official
@@ -208,9 +200,8 @@ class Trainer:
         :param dataset: QADataset object to validate on
         :param model: PredictorModel to validate
         :param evaluator: Evaluator to compute loss
-        :param device: Device to run model on
         :param epoch: Current epoch number for logging
-        :param batch_size: Batch size to use when forward passing over the dataset
+        :param training_config: Training config to pull parameters from
         """
         print(
             "\n=== EPOCH {}: Measuring QA performance on the dev set\n".format(
@@ -218,12 +209,12 @@ class Trainer:
             )
         )
         try:
-            dev_perf = cls.evaluate_on_squad_dataset(dataset, model, device, batch_size)
+            dev_perf = cls.evaluate_on_squad_dataset(dataset, model, training_config)
             print("\n=== Dev set performance: {}\n".format(json.dumps(dev_perf)))
         except Exception as err:
             print("\nError when trying to get full evaluation: {}\n".format(err))
         print("\n=== EPOCH %d: Measuring loss on the dev set\n".format(epoch + 1))
-        dev_loss = cls.get_dataset_loss(dataset, model, evaluator, device, batch_size)
+        dev_loss = cls.get_dataset_loss(dataset, model, evaluator, training_config)
         print("\n=== Dev set loss: {}\n".format(dev_loss))
 
     @classmethod
@@ -232,52 +223,61 @@ class Trainer:
         dataset: QADataset,
         model: PredictorModel,
         evaluator: Evaluator,
-        device: t.device,
-        batch_size,
+        training_config: TrainingConfig,
     ) -> float:
         """
         Computes total loss of the model over the entire dataset
         :param dataset: QADataset object to validate on
         :param model: PredictorModel to validate
         :param evaluator: Evaluator to compute loss
-        :param device: Device to run model on
-        :param batch_size: Batch size to use when forward passing over the dataset
+        :param training_config: Training config to pull parameters from
         """
-        loader: DataLoader = DataLoader(dataset, batch_size, collate_fn=get_collator())
+        loader: DataLoader = DataLoader(
+            dataset,
+            training_config.batch_size,
+            collate_fn=get_collator(
+                training_config.max_question_size, training_config.max_context_size
+            ),
+        )
         total_loss = 0.0
         batch: QABatch
         for batch in tqdm(loader, desc="Loss computation batch"):
             with t.no_grad():
-                batch.to(device)
+                batch.to(training_config.device)
                 predictions: ModelPredictions = model(batch)
                 total_loss += evaluator(batch, predictions).item()
         return total_loss
 
     @classmethod
     def answer_dataset(
-        cls, dataset: QADataset, model: PredictorModel, device: t.device, batch_size
+        cls, dataset: QADataset, model: PredictorModel, training_config: TrainingConfig
     ) -> Dict[QuestionId, str]:
         """
         Generates well-formatted answers for the given dataset using the
         given model.
         :param dataset: QADataset object to validate on
         :param model: PredictorModel to validate
-        :param device: Device to run model on
-        :param batch_size: Batch size to use when forward passing over the dataset
+        :param training_config: Training config to pull parameters from
         """
-        loader: DataLoader = DataLoader(dataset, batch_size, collate_fn=get_collator())
+        loader: DataLoader = DataLoader(
+            dataset,
+            training_config.batch_size,
+            collate_fn=get_collator(
+                training_config.max_question_size, training_config.max_context_size
+            ),
+        )
         batch: QABatch
         qid_to_answer: Dict[QuestionId, str] = dict()
         for batch_num, batch in enumerate(tqdm(loader, desc="Answer generation batch")):
             with t.no_grad():
-                batch.to(device)
+                batch.to(training_config.device)
                 predictions: ModelPredictions = model(batch)
                 qid_to_answer.update(get_answer_token_idxs(batch, predictions))
         return dataset.get_answer_texts(qid_to_answer)
 
     @classmethod
     def evaluate_on_squad_dataset(
-        cls, dataset: QADataset, model: PredictorModel, device: t.device, batch_size
+        cls, dataset: QADataset, model: PredictorModel, training_config: TrainingConfig
     ) -> Dict[str, str]:
         """
         Generates well formatted answers for the given dataset using the given
@@ -285,10 +285,9 @@ class Trainer:
         f1 and em scores.
         :param dataset: QADataset object to validate on
         :param model: PredictorModel to validate
-        :param device: Device to run model on
-        :param batch_size: Batch size to use when forward passing over the dataset
+        :param training_config: Training config to pull parameters from
         """
-        answer_dict = cls.answer_dataset(dataset, model, device, batch_size)
+        answer_dict = cls.answer_dataset(dataset, model, training_config)
         with open(dataset.source_file) as dataset_file:
             dataset_json = json.load(dataset_file)
             dataset_version = dataset_json["version"]
