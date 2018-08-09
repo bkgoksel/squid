@@ -194,7 +194,7 @@ class Trainer:
         evaluator: Evaluator,
         device: t.device,
         epoch: int = 0,
-        batch_size: int = 64,
+        batch_size: int = 32,
     ) -> None:
         """
         Validates the given model over the given dataset, both using the official
@@ -228,7 +228,7 @@ class Trainer:
         model: PredictorModel,
         evaluator: Evaluator,
         device: t.device,
-        batch_size: int = 64,
+        batch_size: int = 32,
     ) -> float:
         """
         Computes total loss of the model over the entire dataset
@@ -254,7 +254,7 @@ class Trainer:
         dataset: QADataset,
         model: PredictorModel,
         device: t.device,
-        batch_size: int = 64,
+        batch_size: int = 32,
     ) -> Dict[QuestionId, str]:
         """
         Generates well-formatted answers for the given dataset using the
@@ -280,7 +280,7 @@ class Trainer:
         dataset: QADataset,
         model: PredictorModel,
         device: t.device,
-        batch_size: int = 64,
+        batch_size: int = 32,
     ) -> Dict[str, str]:
         """
         Generates well formatted answers for the given dataset using the given
