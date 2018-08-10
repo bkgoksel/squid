@@ -82,11 +82,13 @@ class ContextualEncoder(nn.Module):
     """
 
     config: GRUConfig
+    dropout: nn.Dropout
     GRU: nn.GRU
 
     def __init__(self, input_dim: int, config: GRUConfig) -> None:
         super().__init__()
         self.config = config
+        self.dropout = nn.Dropout(self.config.dropout)
         self.gru = nn.GRU(
             input_dim,
             self.config.hidden_size,
@@ -98,7 +100,7 @@ class ContextualEncoder(nn.Module):
 
     def forward(
         self,
-        embedded_in: t.Tensor,
+        inpt: t.Tensor,
         lengths: t.LongTensor,
         length_idxs: t.LongTensor,
         orig_idxs: t.LongTensor,
@@ -106,13 +108,15 @@ class ContextualEncoder(nn.Module):
         """
         Takes in a given padded sequence alongside its length and sorting info and
         encodes it through a bidirectional GRU
-        :param embedded_in: Padded and embedded sequence
+        :param inpt: Padded and embedded sequence
         :param lengths: Descending-sorted list of lengths of the sequences in the batch
         :param length_idxs: Indices to sort the input to get the sequences in descending length order
         :param orig_idxs: Indices to sort the length-sorted sequences back to the original order
         :returns: Padded, encoded sequences in original order (batch_len, sequence_len, encoding_size)
         """
-        len_sorted = embedded_in[length_idxs]
+        dropped_inpt = self.dropout(inpt)
+        del inpt
+        len_sorted = dropped_inpt[length_idxs]
         del length_idxs
         packed: PackedSequence = pack_padded_sequence(
             len_sorted, lengths, batch_first=True
@@ -157,7 +161,6 @@ class BidafOutput(nn.Module):
             self.config.total_hidden_size * 4,
             self.config.gru.hidden_size,
             1,
-            dropout=self.config.gru.dropout,
             batch_first=True,
             bidirectional=self.config.gru.bidirectional,
         )
