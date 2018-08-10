@@ -73,7 +73,7 @@ class QABatch:
         self.answer_span_starts = answer_span_starts
         self.answer_span_ends = answer_span_ends
 
-    def to(self, device: Any):
+    def to(self, device: t.device) -> "QABatch":
         """
         Moves all Tensors to device, calls .to on all tensors in batch
         :param device: a PyTorch device

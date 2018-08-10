@@ -64,12 +64,13 @@ class WordVectors:
         return np.take(self.vectors, vector_indices, axis=0)
 
     @classmethod
-    def load_vectors(cls, file_name: str):
+    def load_vectors(cls, file_name: str) -> "WordVectors":
         """
         Class method that loads vectors from an arbitrary filename
         If the file is a pickle prefix for the processed vectors loads that
         if that fails tries to read them as text-based word vectors
         """
+        vectors: WordVectors
         try:
             vectors = WordVectors.from_disk(file_name)
         except (IOError, pickle.UnpicklingError) as e:
@@ -77,7 +78,7 @@ class WordVectors:
         return vectors
 
     @classmethod
-    def from_disk(cls, file_name: str):
+    def from_disk(cls, file_name: str) -> "WordVectors":
         """
         Class method that reads pickle files(under same name) from disk
         and restores a WordVectors object
@@ -93,7 +94,9 @@ class WordVectors:
         return cls(vectors, idx_to_word, word_to_idx)
 
     @classmethod
-    def from_text_vectors(cls, vector_file: str, consume_first_line: bool = False):
+    def from_text_vectors(
+        cls, vector_file: str, consume_first_line: bool = False
+    ) -> "WordVectors":
         """
         Class method that creates a WordVectors object from a text formatted
         word vectors file on disk

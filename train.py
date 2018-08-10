@@ -1,5 +1,5 @@
 import json
-from typing import Tuple
+from typing import Tuple, Optional
 
 import torch as t
 
@@ -47,6 +47,7 @@ def initialize_model(
     word_embedding_config = WordEmbeddorConfig(
         vectors=vectors, token_mapping=train_dataset.token_mapping, train_vecs=False
     )
+    char_embedding_config: Optional[PoolingCharEmbeddorConfig]
     if args.char_embedding_size:
         char_embedding_config = PoolingCharEmbeddorConfig(
             embedding_dimension=args.char_embedding_size,
@@ -59,7 +60,8 @@ def initialize_model(
         word_embeddor=word_embedding_config, char_embeddor=char_embedding_config
     )
     embeddor: Embeddor = make_embeddor(embeddor_config, device)
-    return DocQAPredictor(embeddor, predictor_config).to(device)
+    predictor: PredictorModel = DocQAPredictor(embeddor, predictor_config).to(device)
+    return predictor
 
 
 def get_model(args: TrainArgs) -> Tuple[PredictorModel, TrainDataset, EvalDataset]:
@@ -123,12 +125,12 @@ def main() -> None:
     Trainer.train_model(
         model, train_dataset, dev_dataset, training_config, debug=args.debug
     )
-    dev_answers = Trainer.answer_dataset(dev_dataset, model, training_config.use_cuda)
+    dev_answers = Trainer.answer_dataset(dev_dataset, model, training_config)
     with open("dev-pred.json", "w") as f:
         json.dump(dev_answers, f)
     print("Final evaluation on dev")
     eval_results = Trainer.evaluate_on_squad_dataset(
-        dev_dataset, model, training_config.use_cuda
+        dev_dataset, model, training_config
     )
     print(eval_results)
     print("Saving model to {args.run_name}")

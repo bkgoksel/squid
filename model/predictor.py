@@ -1,7 +1,7 @@
 """
 Module that holds classes that can be used for answer prediction
 """
-from typing import NamedTuple, Optional
+from typing import NamedTuple, Optional, cast
 import torch as t
 import torch.nn as nn
 from torch.nn.utils.rnn import PackedSequence, pack_padded_sequence, pad_packed_sequence
@@ -23,7 +23,7 @@ class PredictorModel(nn.Module):
     Base class for any Predictor Model
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
 
     def forward(self, batch: QABatch) -> ModelPredictions:
@@ -289,10 +289,13 @@ class DocQAPredictor(PredictorModel):
             )
             attended_ctx = attended_ctx + self_aware_ctx
 
-        return self.output_layer(
-            attended_ctx,
-            batch.context_mask,
-            batch.context_lens,
-            batch.context_len_idxs,
-            batch.context_orig_idxs,
+        return cast(
+            ModelPredictions,
+            self.output_layer(
+                attended_ctx,
+                batch.context_mask,
+                batch.context_lens,
+                batch.context_len_idxs,
+                batch.context_orig_idxs,
+            ),
         )

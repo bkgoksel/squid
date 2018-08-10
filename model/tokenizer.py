@@ -32,7 +32,7 @@ class NltkTokenizer(Tokenizer):
 
     tokenizer: WordPunctTokenizer
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.tokenizer = WordPunctTokenizer()
 
     def tokenize(self, text: str) -> List[Token]:

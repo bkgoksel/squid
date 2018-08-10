@@ -5,7 +5,9 @@ Module for general utils for loading components from disk and dataset/evaluation
 import torch as t
 
 
-def get_last_hidden_states(states, n_directions: int, total_hidden_size: int):
+def get_last_hidden_states(
+    states: t.Tensor, n_directions: int, total_hidden_size: int
+) -> t.Tensor:
     """
     Do some juggling with the output of the RNNs to get the
         final hidden states of the topmost layers of all the

@@ -2,6 +2,7 @@
 Module that deals with sequences that need masking
 """
 from enum import Enum
+from typing import Any, Optional
 import torch as t
 import torch.nn as nn
 from torch import Tensor as Tensor
@@ -67,7 +68,11 @@ class MaskedOp(nn.Module):
             raise Exception("Malformed mask_mode for MaskedOp: %s" % self.mask_mode)
 
     def forward(
-        self, input_batch: t.Tensor, *args, mask: t.ByteTensor = None, **kwargs
+        self,
+        input_batch: t.Tensor,
+        *args: Any,
+        mask: Optional[t.LongTensor] = None,
+        **kwargs: Any
     ) -> t.Tensor:
         """
         Subtracts mask from its input and applies op to it

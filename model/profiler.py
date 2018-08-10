@@ -4,17 +4,18 @@ Includes utilities for profiling memory and time usage of model training
 
 import gc
 from functools import wraps
+from typing import List, Callable, Any, Iterable
 import torch as t
 
 
-def mem_report(print_all: bool = False):
+def mem_report(print_all: bool = False) -> None:
     """
     Report the memory usage of the tensor.storage in pytorch
     Both on CPUs and GPUs are reported
     if print_all is True, print size and shape info for each tensor
     """
 
-    def _mem_report(tensors, mem_type):
+    def _mem_report(tensors: Iterable, mem_type: str) -> None:
         """Print the selected tensors of type
 
         There are two major storage types in our major concern:
@@ -28,7 +29,7 @@ def mem_report(print_all: bool = False):
         print("-" * LEN)
         total_numel = 0
         total_mem = 0
-        visited_data = []
+        visited_data: List[Any] = []
         for tensor in tensors:
             if tensor.is_sparse:
                 continue
@@ -74,24 +75,28 @@ def mem_report(print_all: bool = False):
         print("=" * LEN)
 
 
-def memory_profiled(op):
+def memory_profiled(op: Callable[..., Any]) -> Callable[..., Any]:
     @wraps(op)
-    def profiled_function(*args, **kwargs):
+    def profiled_function(*args: Any, **kwargs: Any) -> Any:
         print("Before op, allocated tensors")
         mem_report()
-        op(*args, **kwargs)
+        res = op(*args, **kwargs)
         print("After op, allocated tensors")
         mem_report()
+        return res
 
     return profiled_function
 
 
-def autograd_profiled(op, use_cuda):
+def autograd_profiled(op: Callable[..., Any], use_cuda: bool) -> Callable[..., Any]:
     @wraps(op)
-    def profiled_function(*args, **kwargs):
+    def profiled_function(*args: Any, **kwargs: Any) -> Any:
         with t.autograd.profiler.profile(use_cuda=use_cuda) as prof:
-            op(*args, **kwargs)
+            res = op(*args, **kwargs)
             print("Debug run complete, printing CPU profile")
             prof.table(sort_by="cpu_time_total")
             print("Debug run complete, printing CUDA profile")
             prof.table(sort_by="cuda_time_total")
+        return res
+
+    return profiled_function

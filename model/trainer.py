@@ -3,7 +3,7 @@ Module that holds the training harness
 """
 
 import json
-from typing import Dict, NamedTuple
+from typing import Any, Callable, Dict, Tuple, NamedTuple, cast
 
 from tqdm import tqdm, trange
 import torch as t
@@ -23,8 +23,8 @@ from model.evaluator import (
     get_answer_token_idxs,
 )
 
-import scripts.evaluate_v1_1 as evaluate_v1_1
-import scripts.evaluate_v2_0 as evaluate_v2_0
+import scripts.evaluate_v1_1 as evaluate_v1_1  # type: ignore
+import scripts.evaluate_v2_0 as evaluate_v2_0  # type: ignore
 
 
 class Trainer:
@@ -64,7 +64,7 @@ class Trainer:
         model: PredictorModel,
         evaluator: Evaluator,
         optimizer: t.optim.Optimizer,
-    ):
+    ) -> float:
         """
         Runs one train iteration of the given model on the given batch,
         evaluating using the given evaluator and updating parameters
@@ -81,7 +81,7 @@ class Trainer:
         loss.backward()
         optimizer.step()
         batch_loss = loss.item()
-        return batch_loss
+        return cast(float, batch_loss)
 
     @classmethod
     def training_run(
@@ -176,7 +176,14 @@ class Trainer:
             setattr(
                 cls, "one_train_iteration", memory_profiled(cls.one_train_iteration)
             )
-            setattr(cls, "training_run", autograd_profiled(cls.training_run))
+            setattr(
+                cls,
+                "training_run",
+                autograd_profiled(
+                    cls.training_run,
+                    use_cuda=training_config.device == t.device("cuda"),
+                ),
+            )
         cls.training_run(
             loader, model, train_evaluator, optimizer, dev_dataset, training_config
         )
@@ -267,7 +274,7 @@ class Trainer:
             ),
         )
         batch: QABatch
-        qid_to_answer: Dict[QuestionId, str] = dict()
+        qid_to_answer: Dict[QuestionId, Tuple[Any, ...]] = dict()
         for batch_num, batch in enumerate(tqdm(loader, desc="Answer generation batch")):
             with t.no_grad():
                 batch.to(training_config.device)
@@ -291,6 +298,7 @@ class Trainer:
         with open(dataset.source_file) as dataset_file:
             dataset_json = json.load(dataset_file)
             dataset_version = dataset_json["version"]
+            eval_fn: Callable[[Dict[Any, Any], Dict[QuestionId, str]], Dict[str, str]]
             if dataset_version == "1.1":
                 eval_fn = evaluate_v1_1.evaluate
             elif dataset_version == "2.0":

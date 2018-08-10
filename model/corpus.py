@@ -68,14 +68,14 @@ class Corpus:
         self.stats = stats
 
     @classmethod
-    def from_disk(cls, serialized_file: str):
+    def from_disk(cls, serialized_file: str) -> "Corpus":
         """
         Loads a pickle serialized corpus from disk
         :param serialized_file: Name of the pickle file to load
         :returns: A Corpus object
         """
         with open(serialized_file, "rb") as f:
-            return pickle.load(f)
+            return cast(Corpus, pickle.load(f))
 
     @classmethod
     def from_raw(
@@ -87,7 +87,7 @@ class Corpus:
         word_vectors: Optional[WordVectors] = None,
         token_mapping: Optional[Dict[str, int]] = None,
         char_mapping: Optional[Dict[str, int]] = None,
-    ):
+    ) -> "Corpus":
         """
         Reads a Corpus of QA questions from a file
         :param data_file: File to read from
@@ -382,10 +382,10 @@ class QADataset(Dataset):
         self.corpus = SampleCorpus(corpus)
         self._source_file = self.corpus.source_file
 
-    def __len__(self):
+    def __len__(self) -> int:
         return self.corpus.n_samples
 
-    def __getitem__(self, idx):
+    def __getitem__(self, idx: int) -> EncodedSample:
         return self.corpus.samples[idx]
 
     def get_answer_texts(
@@ -403,7 +403,7 @@ class QADataset(Dataset):
         return self.corpus.get_answer_texts(answer_token_idxs)
 
     @property
-    def stats(self):
+    def stats(self) -> CorpusStats:
         return self.corpus.stats
 
     @property

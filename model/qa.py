@@ -29,8 +29,8 @@ class Processed:
         assert len(self.text) > 0, "Textual object with empty text"
         assert len(self.tokens) > 0, "Tokenized object with no tokensj"
 
-    def __eq__(self, other) -> bool:
-        return self.text == other.text and self.tokens == other.tokens
+    def __eq__(self, other: Any) -> bool:
+        return cast(bool, self.text == other.text and self.tokens == other.tokens)
 
 
 class Answer(Processed):
@@ -49,7 +49,7 @@ class Answer(Processed):
         self.span_start = span_start
         self.span_end = self.span_start + len(self.text)
 
-    def __eq__(self, other) -> bool:
+    def __eq__(self, other: Any) -> bool:
         """
         Two answers are equal if their spans and text are equal
         """
@@ -59,7 +59,7 @@ class Answer(Processed):
             and self.span_end == other.span_end
         )
 
-    def __hash__(self):
+    def __hash__(self) -> Any:
         """
         Use the answer components to hash the answer
         """
@@ -87,7 +87,7 @@ class QuestionAnswer(Processed):
         self.answers = answers
         super().__init__(text, tokenizer, processor)
 
-    def __eq__(self, other) -> bool:
+    def __eq__(self, other: Any) -> bool:
         return (
             super().__eq__(other)
             and self.answers == other.answers
@@ -113,7 +113,7 @@ class ContextQuestionAnswer(Processed):
         self.qas = qas
         super().__init__(text, tokenizer, processor)
 
-    def __eq__(self, other) -> bool:
+    def __eq__(self, other: Any) -> bool:
         return super().__eq__(other) and self.qas == other.qas
 
 
@@ -137,11 +137,14 @@ class EncodedAnswer:
         self.span_start = bisect.bisect_right(token_starts, answer.span_start) - 1
         self.span_end = bisect.bisect_left(token_ends, answer.span_end)
 
-    def __eq__(self, other) -> bool:
+    def __eq__(self, other: Any) -> bool:
         """
         Two answers are equal if their spans and text are equal
         """
-        return self.span_start == other.span_start and self.span_end == other.span_end
+        return cast(
+            bool,
+            self.span_start == other.span_start and self.span_end == other.span_end,
+        )
 
 
 class EncodedQuestionAnswer:
@@ -171,12 +174,15 @@ class EncodedQuestionAnswer:
         ]
         self.answers = [EncodedAnswer(ans, context_tokens) for ans in qa.answers]
 
-    def __eq__(self, other) -> bool:
-        return (
-            self.question_id == other.question_id
-            and np.all(self.word_encoding == other.word_encoding)
-            and np.all(self.char_encoding == other.char_encoding)
-            and self.answers == other.answers
+    def __eq__(self, other: Any) -> bool:
+        return cast(
+            bool,
+            (
+                self.question_id == other.question_id
+                and np.all(self.word_encoding == other.word_encoding)
+                and np.all(self.char_encoding == other.char_encoding)
+                and self.answers == other.answers
+            ),
         )
 
 
@@ -208,11 +214,14 @@ class EncodedContextQuestionAnswer:
             for qa in ctx.qas
         ]
 
-    def __eq__(self, other) -> bool:
-        return (
-            self.qas == other.qas
-            and np.all(self.char_encoding == other.char_encoding)
-            and np.all(self.word_encoding == other.word_encoding)
+    def __eq__(self, other: Any) -> bool:
+        return cast(
+            bool,
+            (
+                self.qas == other.qas
+                and np.all(self.char_encoding == other.char_encoding)
+                and np.all(self.word_encoding == other.word_encoding)
+            ),
         )
 
 
@@ -249,14 +258,17 @@ class EncodedSample:
             self.span_starts[starts] = 1
             self.span_ends[ends] = 1
 
-    def __eq__(self, other) -> bool:
-        return (
-            self.question_id == other.question_id
-            and np.all(self.context_words == other.context_words)
-            and np.all(self.question_words == other.question_words)
-            and np.all(self.context_chars == other.context_chars)
-            and np.all(self.question_chars == other.question_chars)
-            and self.has_answer == other.has_answer
-            and np.all(self.span_starts == other.span_starts)
-            and np.all(self.span_ends == other.span_ends)
+    def __eq__(self, other: Any) -> bool:
+        return cast(
+            bool,
+            (
+                self.question_id == other.question_id
+                and np.all(self.context_words == other.context_words)
+                and np.all(self.question_words == other.question_words)
+                and np.all(self.context_chars == other.context_chars)
+                and np.all(self.question_chars == other.question_chars)
+                and self.has_answer == other.has_answer
+                and np.all(self.span_starts == other.span_starts)
+                and np.all(self.span_ends == other.span_ends)
+            ),
         )

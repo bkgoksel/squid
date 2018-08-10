@@ -133,7 +133,7 @@ class ConcatenatingEmbeddor(Embeddor):
 
     embeddors: List[Embeddor]
 
-    def __init__(self, *args) -> None:
+    def __init__(self, *args: Any) -> None:
         super().__init__(sum(embeddor.embedding_dim for embeddor in args))
         self.embeddors = list(args)
 
