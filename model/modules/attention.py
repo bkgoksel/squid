@@ -7,7 +7,7 @@ from typing import ClassVar
 import torch as t
 import torch.nn as nn
 
-from model.modules.masked import MaskedLinear
+from model.modules.masked import MaskedOp, MaskMode, MaskTime
 
 
 class BaseBidirectionalAttention(nn.Module):
@@ -52,10 +52,14 @@ class BaseBidirectionalAttention(nn.Module):
         self.ctx_softmax = nn.Softmax(dim=2)
         self.q_softmax = nn.Softmax(dim=1)
 
-        self.final_linear = nn.Sequential(
-            MaskedLinear(self.final_encoding_size, linear_hidden_size),
-            MaskedLinear(linear_hidden_size, self.final_encoding_size),
-            nn.ReLU(),
+        self.final_linear = MaskedOp(
+            nn.Sequential(
+                nn.Linear(self.final_encoding_size, linear_hidden_size),
+                nn.Linear(linear_hidden_size, self.final_encoding_size),
+                nn.ReLU(),
+            ),
+            MaskMode.multiply,
+            MaskTime.post,
         )
 
     def forward(
