@@ -78,8 +78,13 @@ class TrainArgs:
         """
         args = copy.copy(cls.DEFAULT_ARGS)
         cli_args = cls.parse_cli_args()
+        config_file = (
+            cls.DEFAULT_ARGS["config_file"]
+            if cli_args.config_file is None
+            else cli_args.config_file
+        )
         try:
-            config_file_args = json.load(open(cli_args.config_file, "r"))
+            config_file_args = json.load(open(config_file, "r"))
         except (IOError, json.JSONDecodeError) as e:
             print(f"Cannot load {cli_args.config_file}: {e}, continuing")
             config_file_args = {}
