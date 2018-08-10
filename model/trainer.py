@@ -105,6 +105,7 @@ class Trainer:
         """
         with trange(training_config.num_epochs) as epochs:
             for epoch in epochs:
+                model.train()
                 epochs.set_description("Epoch %d" % (epoch + 1))
                 epoch_loss = 0.0
                 with tqdm(loader) as batch_loop:
@@ -210,6 +211,7 @@ class Trainer:
         :param epoch: Current epoch number for logging
         :param training_config: Training config to pull parameters from
         """
+        model.eval()
         print(
             "\n=== EPOCH {}: Measuring QA performance on the dev set\n".format(
                 epoch + 1
