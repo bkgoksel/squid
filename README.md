@@ -24,7 +24,6 @@ An extensible, clean implementation of DocumentQA, and a basis for developing RC
 - [x] Test implementation with self attention
 - [x] Do better structured config objects to pass around instead of bajillion parameters as it is used now
 - [ ] Reproduce DocQA Performance
-- [ ] Add UNK char vector for OOV chars
 - [ ] Implement char CNN for char embeddings
 - [ ] Add the option to output no-answer probabilities with the output
 - [ ] Add encoding of sentence-level info

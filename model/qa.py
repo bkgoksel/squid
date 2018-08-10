@@ -170,7 +170,8 @@ class EncodedQuestionAnswer:
             [token_mapping.get(tk.word, 1) for tk in qa.tokens]
         )
         self.char_encoding = [
-            np.array([char_mapping[char] for char in tk.word]) for tk in qa.tokens
+            np.array([char_mapping.get(char, 1) for char in tk.word])
+            for tk in qa.tokens
         ]
         self.answers = [EncodedAnswer(ans, context_tokens) for ans in qa.answers]
 
