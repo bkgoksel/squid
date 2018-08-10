@@ -156,7 +156,7 @@ class Trainer:
         trainable_parameters = filter(
             lambda p: p.requires_grad, set(model.parameters())
         )
-        optimizer: optim.Optimizer = optim.Adadelta(
+        optimizer: optim.Optimizer = optim.Adam(
             trainable_parameters, lr=training_config.learning_rate
         )
         loader: DataLoader = DataLoader(
