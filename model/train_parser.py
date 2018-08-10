@@ -49,24 +49,24 @@ class TrainArgs:
     def __init__(self, arg_dict: Dict[str, Any]) -> None:
         # Don't format args
         # fmt: off
-        self.train_file = arg_dict.get("train_file", self.DEFAULT_ARGS["train_file"])
-        self.dev_file = arg_dict.get("dev_file", self.DEFAULT_ARGS["dev_file"])
-        self.word_vector_file = arg_dict.get("word_vector_file", self.DEFAULT_ARGS["word_vector_file"])
-        self.batch_size = arg_dict.get("batch_size", self.DEFAULT_ARGS["batch_size"])
-        self.num_epochs = arg_dict.get("num_epochs", self.DEFAULT_ARGS["num_epochs"])
-        self.lr = arg_dict.get("lr", self.DEFAULT_ARGS["lr"])
-        self.char_embedding_size = arg_dict.get("char_embedding_size", self.DEFAULT_ARGS["char_embedding_size"])
-        self.rnn_hidden_size = arg_dict.get("rnn_hidden_size", self.DEFAULT_ARGS["rnn_hidden_size"])
-        self.rnn_num_layers = arg_dict.get("rnn_num_layers", self.DEFAULT_ARGS["rnn_num_layers"])
-        self.max_context_size = arg_dict.get("max_context_size", self.DEFAULT_ARGS["max_context_size"])
-        self.max_question_size = arg_dict.get("max_question_size", self.DEFAULT_ARGS["max_question_size"])
-        self.loader_num_workers = arg_dict.get("loader_num_workers", self.DEFAULT_ARGS["loader_num_workers"])
-        self.dropout = arg_dict.get("dropout", self.DEFAULT_ARGS["dropout"])
-        self.run_name = arg_dict.get("run_name", self.DEFAULT_ARGS["run_name"])
-        self.debug = arg_dict.get("debug", self.DEFAULT_ARGS["debug"])
-        self.multi_answer = arg_dict.get("multi_answer", self.DEFAULT_ARGS["multi_answer"])
-        self.no_self_attention = arg_dict.get("no_self_attention", self.DEFAULT_ARGS["no_self_attention"])
-        self.disable_cuda = arg_dict.get("disable_cuda", self.DEFAULT_ARGS["disable_cuda"])
+        self.train_file = arg_dict["train_file"]
+        self.dev_file = arg_dict["dev_file"]
+        self.word_vector_file = arg_dict["word_vector_file"]
+        self.batch_size = arg_dict["batch_size"]
+        self.num_epochs = arg_dict["num_epochs"]
+        self.lr = arg_dict["lr"]
+        self.char_embedding_size = arg_dict["char_embedding_size"]
+        self.rnn_hidden_size = arg_dict["rnn_hidden_size"]
+        self.rnn_num_layers = arg_dict["rnn_num_layers"]
+        self.max_context_size = arg_dict["max_context_size"]
+        self.max_question_size = arg_dict["max_question_size"]
+        self.loader_num_workers = arg_dict["loader_num_workers"]
+        self.dropout = arg_dict["dropout"]
+        self.run_name = arg_dict["run_name"]
+        self.debug = arg_dict["debug"]
+        self.multi_answer = arg_dict["multi_answer"]
+        self.no_self_attention = arg_dict["no_self_attention"]
+        self.disable_cuda = arg_dict["disable_cuda"]
         # fmt: on
 
     @staticmethod
