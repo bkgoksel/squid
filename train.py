@@ -34,10 +34,10 @@ def initialize_model(
     device = get_device(args.disable_cuda)
     predictor_config = PredictorConfig(
         gru=GRUConfig(
-            hidden_size=args.rnn_hidden_size,
-            num_layers=args.rnn_num_layers,
-            dropout=args.dropout,
-            bidirectional=(not args.rnn_unidirectional),
+            args.rnn_hidden_size,
+            args.rnn_num_layers,
+            args.dropout,
+            (not args.rnn_unidirectional),
         ),
         batch_size=args.batch_size,
         attention_linear_hidden_size=args.attention_linear_hidden_size,

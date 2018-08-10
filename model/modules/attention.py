@@ -20,8 +20,8 @@ class BaseBidirectionalAttention(nn.Module):
     NEGATIVE_COEFF: ClassVar[float] = -1e30
 
     self_attention: bool
-    linear_hidden_size: int
     final_encoding_size: int
+    dropout: nn.Dropout
     w_question: nn.Parameter
     w_context: nn.Parameter
     w_multiple: nn.Parameter
@@ -30,12 +30,17 @@ class BaseBidirectionalAttention(nn.Module):
     final_linear: nn.Sequential
 
     def __init__(
-        self, input_size: int, linear_hidden_size: int, self_attention: bool = False
+        self,
+        input_size: int,
+        linear_hidden_size: int,
+        dropout_prob: float,
+        self_attention: bool = False,
     ) -> None:
         super().__init__()
         self.self_attention = self_attention
         self.final_encoding_size = input_size if self.self_attention else 4 * input_size
 
+        self.dropout = nn.Dropout(dropout_prob)
         self.w_question = nn.Parameter(t.empty(input_size))
         self.w_context = nn.Parameter(t.empty(input_size))
         self.w_multiple = nn.Parameter(t.empty(input_size))
@@ -48,8 +53,8 @@ class BaseBidirectionalAttention(nn.Module):
         self.q_softmax = nn.Softmax(dim=1)
 
         self.final_linear = nn.Sequential(
-            MaskedLinear(self.final_encoding_size, self.linear_hidden_size),
-            MaskedLinear(self.linear_hidden_size, self.final_encoding_size),
+            MaskedLinear(self.final_encoding_size, linear_hidden_size),
+            MaskedLinear(linear_hidden_size, self.final_encoding_size),
             nn.ReLU(),
         )
 
@@ -69,7 +74,9 @@ class BaseBidirectionalAttention(nn.Module):
 
         similarity_tensors = []
 
-        q_weighted = question @ self.w_question  # (batch_len, max_question_len)
+        q_dropped = self.dropout(question)
+        del question
+        q_weighted = q_dropped @ self.w_question  # (batch_len, max_question_len)
         similarity_tensors.append(
             q_weighted.unsqueeze(1)
             .unsqueeze(3)
@@ -77,7 +84,9 @@ class BaseBidirectionalAttention(nn.Module):
         )
         del q_weighted
 
-        ctx_weighted = context @ self.w_context  # (batch_len, max_context_len)
+        ctx_dropped = self.dropout(context)
+        del context
+        ctx_weighted = ctx_dropped @ self.w_context  # (batch_len, max_context_len)
         similarity_tensors.append(
             ctx_weighted.unsqueeze(2)
             .unsqueeze(3)
@@ -87,7 +96,7 @@ class BaseBidirectionalAttention(nn.Module):
 
         # TODO: Make this not build a (B x H x H x E) tensor
         multiple_weighted = (
-            question.unsqueeze(1) * context.unsqueeze(2)
+            q_dropped.unsqueeze(1) * ctx_dropped.unsqueeze(2)
         ) @ self.w_multiple  # (batch_len, max_context_len, max_question_len)
         similarity_tensors.append(multiple_weighted.unsqueeze(3))
         del multiple_weighted
@@ -102,13 +111,16 @@ class BaseBidirectionalAttention(nn.Module):
                 * BaseBidirectionalAttention.NEGATIVE_COEFF
             )
 
-        c2q_att = t.bmm(self.ctx_softmax(similarity), question)
+        c2q_att = t.bmm(self.ctx_softmax(similarity), q_dropped)
         if self.self_attention:
             attended_tensors = c2q_att
         else:
-            q2c_att = t.bmm(self.q_softmax(similarity.max(2)[0]).unsqueeze(1), context)
+            q2c_att = t.bmm(
+                self.q_softmax(similarity.max(2)[0]).unsqueeze(1), ctx_dropped
+            )
             attended_tensors = t.cat(
-                [context, c2q_att, context * c2q_att, context * q2c_att], dim=2
+                [ctx_dropped, c2q_att, ctx_dropped * c2q_att, ctx_dropped * q2c_att],
+                dim=2,
             )
         del similarity
 
@@ -122,8 +134,12 @@ class BidirectionalAttention(BaseBidirectionalAttention):
     Attention Flow
     """
 
-    def __init__(self, input_size: int, linear_hidden_size: int) -> None:
-        super().__init__(input_size, linear_hidden_size, self_attention=False)
+    def __init__(
+        self, input_size: int, linear_hidden_size: int, dropout_prob: float
+    ) -> None:
+        super().__init__(
+            input_size, linear_hidden_size, dropout_prob, self_attention=False
+        )
 
 
 class SelfAttention(BaseBidirectionalAttention):
@@ -131,5 +147,9 @@ class SelfAttention(BaseBidirectionalAttention):
     Self Attention computations as described in DocumentQA
     """
 
-    def __init__(self, input_size: int, linear_hidden_size: int) -> None:
-        super().__init__(input_size, linear_hidden_size, self_attention=True)
+    def __init__(
+        self, input_size: int, linear_hidden_size: int, dropout_prob: float
+    ) -> None:
+        super().__init__(
+            input_size, linear_hidden_size, dropout_prob, self_attention=True
+        )

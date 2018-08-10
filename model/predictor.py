@@ -35,15 +35,19 @@ class PredictorModel(nn.Module):
         raise NotImplementedError
 
 
-GRUConfig = NamedTuple(
-    "GRUConfig",
-    [
-        ("hidden_size", int),
-        ("num_layers", int),
-        ("dropout", float),
-        ("bidirectional", bool),
-    ],
-)
+class GRUConfig:
+    hidden_size: int
+    num_layers: int
+    dropout: float
+    bidirectional: bool
+
+    def __init__(
+        self, hidden_size: int, num_layers: int, dropout: float, bidirectional: bool
+    ) -> None:
+        self.hidden_size = hidden_size
+        self.num_layers = num_layers
+        self.dropout = dropout if num_layers > 1 else 0
+        self.bidirectional = bidirectional
 
 
 class PredictorConfig:
