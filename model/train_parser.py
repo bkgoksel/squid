@@ -112,11 +112,14 @@ class TrainArgs:
             if cli_args.config_file is None
             else cli_args.config_file
         )
+        cli_arg_dict = dict(
+            (arg, val) for (arg, val) in vars(cli_args).items() if val is not None
+        )
         try:
             config_file_args = json.load(open(config_file, "r"))
         except (IOError, json.JSONDecodeError) as e:
             print(f"Cannot load {cli_args.config_file}: {e}, continuing")
             config_file_args = {}
         args.update(config_file_args)
-        args.update(vars(cli_args))
+        args.update(cli_arg_dict)
         return TrainArgs(args)
