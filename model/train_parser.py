@@ -12,6 +12,7 @@ class TrainArgs:
     num_epochs: int
     lr: float
     char_embedding_size: int
+    attention_linear_hidden_size: int
     rnn_hidden_size: int
     rnn_num_layers: int
     max_context_size: int
@@ -28,13 +29,14 @@ class TrainArgs:
         "train_file": "data/original/train.json",
         "dev_file": "data/original/dev.json",
         "word_vector_file": "data/word-vectors/glove/glove.6B.100d.txt",
-        "batch_size": 40,
-        "num_epochs": 15,
-        "lr": 1e-4,
-        "char_embedding_size": 100,
+        "batch_size": 45,
+        "num_epochs": 55,
+        "lr": 1e-3,
+        "char_embedding_size": 50,
+        "attention_linear_hidden_size": 200,
         "rnn_hidden_size": 100,
         "rnn_num_layers": 1,
-        "max_context_size": 200,
+        "max_context_size": 300,
         "max_question_size": 100,
         "loader_num_workers": 2,
         "dropout": 0.2,
@@ -56,6 +58,7 @@ class TrainArgs:
         self.num_epochs = arg_dict["num_epochs"]
         self.lr = arg_dict["lr"]
         self.char_embedding_size = arg_dict["char_embedding_size"]
+        self.attention_linear_hidden_size = arg_dict["attention_linear_hidden_size"]
         self.rnn_hidden_size = arg_dict["rnn_hidden_size"]
         self.rnn_num_layers = arg_dict["rnn_num_layers"]
         self.max_context_size = arg_dict["max_context_size"]
@@ -85,6 +88,7 @@ class TrainArgs:
         parser.add_argument("--char-embedding-size", help="Set to 0 to disable char-level embeddings")
         parser.add_argument("--max-context-size", help="Trim all context values to this length during training (0 for unlimited)")
         parser.add_argument("--max-question-size", type=int, help="Trim all context values to this length during training (0 for unlimited)")
+        parser.add_argument("--attention-linear-hidden-size", type=int)
         parser.add_argument("--rnn-hidden-size", type=int)
         parser.add_argument("--rnn-num-layers", type=int)
         parser.add_argument("--rnn-unidirectional", action="store_true")

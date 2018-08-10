@@ -20,15 +20,18 @@ class BaseBidirectionalAttention(nn.Module):
     NEGATIVE_COEFF: ClassVar[float] = -1e30
 
     self_attention: bool
+    linear_hidden_size: int
     final_encoding_size: int
     w_question: nn.Parameter
     w_context: nn.Parameter
     w_multiple: nn.Parameter
     ctx_softmax: nn.Softmax
     q_softmax: nn.Softmax
-    final_linear: MaskedLinear
+    final_linear: nn.Sequential
 
-    def __init__(self, input_size: int, self_attention: bool = False) -> None:
+    def __init__(
+        self, input_size: int, linear_hidden_size: int, self_attention: bool = False
+    ) -> None:
         super().__init__()
         self.self_attention = self_attention
         self.final_encoding_size = input_size if self.self_attention else 4 * input_size
@@ -44,8 +47,10 @@ class BaseBidirectionalAttention(nn.Module):
         self.ctx_softmax = nn.Softmax(dim=2)
         self.q_softmax = nn.Softmax(dim=1)
 
-        self.final_linear = MaskedLinear(
-            self.final_encoding_size, self.final_encoding_size
+        self.final_linear = nn.Sequential(
+            MaskedLinear(self.final_encoding_size, self.linear_hidden_size),
+            MaskedLinear(self.linear_hidden_size, self.final_encoding_size),
+            nn.ReLU(),
         )
 
     def forward(
@@ -117,8 +122,8 @@ class BidirectionalAttention(BaseBidirectionalAttention):
     Attention Flow
     """
 
-    def __init__(self, input_size: int) -> None:
-        super().__init__(input_size, self_attention=False)
+    def __init__(self, input_size: int, linear_hidden_size: int) -> None:
+        super().__init__(input_size, linear_hidden_size, self_attention=False)
 
 
 class SelfAttention(BaseBidirectionalAttention):
@@ -126,5 +131,5 @@ class SelfAttention(BaseBidirectionalAttention):
     Self Attention computations as described in DocumentQA
     """
 
-    def __init__(self, input_size: int) -> None:
-        super().__init__(input_size, self_attention=True)
+    def __init__(self, input_size: int, linear_hidden_size: int) -> None:
+        super().__init__(input_size, linear_hidden_size, self_attention=True)

@@ -40,6 +40,7 @@ def initialize_model(
             bidirectional=(not args.rnn_unidirectional),
         ),
         batch_size=args.batch_size,
+        attention_linear_hidden_size=args.attention_linear_hidden_size,
         use_self_attention=(not args.no_self_attention),
     )
     word_embedding_config = WordEmbeddorConfig(

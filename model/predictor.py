@@ -54,14 +54,20 @@ class PredictorConfig:
     gru: GRUConfig
     batch_size: int
     n_directions: int
+    attention_linear_hidden_size: int
     use_self_attention: bool
 
     def __init__(
-        self, gru: GRUConfig, batch_size: int, use_self_attention: bool
+        self,
+        gru: GRUConfig,
+        batch_size: int,
+        attention_linear_hidden_size: int,
+        use_self_attention: bool,
     ) -> None:
         self.gru = gru
         self.n_directions = 1 + int(self.gru.bidirectional)
         self.total_hidden_size = self.n_directions * self.gru.hidden_size
+        self.attention_linear_hidden_size = attention_linear_hidden_size
         self.batch_size = batch_size
         self.use_self_attention = use_self_attention
 
@@ -218,9 +224,14 @@ class DocQAPredictor(PredictorModel):
         self.embed = embeddor
         self.q_encoder = ContextualEncoder(self.embed.embedding_dim, self.config.gru)
         self.ctx_encoder = ContextualEncoder(self.embed.embedding_dim, self.config.gru)
-        self.bi_attention = BidirectionalAttention(self.config.total_hidden_size)
+        self.bi_attention = BidirectionalAttention(
+            self.config.total_hidden_size, self.config.attention_linear_hidden_size
+        )
         if self.config.use_self_attention:
-            self.self_attention = SelfAttention(self.bi_attention.final_encoding_size)
+            self.self_attention = SelfAttention(
+                self.bi_attention.final_encoding_size,
+                self.config.attention_linear_hidden_size,
+            )
         else:
             self.self_attention = None
         self.output_layer = BidafOutput(self.config)
