@@ -19,6 +19,10 @@ class TrainArgs:
     loader_num_workers: int
     dropout: float
     run_name: str
+    debug: bool
+    multi_answer: bool
+    no_self_attention: bool
+    disable_cuda: bool
 
     DEFAULT_ARGS = {
         "train_file": "data/original/train.json",
@@ -36,61 +40,34 @@ class TrainArgs:
         "dropout": 0.2,
         "config_file": "train-config.json",
         "run_name": "train-run",
+        "debug": False,
+        "multi_answer": False,
+        "no_self_attention": False,
+        "disable_cuda": False,
     }
 
     def __init__(self, arg_dict: Dict[str, Any]) -> None:
+        # Don't format args
+        # fmt: off
         self.train_file = arg_dict.get("train_file", self.DEFAULT_ARGS["train_file"])
         self.dev_file = arg_dict.get("dev_file", self.DEFAULT_ARGS["dev_file"])
-        self.word_vector_file = arg_dict.get(
-            "word_vector_file", self.DEFAULT_ARGS["word_vector_file"]
-        )
+        self.word_vector_file = arg_dict.get("word_vector_file", self.DEFAULT_ARGS["word_vector_file"])
         self.batch_size = arg_dict.get("batch_size", self.DEFAULT_ARGS["batch_size"])
         self.num_epochs = arg_dict.get("num_epochs", self.DEFAULT_ARGS["num_epochs"])
         self.lr = arg_dict.get("lr", self.DEFAULT_ARGS["lr"])
-        self.char_embedding_size = arg_dict.get(
-            "char_embedding_size", self.DEFAULT_ARGS["char_embedding_size"]
-        )
-        self.rnn_hidden_size = arg_dict.get(
-            "rnn_hidden_size", self.DEFAULT_ARGS["rnn_hidden_size"]
-        )
-        self.rnn_num_layers = arg_dict.get(
-            "rnn_num_layers", self.DEFAULT_ARGS["rnn_num_layers"]
-        )
-        self.max_context_size = arg_dict.get(
-            "max_context_size", self.DEFAULT_ARGS["max_context_size"]
-        )
-        self.max_question_size = arg_dict.get(
-            "max_question_size", self.DEFAULT_ARGS["max_question_size"]
-        )
-        self.loader_num_workers = arg_dict.get(
-            "loader_num_workers", self.DEFAULT_ARGS["loader_num_workers"]
-        )
+        self.char_embedding_size = arg_dict.get("char_embedding_size", self.DEFAULT_ARGS["char_embedding_size"])
+        self.rnn_hidden_size = arg_dict.get("rnn_hidden_size", self.DEFAULT_ARGS["rnn_hidden_size"])
+        self.rnn_num_layers = arg_dict.get("rnn_num_layers", self.DEFAULT_ARGS["rnn_num_layers"])
+        self.max_context_size = arg_dict.get("max_context_size", self.DEFAULT_ARGS["max_context_size"])
+        self.max_question_size = arg_dict.get("max_question_size", self.DEFAULT_ARGS["max_question_size"])
+        self.loader_num_workers = arg_dict.get("loader_num_workers", self.DEFAULT_ARGS["loader_num_workers"])
         self.dropout = arg_dict.get("dropout", self.DEFAULT_ARGS["dropout"])
         self.run_name = arg_dict.get("run_name", self.DEFAULT_ARGS["run_name"])
-
-    @classmethod
-    def get_args(cls) -> "TrainArgs":
-        """
-        Combines the default arguments, config file (if exists) and command line args
-        to build a final args dict.
-        Precedence is as following:
-            CLI args > config file > default arguments
-        """
-        args = copy.copy(cls.DEFAULT_ARGS)
-        cli_args = cls.parse_cli_args()
-        config_file = (
-            cls.DEFAULT_ARGS["config_file"]
-            if cli_args.config_file is None
-            else cli_args.config_file
-        )
-        try:
-            config_file_args = json.load(open(config_file, "r"))
-        except (IOError, json.JSONDecodeError) as e:
-            print(f"Cannot load {cli_args.config_file}: {e}, continuing")
-            config_file_args = {}
-        args.update(config_file_args)
-        args.update(vars(cli_args))
-        return TrainArgs(args)
+        self.debug = arg_dict.get("debug", self.DEFAULT_ARGS["debug"])
+        self.multi_answer = arg_dict.get("multi_answer", self.DEFAULT_ARGS["multi_answer"])
+        self.no_self_attention = arg_dict.get("no_self_attention", self.DEFAULT_ARGS["no_self_attention"])
+        self.disable_cuda = arg_dict.get("disable_cuda", self.DEFAULT_ARGS["disable_cuda"])
+        # fmt: on
 
     @staticmethod
     def parse_cli_args() -> argparse.Namespace:
@@ -119,3 +96,27 @@ class TrainArgs:
         parser.add_argument("--disable-cuda", action="store_true", help="if specified don't use CUDA even if available")
         # fmt: on
         return parser.parse_known_args()[0]
+
+    @classmethod
+    def get_args(cls) -> "TrainArgs":
+        """
+        Combines the default arguments, config file (if exists) and command line args
+        to build a final args dict.
+        Precedence is as following:
+            CLI args > config file > default arguments
+        """
+        args = copy.copy(cls.DEFAULT_ARGS)
+        cli_args = cls.parse_cli_args()
+        config_file = (
+            cls.DEFAULT_ARGS["config_file"]
+            if cli_args.config_file is None
+            else cli_args.config_file
+        )
+        try:
+            config_file_args = json.load(open(config_file, "r"))
+        except (IOError, json.JSONDecodeError) as e:
+            print(f"Cannot load {cli_args.config_file}: {e}, continuing")
+            config_file_args = {}
+        args.update(config_file_args)
+        args.update(vars(cli_args))
+        return TrainArgs(args)
