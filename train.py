@@ -39,9 +39,10 @@ def initialize_model(
             args.dropout,
             (not args.rnn_unidirectional),
         ),
-        batch_size=args.batch_size,
+        dropout=args.dropout,
         attention_linear_hidden_size=args.attention_linear_hidden_size,
         use_self_attention=(not args.no_self_attention),
+        batch_size=args.batch_size,
     )
     word_embedding_config = WordEmbeddorConfig(
         vectors=vectors, token_mapping=train_dataset.token_mapping, train_vecs=False

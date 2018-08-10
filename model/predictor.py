@@ -36,18 +36,22 @@ class PredictorModel(nn.Module):
 
 
 class GRUConfig:
-    hidden_size: int
+    single_hidden_size: int
     num_layers: int
-    dropout: float
     bidirectional: bool
+    dropout: float
+    total_hidden_size: int
+    n_directions: int
 
     def __init__(
         self, hidden_size: int, num_layers: int, dropout: float, bidirectional: bool
     ) -> None:
-        self.hidden_size = hidden_size
+        self.single_hidden_size = hidden_size
         self.num_layers = num_layers
-        self.dropout = dropout if num_layers > 1 else 0
+        self.dropout = dropout
         self.bidirectional = bidirectional
+        self.n_directions = 1 + int(self.bidirectional)
+        self.total_hidden_size = self.n_directions * self.single_hidden_size
 
 
 class PredictorConfig:
@@ -56,21 +60,21 @@ class PredictorConfig:
     """
 
     gru: GRUConfig
-    batch_size: int
-    n_directions: int
+    dropout: float
     attention_linear_hidden_size: int
     use_self_attention: bool
+    batch_size: int
 
     def __init__(
         self,
         gru: GRUConfig,
-        batch_size: int,
+        dropout: float,
         attention_linear_hidden_size: int,
         use_self_attention: bool,
+        batch_size: int,
     ) -> None:
         self.gru = gru
-        self.n_directions = 1 + int(self.gru.bidirectional)
-        self.total_hidden_size = self.n_directions * self.gru.hidden_size
+        self.dropout = dropout
         self.attention_linear_hidden_size = attention_linear_hidden_size
         self.batch_size = batch_size
         self.use_self_attention = use_self_attention
@@ -91,7 +95,7 @@ class ContextualEncoder(nn.Module):
         self.dropout = nn.Dropout(self.config.dropout)
         self.gru = nn.GRU(
             input_dim,
-            self.config.hidden_size,
+            self.config.single_hidden_size,
             self.config.num_layers,
             dropout=self.config.dropout if self.config.num_layers > 0 else 0,
             batch_first=True,
@@ -138,7 +142,7 @@ class BidafOutput(nn.Module):
     as described in the BiDAF paper
     """
 
-    config: PredictorConfig
+    config: GRUConfig
     start_modeling_encoder: ContextualEncoder
     end_modeling_encoder: ContextualEncoder
     start_predictor: nn.Linear
@@ -146,23 +150,23 @@ class BidafOutput(nn.Module):
     no_answer_gru: nn.GRU
     no_answer_predictor: nn.Linear
 
-    def __init__(self, config: PredictorConfig) -> None:
+    def __init__(self, config: GRUConfig) -> None:
         super().__init__()
         self.config = config
         self.start_modeling_encoder = ContextualEncoder(
-            self.config.total_hidden_size * 4, self.config.gru
+            self.config.total_hidden_size * 4, self.config
         )
         self.end_modeling_encoder = ContextualEncoder(
-            self.config.total_hidden_size * 4, self.config.gru
+            self.config.total_hidden_size * 4, self.config
         )
         self.start_predictor = MaskedLinear(self.config.total_hidden_size * 5, 1)
         self.end_predictor = MaskedLinear(self.config.total_hidden_size * 5, 1)
         self.no_answer_gru = nn.GRU(
             self.config.total_hidden_size * 4,
-            self.config.gru.hidden_size,
+            self.config.single_hidden_size,
             1,
             batch_first=True,
-            bidirectional=self.config.gru.bidirectional,
+            bidirectional=self.config.bidirectional,
         )
         self.no_answer_predictor = nn.Linear(self.config.total_hidden_size, 1)
 
@@ -232,16 +236,19 @@ class DocQAPredictor(PredictorModel):
         self.q_encoder = ContextualEncoder(self.embed.embedding_dim, self.config.gru)
         self.ctx_encoder = ContextualEncoder(self.embed.embedding_dim, self.config.gru)
         self.bi_attention = BidirectionalAttention(
-            self.config.total_hidden_size, self.config.attention_linear_hidden_size
+            self.config.gru.total_hidden_size,
+            self.config.attention_linear_hidden_size,
+            self.config.dropout,
         )
         if self.config.use_self_attention:
             self.self_attention = SelfAttention(
                 self.bi_attention.final_encoding_size,
                 self.config.attention_linear_hidden_size,
+                self.config.dropout,
             )
         else:
             self.self_attention = None
-        self.output_layer = BidafOutput(self.config)
+        self.output_layer = BidafOutput(self.config.gru)
 
     def forward(self, batch: QABatch) -> ModelPredictions:
         """
