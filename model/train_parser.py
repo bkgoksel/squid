@@ -20,6 +20,7 @@ class TrainArgs:
     loader_num_workers: int
     dropout: float
     run_name: str
+    rnn_unidirectional: bool
     debug: bool
     multi_answer: bool
     no_self_attention: bool
@@ -42,6 +43,7 @@ class TrainArgs:
         "dropout": 0.2,
         "config_file": "train-config.json",
         "run_name": "train-run",
+        "rnn_unidirectional": False,
         "debug": False,
         "multi_answer": False,
         "no_self_attention": False,
@@ -66,6 +68,7 @@ class TrainArgs:
         self.loader_num_workers = arg_dict["loader_num_workers"]
         self.dropout = arg_dict["dropout"]
         self.run_name = arg_dict["run_name"]
+        self.rnn_unidirectional = arg_dict["rnn_unidirectional"]
         self.debug = arg_dict["debug"]
         self.multi_answer = arg_dict["multi_answer"]
         self.no_self_attention = arg_dict["no_self_attention"]
@@ -91,9 +94,9 @@ class TrainArgs:
         parser.add_argument("--attention-linear-hidden-size", type=int)
         parser.add_argument("--rnn-hidden-size", type=int)
         parser.add_argument("--rnn-num-layers", type=int)
-        parser.add_argument("--rnn-unidirectional", action="store_true")
         parser.add_argument("--dropout", type=float)
         parser.add_argument("--loader-num-workers", type=int, help="number of worker processes to use for DataLoader")
+        parser.add_argument("--rnn_unidirectional ", action="store_true", help="if specified make all RNNs unidirectional instead of bidirectional")
         parser.add_argument("--debug", action="store_true", help="if specified debug by fitting a single batch and profiling")
         parser.add_argument("--multi-answer", action="store_true", help="if specified don't truncate answer spans down to one")
         parser.add_argument("--no-self-attention", action="store_true", help="if specified don't use self attention")

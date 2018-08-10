@@ -44,12 +44,16 @@ class GRUConfig:
     n_directions: int
 
     def __init__(
-        self, hidden_size: int, num_layers: int, dropout: float, bidirectional: bool
+        self,
+        hidden_size: int,
+        num_layers: int,
+        dropout: float,
+        force_unidirectional: bool,
     ) -> None:
         self.single_hidden_size = hidden_size
         self.num_layers = num_layers
         self.dropout = dropout
-        self.bidirectional = bidirectional
+        self.bidirectional = not force_unidirectional
         self.n_directions = 1 + int(self.bidirectional)
         self.total_hidden_size = self.n_directions * self.single_hidden_size
 

@@ -37,7 +37,7 @@ def initialize_model(
             args.rnn_hidden_size,
             args.rnn_num_layers,
             args.dropout,
-            (not args.rnn_unidirectional),
+            args.rnn_unidirectional,
         ),
         dropout=args.dropout,
         attention_linear_hidden_size=args.attention_linear_hidden_size,

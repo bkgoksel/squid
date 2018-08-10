@@ -20,11 +20,11 @@ An extensible, clean implementation of DocumentQA, and a basis for developing RC
 - [x] Implement self attention as described in DocQA
 - [x] Implement memory and runtime profiling
 - [x] Add max context size
+- [x] Do proper dropout
 - [x] Test implementation with self attention
 - [x] Do better structured config objects to pass around instead of bajillion parameters as it is used now
-- [ ] Add UNK char vector for OOV chars
 - [ ] Reproduce DocQA Performance
-- [ ] Do trimming in the Dataset classes ?
+- [ ] Add UNK char vector for OOV chars
 - [ ] Implement char CNN for char embeddings
 - [ ] Add the option to output no-answer probabilities with the output
 - [ ] Add encoding of sentence-level info
