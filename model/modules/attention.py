@@ -7,7 +7,7 @@ from typing import ClassVar
 import torch as t
 import torch.nn as nn
 
-from model.modules.masked import MaskedOp, MaskMode, MaskTime
+from model.modules.masked import MaskedLinear
 
 
 class BaseBidirectionalAttention(nn.Module):
@@ -27,7 +27,9 @@ class BaseBidirectionalAttention(nn.Module):
     w_multiple: nn.Parameter
     ctx_softmax: nn.Softmax
     q_softmax: nn.Softmax
-    final_linear: nn.Sequential
+    final_linear_layer_1: MaskedLinear
+    final_linear_layer_2: MaskedLinear
+    final_linear_activation: nn.ReLU
 
     def __init__(
         self,
@@ -52,15 +54,13 @@ class BaseBidirectionalAttention(nn.Module):
         self.ctx_softmax = nn.Softmax(dim=2)
         self.q_softmax = nn.Softmax(dim=1)
 
-        self.final_linear = MaskedOp(
-            nn.Sequential(
-                nn.Linear(self.final_encoding_size, linear_hidden_size),
-                nn.Linear(linear_hidden_size, self.final_encoding_size),
-                nn.ReLU(),
-            ),
-            MaskMode.multiply,
-            MaskTime.post,
+        self.final_linear_layer_1 = MaskedLinear(
+            self.final_encoding_size, linear_hidden_size
         )
+        self.final_linear_layer_2 = MaskedLinear(
+            linear_hidden_size, self.final_encoding_size
+        )
+        self.final_linear_activation = nn.ReLU()
 
     def forward(
         self, context: t.Tensor, question: t.Tensor, context_mask: t.Tensor
@@ -128,7 +128,9 @@ class BaseBidirectionalAttention(nn.Module):
             )
         del similarity
 
-        attended_context = self.final_linear(attended_tensors, mask=context_mask)
+        final_linear = self.final_linear_layer_1(attended_tensors, mask=context_mask)
+        final_linear = self.final_linear_layer_2(final_linear, mask=context_mask)
+        attended_context = self.final_linear_activation(final_linear)
         return attended_context
 
 
