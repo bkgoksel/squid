@@ -39,7 +39,7 @@ class GRUConfig:
     single_hidden_size: int
     num_layers: int
     bidirectional: bool
-    dropout: float
+    dropout_prob: float
     total_hidden_size: int
     n_directions: int
 
@@ -47,12 +47,12 @@ class GRUConfig:
         self,
         hidden_size: int,
         num_layers: int,
-        dropout: float,
+        dropout_prob: float,
         force_unidirectional: bool,
     ) -> None:
         self.single_hidden_size = hidden_size
         self.num_layers = num_layers
-        self.dropout = dropout
+        self.dropout_prob = dropout_prob
         self.bidirectional = not force_unidirectional
         self.n_directions = 1 + int(self.bidirectional)
         self.total_hidden_size = self.n_directions * self.single_hidden_size
@@ -64,7 +64,7 @@ class PredictorConfig:
     """
 
     gru: GRUConfig
-    dropout: float
+    dropout_prob: float
     attention_linear_hidden_size: int
     use_self_attention: bool
     batch_size: int
@@ -72,13 +72,13 @@ class PredictorConfig:
     def __init__(
         self,
         gru: GRUConfig,
-        dropout: float,
+        dropout_prob: float,
         attention_linear_hidden_size: int,
         use_self_attention: bool,
         batch_size: int,
     ) -> None:
         self.gru = gru
-        self.dropout = dropout
+        self.dropout_prob = dropout_prob
         self.attention_linear_hidden_size = attention_linear_hidden_size
         self.batch_size = batch_size
         self.use_self_attention = use_self_attention
@@ -96,12 +96,12 @@ class ContextualEncoder(nn.Module):
     def __init__(self, input_dim: int, config: GRUConfig) -> None:
         super().__init__()
         self.config = config
-        self.dropout = nn.Dropout(self.config.dropout)
+        self.dropout = nn.Dropout(self.config.dropout_prob)
         self.gru = nn.GRU(
             input_dim,
             self.config.single_hidden_size,
             self.config.num_layers,
-            dropout=self.config.dropout if self.config.num_layers > 0 else 0,
+            dropout=self.config.dropout_prob if self.config.num_layers > 0 else 0,
             batch_first=True,
             bidirectional=self.config.bidirectional,
         )
@@ -242,13 +242,13 @@ class DocQAPredictor(PredictorModel):
         self.bi_attention = BidirectionalAttention(
             self.config.gru.total_hidden_size,
             self.config.attention_linear_hidden_size,
-            self.config.dropout,
+            self.config.dropout_prob,
         )
         if self.config.use_self_attention:
             self.self_attention = SelfAttention(
                 self.bi_attention.final_encoding_size,
                 self.config.attention_linear_hidden_size,
-                self.config.dropout,
+                self.config.dropout_prob,
             )
         else:
             self.self_attention = None
