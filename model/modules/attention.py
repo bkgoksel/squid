@@ -99,9 +99,9 @@ class BaseBidirectionalAttention(nn.Module):
         del ctx_weighted
 
         # TODO: Make this not build a (B x H x H x E) tensor
-        multiple_weighted = (
-            q_dropped.unsqueeze(1) * ctx_dropped.unsqueeze(2)
-        ) @ self.w_multiple  # (batch_len, max_context_len, max_question_len)
+        multiple_weighted = t.einsum(
+            "e,bqe,bce->bcq", [self.w_multiple, q_dropped, ctx_dropped]
+        )
         similarity_tensors.append(multiple_weighted.unsqueeze(3))
         del multiple_weighted
 
