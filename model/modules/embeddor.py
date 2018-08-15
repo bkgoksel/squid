@@ -146,7 +146,7 @@ class ConcatenatingEmbeddor(Embeddor):
         :returns: Concatenated embeddings from all the given embeddors
             (batch_size, max_num_words, embedding_dim)
         """
-        return t.cat((embeddor(words, chars) for embeddor in self.embeddors), dim=2)
+        return t.cat([embeddor(words, chars) for embeddor in self.embeddors], dim=2)
 
 
 def make_embeddor(config: EmbeddorConfig, device: Any) -> Embeddor:
