@@ -107,6 +107,7 @@ def get_training_config(args: TrainArgs) -> Trainer.TrainingConfig:
     """
     return Trainer.TrainingConfig(
         learning_rate=args.lr,
+        weight_decay=args.weight_decay,
         num_epochs=args.num_epochs,
         batch_size=args.batch_size,
         max_question_size=args.max_question_size,

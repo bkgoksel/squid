@@ -11,6 +11,7 @@ class TrainArgs:
     batch_size: int
     num_epochs: int
     lr: float
+    weight_decay: float
     char_embedding_size: int
     attention_linear_hidden_size: int
     rnn_hidden_size: int
@@ -32,7 +33,8 @@ class TrainArgs:
         "word_vector_file": "data/word-vectors/glove/glove.6B.100d.txt",
         "batch_size": 45,
         "num_epochs": 25,
-        "lr": 3e-4,
+        "lr": 1e-3,
+        "weight_decay": 1e-5,
         "char_embedding_size": 20,
         "attention_linear_hidden_size": 200,
         "rnn_hidden_size": 100,
@@ -59,6 +61,7 @@ class TrainArgs:
         self.batch_size = arg_dict["batch_size"]
         self.num_epochs = arg_dict["num_epochs"]
         self.lr = arg_dict["lr"]
+        self.weight_decay = arg_dict["weight_decay"]
         self.char_embedding_size = arg_dict["char_embedding_size"]
         self.attention_linear_hidden_size = arg_dict["attention_linear_hidden_size"]
         self.rnn_hidden_size = arg_dict["rnn_hidden_size"]
@@ -88,6 +91,7 @@ class TrainArgs:
         parser.add_argument("--batch-size", type=int)
         parser.add_argument("--num-epochs", type=int)
         parser.add_argument("--lr", type=float)
+        parser.add_argument("--weight-decay", type=float, help="weight decay (L2 penalty) to use during training")
         parser.add_argument("--char-embedding-size", help="Set to 0 to disable char-level embeddings")
         parser.add_argument("--max-context-size", help="Trim all context values to this length during training (0 for unlimited)")
         parser.add_argument("--max-question-size", type=int, help="Trim all context values to this length during training (0 for unlimited)")

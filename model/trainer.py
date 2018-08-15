@@ -34,7 +34,8 @@ class Trainer:
 
     """
     Config for training runs:
-        :learning_rate: LR for Adam optimizer
+        :learning_rate: lr for adam optimizer
+        :weight_decay: weight decay to use in the optimizer
         :num_epochs: Number of epochs to train for
         :batch_size: Size of each training batch
         :max_question_size: Trims longer questions to this length
@@ -47,6 +48,7 @@ class Trainer:
         "TrainingConfig",
         [
             ("learning_rate", float),
+            ("weight_decay", float),
             ("num_epochs", int),
             ("batch_size", int),
             ("max_question_size", int),
@@ -156,7 +158,9 @@ class Trainer:
             lambda p: p.requires_grad, set(model.parameters())
         )
         optimizer: optim.Optimizer = optim.Adam(
-            trainable_parameters, lr=training_config.learning_rate
+            trainable_parameters,
+            lr=training_config.learning_rate,
+            weight_decay=training_config.weight_decay,
         )
         loader: DataLoader = DataLoader(
             train_dataset,
