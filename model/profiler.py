@@ -25,7 +25,7 @@ def mem_report(print_all: bool = False) -> None:
         Args:
             - tensors: the tensors of specified type
             - mem_type: 'CPU' or 'GPU' in current implementation """
-        print("Storage on %s" % (mem_type))
+        print(f"Storage on {mem_type}")
         print("-" * LEN)
         total_numel = 0
         total_mem = 0
@@ -48,18 +48,15 @@ def mem_report(print_all: bool = False) -> None:
             size = tuple(tensor.size())
 
             if print_all:
-                print("%s\t\t%s\t\t%.2f" % (element_type, size, mem))
+                print(f"{element_type}\t\t{size}\t\t{mem}")
         print("-" * LEN)
-        print(
-            "Total Tensors: %d \tUsed Memory Space: %.2f MBytes"
-            % (total_numel, total_mem)
-        )
+        print(f"Total Tensors: {total_numel} \tUsed Memory Space: {total_mem}")
         print("-" * LEN)
 
     LEN = 65
     if print_all:
         print("=" * LEN)
-    print("%s\t%s\t\t\t%s" % ("Element type", "Size", "Used MEM(MBytes)"))
+    print("Element type\tSize\t\t\tUsed MEM(MBytes)")
     tensors = []
     for obj in gc.get_objects():
         try:

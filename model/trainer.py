@@ -121,9 +121,7 @@ class Trainer:
                 epochs.set_postfix(loss=epoch_loss)
                 cls.validate(dev_dataset, model, evaluator, training_config, epoch)
                 print(
-                    "Saving model checkpoint to {}".format(
-                        training_config.model_checkpoint_path
-                    )
+                    f"Saving model checkpoint to {training_config.model_checkpoint_path}"
                 )
                 t.save(model, training_config.model_checkpoint_path)
 
@@ -212,19 +210,15 @@ class Trainer:
         :param training_config: Training config to pull parameters from
         """
         model.eval()
-        print(
-            "\n=== EPOCH {}: Measuring QA performance on the dev set\n".format(
-                epoch + 1
-            )
-        )
+        print(f"\n=== EPOCH {epoch + 1}: Measuring QA performance on the dev set\n")
         try:
             dev_perf = cls.evaluate_on_squad_dataset(dataset, model, training_config)
-            print("\n=== Dev set performance: {}\n".format(json.dumps(dev_perf)))
+            print(f"\n=== Dev set performance: {json.dumps(dev_perf)}\n")
         except Exception as err:
-            print("\nError when trying to get full evaluation: {}\n".format(err))
-        print("\n=== EPOCH %d: Measuring loss on the dev set\n".format(epoch + 1))
+            print(f"\nError when trying to get full evaluation: {err}\n")
+        print(f"\n=== EPOCH {epoch + 1}: Measuring loss on the dev set\n")
         dev_loss = cls.get_dataset_loss(dataset, model, evaluator, training_config)
-        print("\n=== Dev set loss: {}\n".format(dev_loss))
+        print(f"\n=== Dev set loss: {dev_loss}\n")
 
     @classmethod
     def get_dataset_loss(

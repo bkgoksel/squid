@@ -89,8 +89,8 @@ def get_model(args: TrainArgs) -> Tuple[PredictorModel, TrainDataset, EvalDatase
         processor,
     )
     try:
-        print(f"Attempting to load model to train from {args.run_name}")
-        model: PredictorModel = t.load(args.run_name).to(device)
+        print(f"Attempting to load model to train from {args.run_name}.pth")
+        model: PredictorModel = t.load(f"{args.run_name}.pth").to(device)
     except IOError as e:
         print(f"Can't load model: {e}, initializing from scratch")
         model = initialize_model(args, train_dataset, vectors)
@@ -133,8 +133,8 @@ def main() -> None:
         dev_dataset, model, training_config
     )
     print(eval_results)
-    print("Saving model to {args.run_name}")
-    t.save(model, args.run_name)
+    print(f"Saving model to {args.run_name}.pth")
+    t.save(model, f"{args.run_name}.pth")
 
 
 if __name__ == "__main__":
