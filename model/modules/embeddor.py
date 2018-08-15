@@ -133,9 +133,9 @@ class ConcatenatingEmbeddor(Embeddor):
 
     embeddors: List[Embeddor]
 
-    def __init__(self, *args: Any) -> None:
-        super().__init__(sum(embeddor.embedding_dim for embeddor in args))
-        self.embeddors = list(args)
+    def __init__(self, embeddors: List[Embeddor]) -> None:
+        super().__init__(sum(embeddor.embedding_dim for embeddor in embeddors))
+        self.embeddors = nn.ModuleList(embeddors)
 
     def forward(self, words: t.LongTensor, chars: t.LongTensor) -> t.Tensor:
         """
@@ -146,8 +146,7 @@ class ConcatenatingEmbeddor(Embeddor):
         :returns: Concatenated embeddings from all the given embeddors
             (batch_size, max_num_words, embedding_dim)
         """
-        embeddings = [embeddor(words, chars) for embeddor in self.embeddors]
-        return t.cat(embeddings, dim=2)
+        return t.cat((embeddor(words, chars) for embeddor in self.embeddors), dim=2)
 
 
 def make_embeddor(config: EmbeddorConfig, device: Any) -> Embeddor:
@@ -178,4 +177,4 @@ def make_embeddor(config: EmbeddorConfig, device: Any) -> Embeddor:
                 device,
             )
         )
-    return ConcatenatingEmbeddor(*embeddors)
+    return ConcatenatingEmbeddor(embeddors)

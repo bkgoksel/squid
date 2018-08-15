@@ -1,7 +1,7 @@
 """
 Module that holds classes that can be used for answer prediction
 """
-from typing import Set, NamedTuple, Optional, Iterable, cast
+from typing import Set, NamedTuple, Optional, cast
 import torch as t
 import torch.nn as nn
 from torch.nn.utils.rnn import PackedSequence, pack_padded_sequence, pad_packed_sequence
@@ -31,12 +31,6 @@ class PredictorModel(nn.Module):
         Predicts (span_start_logits, span_end_logits, has_ans_logits) for a batch of samples
         :param batch: QABatch: a batch of samples returned from a batcher
         :returns: A ModelPredictions object containing start_logits, end_logits, no_ans_prob
-        """
-        raise NotImplementedError
-
-    def all_parameters(self) -> Iterable[nn.Parameter]:
-        """
-        Returns all parameters of the model, including those of its sub-modules
         """
         raise NotImplementedError
 
@@ -305,9 +299,3 @@ class DocQAPredictor(PredictorModel):
                 batch.context_orig_idxs,
             ),
         )
-
-    def all_parameters(self) -> Iterable[nn.Parameter]:
-        params: Set[nn.Parameter] = set(self.parameters())
-        for module in self.modules():
-            params.add(module.parameters())
-        return params

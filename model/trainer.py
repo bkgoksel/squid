@@ -154,8 +154,9 @@ class Trainer:
             train_evaluator = SingleClassLossEvaluator()
         else:
             train_evaluator = MultiClassLossEvaluator()
+        __import__("pdb").set_trace()
         trainable_parameters = filter(
-            lambda p: p.requires_grad, set(model.all_parameters())
+            lambda p: p.requires_grad, set(model.parameters())
         )
         optimizer: optim.Optimizer = optim.Adam(
             trainable_parameters,
