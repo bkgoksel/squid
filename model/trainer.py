@@ -155,7 +155,7 @@ class Trainer:
         else:
             train_evaluator = MultiClassLossEvaluator()
         trainable_parameters = filter(
-            lambda p: p.requires_grad, set(model.parameters())
+            lambda p: p.requires_grad, set(model.all_parameters())
         )
         optimizer: optim.Optimizer = optim.Adam(
             trainable_parameters,
