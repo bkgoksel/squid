@@ -98,7 +98,6 @@ class BaseBidirectionalAttention(nn.Module):
         )
         del ctx_weighted
 
-        # TODO: Make this not build a (B x H x H x E) tensor
         multiple_weighted = t.einsum(
             "e,bqe,bce->bcq", [self.w_multiple, q_dropped, ctx_dropped]
         )
