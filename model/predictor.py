@@ -34,7 +34,7 @@ class PredictorModel(nn.Module):
         """
         raise NotImplementedError
 
-    def all_parameters(self) -> Iterable[t.Parameter]:
+    def all_parameters(self) -> Iterable[nn.Parameter]:
         """
         Returns all parameters of the model, including those of its sub-modules
         """
@@ -306,8 +306,8 @@ class DocQAPredictor(PredictorModel):
             ),
         )
 
-    def all_parameters(self) -> Iterable[t.Parameter]:
-        params: Set[t.Parameter] = set()
+    def all_parameters(self) -> Iterable[nn.Parameter]:
+        params: Set[nn.Parameter] = set(self.parameters())
         for module in self.modules():
             params.add(module.parameters())
         return params
