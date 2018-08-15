@@ -214,15 +214,15 @@ class Trainer:
         :param training_config: Training config to pull parameters from
         """
         model.eval()
-        print(f"\n=== EPOCH {epoch + 1}: Measuring QA performance on the dev set\n")
+        print(f"\n=== EPOCH {epoch + 1}: Measuring QA performance on the dev set\n\n")
         try:
             dev_perf = cls.evaluate_on_squad_dataset(dataset, model, training_config)
             print(f"\n=== Dev set performance: {json.dumps(dev_perf)}\n")
         except Exception as err:
             print(f"\nError when trying to get full evaluation: {err}\n")
-        print(f"\n=== EPOCH {epoch + 1}: Measuring loss on the dev set\n")
+        print(f"\n=== EPOCH {epoch + 1}: Measuring loss on the dev set\n\n")
         dev_loss = cls.get_dataset_loss(dataset, model, evaluator, training_config)
-        print(f"\n=== Dev set loss: {dev_loss}\n")
+        print(f"\n=== Dev set loss: {dev_loss}\n\n")
 
     @classmethod
     def get_dataset_loss(
