@@ -42,7 +42,7 @@ class BaseBidirectionalAttention(nn.Module):
         self.self_attention = self_attention
         self.final_encoding_size = input_size if self.self_attention else 4 * input_size
 
-        self.dropout = nn.Dropout(dropout_prob)
+        self.dropout = nn.Dropout(p=dropout_prob)
         self.w_question = nn.Parameter(t.empty(input_size))
         self.w_context = nn.Parameter(t.empty(input_size))
         self.w_multiple = nn.Parameter(t.empty(input_size))

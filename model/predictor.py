@@ -96,7 +96,7 @@ class ContextualEncoder(nn.Module):
     def __init__(self, input_dim: int, config: GRUConfig) -> None:
         super().__init__()
         self.config = config
-        self.dropout = nn.Dropout(self.config.dropout_prob)
+        self.dropout = nn.Dropout(p=self.config.dropout_prob)
         self.gru = nn.GRU(
             input_dim,
             self.config.single_hidden_size,
