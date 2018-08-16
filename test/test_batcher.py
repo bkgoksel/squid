@@ -6,7 +6,7 @@ from unittest.mock import Mock, MagicMock
 import numpy as np
 import torch as t
 
-from typing import List
+from typing import List, Set, Dict
 from model.batcher import QABatch, collate_batch, pad_and_sort
 from model.qa import (
     Answer,
@@ -21,14 +21,18 @@ from model.wv import WordVectors
 
 
 class BatcherTestCase(unittest.TestCase):
-    def setUp(self):
+    def setUp(self) -> None:
         vocab = ["c1", "c2", "c3", "c4", "c00"]
         char_vocab = set([char for word in vocab for char in word])
-        self.token_id_mapping = dict(map(reversed, enumerate(vocab, 1)))
-        self.id_token_mapping = dict(enumerate(vocab, 1))
-        self.char_mapping = dict(map(reversed, enumerate(char_vocab, 1)))
+        self.token_id_mapping: Dict[str, int] = dict(
+            map(reversed, enumerate(vocab, 1))
+        )  # type: ignore
+        self.id_token_mapping: Dict[int, str] = dict(enumerate(vocab, 1))
+        self.char_mapping: Dict[str, int] = dict(
+            map(reversed, enumerate(char_vocab, 1))
+        )  # type: ignore
 
-        def split_tokenize(txt: str):
+        def split_tokenize(txt: str) -> List[Token]:
             toks = txt.split()
             starts = [3 * start for start in range(len(toks))]
             ends = [(3 * end - 1) for end in range(1, len(toks) + 1)]
@@ -61,7 +65,7 @@ class BatcherTestCase(unittest.TestCase):
         ]
 
         question_obj: QuestionAnswer = QuestionAnswer(
-            question_id, question_text, answers, self.tokenizer, self.processor
+            question_id, question_text, set(answers), self.tokenizer, self.processor
         )
 
         encoded_qa_obj: EncodedQuestionAnswer = EncodedQuestionAnswer(
@@ -72,7 +76,7 @@ class BatcherTestCase(unittest.TestCase):
         )
         return encoded_sample
 
-    def test_pad_and_sort_single_seq(self):
+    def test_pad_and_sort_single_seq(self) -> None:
         seq = [np.array([1])]
         batch, orig_idxs, length_idxs, lengths = pad_and_sort(seq)
         self.assertTrue(
@@ -92,7 +96,7 @@ class BatcherTestCase(unittest.TestCase):
             "Lengths: {0}, expected: {1}".format(lengths, [1]),
         )
 
-    def test_pad_and_sort_regular(self):
+    def test_pad_and_sort_regular(self) -> None:
         seqs = [np.array([1, 1, 1]), np.array([2]), np.array([3, 3])]
         batch, orig_idxs, length_idxs, lengths = pad_and_sort(seqs)
         self.assertTrue(
@@ -128,7 +132,7 @@ class BatcherTestCase(unittest.TestCase):
             ),
         )
 
-    def test_pad_and_sort_edge_case(self):
+    def test_pad_and_sort_edge_case(self) -> None:
         seqs = [np.array([1]), np.array([1, 2, 3]), np.array([1, 2])]
         batch, orig_idxs, length_idxs, lengths = pad_and_sort(seqs)
         self.assertTrue(
@@ -164,7 +168,7 @@ class BatcherTestCase(unittest.TestCase):
             ),
         )
 
-    def test_collate_batch_simple_words(self):
+    def test_collate_batch_simple_words(self) -> None:
         """
         Tests that collate batch includes all question ids in original order
         """
@@ -184,7 +188,7 @@ class BatcherTestCase(unittest.TestCase):
             ),
         )
 
-    def test_collate_batch_q_len_sorting(self):
+    def test_collate_batch_q_len_sorting(self) -> None:
         """
         Tests that question lengths in batch are sorted, and
         len_idxs indices map to correct indices
@@ -216,7 +220,7 @@ class BatcherTestCase(unittest.TestCase):
             ),
         )
 
-    def test_collate_batch_ctx_len_sorting(self):
+    def test_collate_batch_ctx_len_sorting(self) -> None:
         """
         Tests that question lengths in batch are sorted, and
         len_idxs indices map to correct indices
@@ -231,7 +235,7 @@ class BatcherTestCase(unittest.TestCase):
         self.assertTrue(np.allclose(batch.context_lens, [3, 2, 1]))
         self.assertTrue(np.allclose(batch.context_len_idxs, [0, 2, 1]))
 
-    def test_collate_batch_idxs(self):
+    def test_collate_batch_idxs(self) -> None:
         """
         Tests that (q|c)[len_sorted][orig_idxs] == q|c
         """
@@ -260,7 +264,7 @@ class BatcherTestCase(unittest.TestCase):
             )
         )
 
-    def test_collate_batch_question_chars(self):
+    def test_collate_batch_question_chars(self) -> None:
         """
         Tests that collate batch includes all question word characters that are parsed correctly
         """
@@ -273,7 +277,7 @@ class BatcherTestCase(unittest.TestCase):
         self.assertEqual(batch.question_chars.shape, t.Size([3, 1, 2]))
         self.check_collated_chars(batch.question_chars, batch.question_words)
 
-    def test_collate_batch_context_chars(self):
+    def test_collate_batch_context_chars(self) -> None:
         """
         Tests that collate batch includes all context word characters that are parsed correctly
         """
@@ -286,7 +290,7 @@ class BatcherTestCase(unittest.TestCase):
         self.assertEqual(batch.question_chars.shape, t.Size([3, 1, 2]))
         self.check_collated_chars(batch.context_chars, batch.context_words)
 
-    def test_collate_batch_different_question_word_lens(self):
+    def test_collate_batch_different_question_word_lens(self) -> None:
         """
         Tests that collate batch deals with questions with different
         question word lengths
@@ -299,7 +303,7 @@ class BatcherTestCase(unittest.TestCase):
         self.assertEqual(batch.question_chars.shape, t.Size([2, 1, 3]))
         self.check_collated_chars(batch.question_chars, batch.question_words)
 
-    def test_collate_batch_different_question_word_numbers_and_lens(self):
+    def test_collate_batch_different_question_word_numbers_and_lens(self) -> None:
         """
         Tests that collate batch deals with questions with different
         question word lengths and numbers
@@ -313,7 +317,7 @@ class BatcherTestCase(unittest.TestCase):
         self.assertEqual(batch.question_chars.shape, t.Size([3, 2, 3]))
         self.check_collated_chars(batch.question_chars, batch.question_words)
 
-    def test_collate_batch_different_context_word_lens(self):
+    def test_collate_batch_different_context_word_lens(self) -> None:
         """
         Tests that collate batch deals with questions with different
         context word lengths
@@ -326,7 +330,7 @@ class BatcherTestCase(unittest.TestCase):
         self.assertEqual(batch.context_chars.shape, t.Size([2, 1, 3]))
         self.check_collated_chars(batch.context_chars, batch.context_words)
 
-    def test_collate_batch_different_context_word_numbers_and_lens(self):
+    def test_collate_batch_different_context_word_numbers_and_lens(self) -> None:
         """
         Tests that collate batch deals with questions with different
         context word lengths and numbers
@@ -340,7 +344,7 @@ class BatcherTestCase(unittest.TestCase):
         self.assertEqual(batch.context_chars.shape, t.Size([3, 2, 3]))
         self.check_collated_chars(batch.context_chars, batch.context_words)
 
-    def check_collated_chars(self, chars, words):
+    def check_collated_chars(self, chars: t.Tensor, words: t.Tensor) -> None:
         for batch_idx in range(chars.shape[0]):
             for word_idx in range(chars.shape[1]):
                 word_id = words[batch_idx, word_idx].item()

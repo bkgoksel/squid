@@ -23,8 +23,8 @@ An extensible, clean implementation of DocumentQA, and a basis for developing RC
 - [x] Do proper dropout
 - [x] Test implementation with self attention
 - [x] Do better structured config objects to pass around instead of bajillion parameters as it is used now
+- [x] Implement char CNN for char embeddings
 - [ ] Reproduce DocQA Performance
-- [ ] Implement char CNN for char embeddings
 - [ ] Add the option to output no-answer probabilities with the output
 - [ ] Add encoding of sentence-level info
 - [ ] Integrate ELMo vectors
