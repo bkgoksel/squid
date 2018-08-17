@@ -46,7 +46,7 @@ def get_device(disable_cuda: bool) -> t.device:
     :returns: a Torch device, either CPU or CUDA
     """
     if not disable_cuda:
-        if t.cuda.is_available:
+        if t.cuda.is_available():
             return t.device("cuda")
         print("[WARNING]: CUDA enabled but is unavailable, defaulting to CPU")
     return t.device("cpu")
