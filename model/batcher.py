@@ -132,8 +132,6 @@ def collate_batch(
     batch_size = len(batch)
     max_question_word_len = 0
     max_ctx_word_len = 0
-    min_question_word_len = 1
-    min_ctx_word_len = 1
 
     for sample in batch:
         question_words_list.append(sample.question_words)
@@ -145,15 +143,9 @@ def collate_batch(
         max_question_word_len = max(
             max_question_word_len, max(word.size for word in sample.question_chars)
         )
-        min_question_word_len = min(
-            min_question_word_len, min(word.size for word in sample.question_chars)
-        )
         context_chars_list.append(sample.context_chars)
         max_ctx_word_len = max(
             max_ctx_word_len, max(word.size for word in sample.context_chars)
-        )
-        min_ctx_word_len = min(
-            min_ctx_word_len, min(word.size for word in sample.context_chars)
         )
 
     question_words, question_orig_idxs, question_len_idxs, question_lens = pad_and_sort(
