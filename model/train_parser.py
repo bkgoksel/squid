@@ -26,7 +26,6 @@ class TrainArgs:
     multi_answer: bool
     no_self_attention: bool
     disable_cuda: bool
-    simple_reader: bool
 
     DEFAULT_ARGS = {
         "train_file": "data/original/train.json",
@@ -51,7 +50,6 @@ class TrainArgs:
         "multi_answer": False,
         "no_self_attention": False,
         "disable_cuda": False,
-        "simple_reader": False,
     }
 
     def __init__(self, arg_dict: Dict[str, Any]) -> None:
@@ -78,7 +76,6 @@ class TrainArgs:
         self.multi_answer = arg_dict["multi_answer"]
         self.no_self_attention = arg_dict["no_self_attention"]
         self.disable_cuda = arg_dict["disable_cuda"]
-        self.simple_reader = arg_dict["simple_reader"]
         # fmt: on
 
     @staticmethod
@@ -108,7 +105,6 @@ class TrainArgs:
         parser.add_argument("--multi-answer", action="store_true", help="if specified don't truncate answer spans down to one")
         parser.add_argument("--no-self-attention", action="store_true", help="if specified don't use self attention")
         parser.add_argument("--disable-cuda", action="store_true", help="if specified don't use CUDA even if available")
-        parser.add_argument("--simple-reader", action="store_true", help="if specified use new simple reader")
         # fmt: on
         return parser.parse_known_args()[0]
 
