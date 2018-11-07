@@ -7,6 +7,7 @@ from model.trainer import Trainer
 from model.train_parser import TrainArgs
 from model.tokenizer import Tokenizer, NltkTokenizer
 from model.text_processor import TextProcessor
+from model.data_reader import read_batchable_dataset
 from model.predictor import PredictorConfig, GRUConfig, PredictorModel, DocQAPredictor
 from model.modules.embeddor import (
     Embeddor,
@@ -74,20 +75,26 @@ def get_model(args: TrainArgs) -> Tuple[PredictorModel, TrainDataset, EvalDatase
     """
     device = get_device(args.disable_cuda)
 
-    tokenizer: Tokenizer = NltkTokenizer()
-    processor: TextProcessor = TextProcessor({"lowercase": True})
-    vectors: WordVectors = WordVectors.load_vectors(args.word_vector_file)
+    if args.simple_reader:
+        train_dataset, dev_dataset = read_batchable_dataset(
+            args.train_file, args.dev_file, args.word_vector_file
+        )
+        vectors = train_dataset.corpus.encoded_data.vectors.vectors
+    else:
+        tokenizer: Tokenizer = NltkTokenizer()
+        processor: TextProcessor = TextProcessor({"lowercase": True})
+        vectors = WordVectors.load_vectors(args.word_vector_file)
 
-    train_dataset: TrainDataset = TrainDataset.load_dataset(
-        args.train_file, vectors, tokenizer, processor, args.multi_answer
-    )
-    dev_dataset: EvalDataset = EvalDataset.load_dataset(
-        args.dev_file,
-        train_dataset.token_mapping,
-        train_dataset.char_mapping,
-        tokenizer,
-        processor,
-    )
+        train_dataset = TrainDataset.load_dataset(
+            args.train_file, vectors, tokenizer, processor, args.multi_answer
+        )
+        dev_dataset = EvalDataset.load_dataset(
+            args.dev_file,
+            train_dataset.token_mapping,
+            train_dataset.char_mapping,
+            tokenizer,
+            processor,
+        )
     try:
         print(f"Attempting to load model to train from {args.run_name}.pth")
         model: PredictorModel = t.load(f"{args.run_name}.pth").to(device)
