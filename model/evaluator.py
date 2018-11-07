@@ -43,6 +43,7 @@ class SingleClassLossEvaluator(Evaluator):
         )
 
     def forward(self, batch: QABatch, model_predictions: ModelPredictions) -> t.Tensor:
+        # TODO: make sure this is correct
         answer_starts = batch.answer_span_starts.argmax(1)
         answer_ends = batch.answer_span_ends.argmax(1)
         start_loss = self.loss_op(

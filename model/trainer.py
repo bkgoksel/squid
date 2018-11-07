@@ -233,7 +233,7 @@ class Trainer:
         training_config: TrainingConfig,
     ) -> float:
         """
-        Computes total loss of the model over the entire dataset
+        Computes the average loss of the model over the entire dataset
         :param dataset: QADataset object to validate on
         :param model: PredictorModel to validate
         :param evaluator: Evaluator to compute loss
@@ -253,7 +253,7 @@ class Trainer:
                 batch.to(training_config.device)
                 predictions: ModelPredictions = model(batch)
                 total_loss += evaluator(batch, predictions).item()
-        return total_loss
+        return total_loss / len(dataset)
 
     @classmethod
     def answer_dataset(
