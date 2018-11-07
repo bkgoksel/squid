@@ -44,7 +44,7 @@ class SingleClassLossEvaluator(Evaluator):
 
     def forward(self, batch: QABatch, model_predictions: ModelPredictions) -> t.Tensor:
         answer_starts = batch.answer_span_starts.argmax(1)
-        answer_ends = batch.answer_span_ends.argmax(1) + 1  # to make it inclusive
+        answer_ends = batch.answer_span_ends.argmax(1)
         start_loss = self.loss_op(
             model_predictions.start_logits, answer_starts, mask=batch.context_mask
         )
