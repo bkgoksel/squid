@@ -418,46 +418,39 @@ def compare_datasets(
     for i in range(len(simple_train_dataset)):
         simple_sample = simple_train_dataset[i]
         old_sample = old_train_dataset[i]
-        assert (
+        assert np.all(
             simple_sample.question_words == old_sample.question_words
-        ), "{} vs {}".format(
-            simple_sample, old_sample
-        )
-        assert simple_sample.question_id == old_sample.question_id, "{} vs {}".format(
-            simple_sample, old_sample
-        )
-        assert (
+        ), "{} vs {}".format(simple_sample, old_sample)
+
+        assert np.all(
+            simple_sample.question_id == old_sample.question_id
+        ), "{} vs {}".format(simple_sample, old_sample)
+        assert np.all(
             simple_sample.context_words == old_sample.context_words
-        ), "{} vs {}".format(
-            simple_sample, old_sample
-        )
-        assert simple_sample.span_starts == old_sample.span_starts, "{} vs {}".format(
-            simple_sample, old_sample
-        )
-        assert simple_sample.span_end == old_sample.span_ends, "{} vs {}".format(
-            simple_sample, old_sample
-        )
+        ), "{} vs {}".format(simple_sample, old_sample)
+        assert np.all(
+            simple_sample.span_starts == old_sample.span_starts
+        ), "{} vs {}".format(simple_sample, old_sample)
+        assert np.all(
+            simple_sample.span_end == old_sample.span_ends
+        ), "{} vs {}".format(simple_sample, old_sample)
 
     assert len(simple_dev_dataset) == len(old_dev_dataset)
     for i in range(len(simple_dev_dataset)):
         simple_sample = simple_dev_dataset[i]
         old_sample = old_dev_dataset[i]
-        assert (
+        assert np.all(
             simple_sample.question_words == old_sample.question_words
-        ), "{} vs {}".format(
-            simple_sample, old_sample
-        )
-        assert simple_sample.question_id == old_sample.question_id, "{} vs {}".format(
-            simple_sample, old_sample
-        )
-        assert (
+        ), "{} vs {}".format(simple_sample, old_sample)
+        assert np.all(
+            simple_sample.question_id == old_sample.question_id
+        ), "{} vs {}".format(simple_sample, old_sample)
+        assert np.all(
             simple_sample.context_words == old_sample.context_words
-        ), "{} vs {}".format(
-            simple_sample, old_sample
-        )
-        assert simple_sample.span_starts == old_sample.span_starts, "{} vs {}".format(
-            simple_sample, old_sample
-        )
-        assert simple_sample.span_end == old_sample.span_ends, "{} vs {}".format(
-            simple_sample, old_sample
-        )
+        ), "{} vs {}".format(simple_sample, old_sample)
+        assert np.all(
+            simple_sample.span_starts == old_sample.span_starts
+        ), "{} vs {}".format(simple_sample, old_sample)
+        assert np.all(
+            simple_sample.span_end == old_sample.span_ends
+        ), "{} vs {}".format(simple_sample, old_sample)
