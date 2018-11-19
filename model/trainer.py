@@ -3,7 +3,7 @@ Module that holds the training harness
 """
 
 import json
-from typing import Any, Callable, Dict, Tuple, NamedTuple, cast
+from typing import Any, Callable, Dict, Tuple, Iterable, NamedTuple, cast
 
 from tqdm import tqdm, trange
 import torch as t
@@ -25,6 +25,9 @@ from model.evaluator import (
 
 import scripts.evaluate_v1_1 as evaluate_v1_1  # type: ignore
 import scripts.evaluate_v2_0 as evaluate_v2_0  # type: ignore
+
+# TODO: Incorporate this
+MAX_GRAD_NORM = 10
 
 
 class Trainer:
@@ -64,6 +67,7 @@ class Trainer:
         cls,
         batch: QABatch,
         model: PredictorModel,
+        parameters: Iterable[Any],
         evaluator: Evaluator,
         optimizer: t.optim.Optimizer,
     ) -> float:
@@ -73,14 +77,17 @@ class Trainer:
         using the given optimizer.
         :param batch: Batch to train on
         :param model: Model to train
+        :param parameters: Parameters of model to train
         :param evaluator: Evaluator to compute loss
         :param optimizer: Optimizer to step over model
         :returns: Total loss for batch
         """
-        optimizer.zero_grad()
         predictions: ModelPredictions = model(batch)
         loss = evaluator(batch, predictions)
+        model.zero_grad()
+        optimizer.zero_grad()
         loss.backward()
+        t.nn.utils.clip_grad_norm_(parameters, MAX_GRAD_NORM)
         optimizer.step()
         batch_loss = loss.item()
         return cast(float, batch_loss)
@@ -90,6 +97,7 @@ class Trainer:
         cls,
         loader: DataLoader,
         model: PredictorModel,
+        parameters: Iterable[Any],
         evaluator: Evaluator,
         optimizer: t.optim.Optimizer,
         dev_dataset: EvalDataset,
@@ -100,6 +108,7 @@ class Trainer:
         after every epoch and saving the model to disk after every epoch
         :param loader: DataLoader to load the batches
         :param model: Model to train
+        :param parameters: Parameters of model to train
         :param evaluator: Evaluator to compute loss
         :param optimizer: Optimizer to step over model
         :param dev_dataset: EvalDataset to validate on
@@ -115,7 +124,7 @@ class Trainer:
                         batch.to(training_config.device)
                         batch_loop.set_description("Batch %d" % (batch_num + 1))
                         batch_loss = cls.one_train_iteration(
-                            batch, model, evaluator, optimizer
+                            batch, model, parameters, evaluator, optimizer
                         )
                         epoch_loss += batch_loss
                         batch_loop.set_postfix(loss=batch_loss)
@@ -188,7 +197,13 @@ class Trainer:
                 ),
             )
         cls.training_run(
-            loader, model, train_evaluator, optimizer, dev_dataset, training_config
+            loader,
+            model,
+            trainable_parameters,
+            train_evaluator,
+            optimizer,
+            dev_dataset,
+            training_config,
         )
         if debug:
             setattr(cls, "one_train_iteration", unwrapped_iteration)
