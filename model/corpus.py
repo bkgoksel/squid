@@ -434,7 +434,7 @@ class TrainDataset(QADataset):
                 tokenizer,
                 processor,
                 vectors,
-                force_single_answer=not multi_answer,
+                force_single_answer=force_single_answer,
             )
         return cls(corpus)
 
