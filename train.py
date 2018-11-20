@@ -125,8 +125,17 @@ def main() -> None:
         model, train_dataset, dev_dataset, training_config, debug=args.debug
     )
     dev_answers = Trainer.answer_dataset(dev_dataset, model, training_config)
+    gold_answers = dev_dataset.get_gold_answers()
+    qid_to_answers = {}
+    for qid, model_answer in dev_answers.items():
+        qid_to_answers[qid] = {
+            "model_answer": model_answer,
+            "gold_answer": gold_answers[qid],
+        }
     with open("dev-pred.json", "w") as f:
         json.dump(dev_answers, f)
+    with open("dev-pred-with-gold.json", "w") as f:
+        json.dump(qid_to_answers, f)
     print("Final evaluation on dev")
     eval_results = Trainer.evaluate_on_squad_dataset(
         dev_dataset, model, training_config

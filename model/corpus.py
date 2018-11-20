@@ -104,7 +104,7 @@ class Corpus:
             data_file, tokenizer, processor, force_single_answer
         )
 
-        def return_one(key: str) -> int:
+        def return_one() -> int:
             return 1
 
         token_mapping = defaultdict(return_one, word_vectors.word_to_idx)
@@ -260,6 +260,13 @@ class Corpus:
             for qid, (span_start, span_end) in answer_token_idxs.items()
         }
 
+    def get_gold_answers(self) -> Dict[QuestionId, str]:
+        qid_to_gold_answer = {}
+        for cqa in self.context_qas:
+            for qa in cqa.qas:
+                qid_to_gold_answer[qa.question_id] = list(qa.answers)[0].text
+        return qid_to_gold_answer
+
     def save(self, file_name: str) -> None:
         """
         Serializes this corpus to file with file_name
@@ -364,6 +371,9 @@ class QADataset(Dataset):
 
     def __getitem__(self, idx: int) -> EncodedSample:
         return self.corpus.samples[idx]
+
+    def get_gold_answers(self) -> Dict[QuestionId, str]:
+        return self.corpus.get_gold_answers()
 
     def get_answer_texts(
         self, answer_token_idxs: Dict[QuestionId, Tuple[Any, ...]]
