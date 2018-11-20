@@ -414,20 +414,32 @@ def compare_datasets(
     old_train_dataset, old_dev_dataset = get_old_style_datasets(
         train_file, dev_file, vector_file
     )
+    old_idx_to_token_mapping = {
+        val: key for key, val in old_train_dataset.token_mapping.items()
+    }
     assert len(simple_train_dataset) == len(old_train_dataset)
     for i in range(len(simple_train_dataset)):
         simple_sample = simple_train_dataset[i]
         old_sample = old_train_dataset[i]
         assert np.all(
-            simple_sample.question_words == old_sample.question_words
-        ), "{} vs {}".format(simple_sample, old_sample)
-
-        assert np.all(
             simple_sample.question_id == old_sample.question_id
         ), "{} vs {}".format(simple_sample, old_sample)
-        assert np.all(
-            simple_sample.context_words == old_sample.context_words
-        ), "{} vs {}".format(simple_sample, old_sample)
+        assert " ".join(
+            simple_train_dataset.corpus.idx_to_word[idx]
+            for idx in simple_sample.question_words
+        ) == " ".join(
+            old_idx_to_token_mapping[idx] for idx in old_sample.question_words
+        ), "{} vs {}".format(
+            simple_sample, old_sample
+        )
+        assert " ".join(
+            simple_train_dataset.corpus.idx_to_word[idx]
+            for idx in simple_sample.context_words
+        ) == " ".join(
+            old_idx_to_token_mapping[idx] for idx in old_sample.context_words
+        ), "{} vs {}".format(
+            simple_sample, old_sample
+        )
         assert np.all(
             simple_sample.span_starts == old_sample.span_starts
         ), "{} vs {}".format(simple_sample, old_sample)
@@ -439,14 +451,24 @@ def compare_datasets(
     for i in range(len(simple_dev_dataset)):
         simple_sample = simple_dev_dataset[i]
         old_sample = old_dev_dataset[i]
-        assert np.all(
-            simple_sample.question_words == old_sample.question_words
-        ), "{} vs {}".format(simple_sample, old_sample)
+        assert " ".join(
+            simple_train_dataset.corpus.idx_to_word[idx]
+            for idx in simple_sample.question_words
+        ) == " ".join(
+            old_idx_to_token_mapping[idx] for idx in old_sample.question_words
+        ), "{} vs {}".format(
+            simple_sample, old_sample
+        )
+        assert " ".join(
+            simple_train_dataset.corpus.idx_to_word[idx]
+            for idx in simple_sample.context_words
+        ) == " ".join(
+            old_idx_to_token_mapping[idx] for idx in old_sample.context_words
+        ), "{} vs {}".format(
+            simple_sample, old_sample
+        )
         assert np.all(
             simple_sample.question_id == old_sample.question_id
-        ), "{} vs {}".format(simple_sample, old_sample)
-        assert np.all(
-            simple_sample.context_words == old_sample.context_words
         ), "{} vs {}".format(simple_sample, old_sample)
         assert np.all(
             simple_sample.span_starts == old_sample.span_starts
