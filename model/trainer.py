@@ -3,7 +3,7 @@ Module that holds the training harness
 """
 
 import json
-from typing import Any, Callable, Dict, Tuple, Iterable, NamedTuple, cast
+from typing import Any, Callable, Dict, Tuple, Iterable, NamedTuple, cast, Optional
 
 from tqdm import tqdm, trange
 import torch as t
@@ -26,9 +26,6 @@ from model.evaluator import (
 import scripts.evaluate_v1_1 as evaluate_v1_1  # type: ignore
 import scripts.evaluate_v2_0 as evaluate_v2_0  # type: ignore
 
-# TODO: Incorporate this
-MAX_GRAD_NORM = 10
-
 
 class Trainer:
     """
@@ -39,6 +36,7 @@ class Trainer:
     Config for training runs:
         :learning_rate: lr for adam optimizer
         :weight_decay: weight decay to use in the optimizer
+        :max_grad_norm: Maximum gradient norm for gradient clipping
         :num_epochs: Number of epochs to train for
         :batch_size: Size of each training batch
         :max_question_size: Trims longer questions to this length
@@ -52,6 +50,7 @@ class Trainer:
         [
             ("learning_rate", float),
             ("weight_decay", float),
+            ("max_grad_norm", float),
             ("num_epochs", int),
             ("batch_size", int),
             ("max_question_size", int),
@@ -70,6 +69,7 @@ class Trainer:
         parameters: Iterable[Any],
         evaluator: Evaluator,
         optimizer: t.optim.Optimizer,
+        max_grad_norm: Optional[float] = None,
     ) -> float:
         """
         Runs one train iteration of the given model on the given batch,
@@ -80,6 +80,7 @@ class Trainer:
         :param parameters: Parameters of model to train
         :param evaluator: Evaluator to compute loss
         :param optimizer: Optimizer to step over model
+        :param max_grad_norm: If specified clip gradients at this norm
         :returns: Total loss for batch
         """
         predictions: ModelPredictions = model(batch)
@@ -87,7 +88,8 @@ class Trainer:
         model.zero_grad()
         optimizer.zero_grad()
         loss.backward()
-        t.nn.utils.clip_grad_norm_(parameters, MAX_GRAD_NORM)
+        if max_grad_norm:
+            t.nn.utils.clip_grad_norm_(parameters, max_grad_norm)
         optimizer.step()
         batch_loss = loss.item()
         return cast(float, batch_loss)
@@ -124,7 +126,12 @@ class Trainer:
                         batch.to(training_config.device)
                         batch_loop.set_description("Batch %d" % (batch_num + 1))
                         batch_loss = cls.one_train_iteration(
-                            batch, model, parameters, evaluator, optimizer
+                            batch,
+                            model,
+                            parameters,
+                            evaluator,
+                            optimizer,
+                            training_config.max_grad_norm,
                         )
                         epoch_loss += batch_loss
                         batch_loop.set_postfix(loss=batch_loss)

@@ -12,6 +12,7 @@ class TrainArgs:
     num_epochs: int
     lr: float
     weight_decay: float
+    max_grad_norm: float
     char_embedding_size: int
     attention_linear_hidden_size: int
     rnn_hidden_size: int
@@ -32,17 +33,18 @@ class TrainArgs:
         "dev_file": "data/original/dev.json",
         "word_vector_file": "data/word-vectors/glove/glove.6B.100d.txt",
         "batch_size": 45,
-        "num_epochs": 25,
-        "lr": 1e-4,
-        "weight_decay": 1e-2,
+        "num_epochs": 30,
+        "lr": 1e-3,
+        "weight_decay": 1e-5,
+        "max_grad_norm": 5,
         "char_embedding_size": 20,
         "attention_linear_hidden_size": 200,
-        "rnn_hidden_size": 100,
-        "rnn_num_layers": 1,
-        "max_context_size": 300,
+        "rnn_hidden_size": 200,
+        "rnn_num_layers": 2,
+        "max_context_size": 400,
         "max_question_size": 100,
         "loader_num_workers": 2,
-        "dropout": 0.2,
+        "dropout": 0.1,
         "config_file": "train-config.json",
         "run_name": "train-run",
         "rnn_unidirectional": False,
@@ -62,6 +64,7 @@ class TrainArgs:
         self.num_epochs = arg_dict["num_epochs"]
         self.lr = arg_dict["lr"]
         self.weight_decay = arg_dict["weight_decay"]
+        self.max_grad_norm = arg_dict["max_grad_norm"]
         self.char_embedding_size = arg_dict["char_embedding_size"]
         self.attention_linear_hidden_size = arg_dict["attention_linear_hidden_size"]
         self.rnn_hidden_size = arg_dict["rnn_hidden_size"]
@@ -92,6 +95,7 @@ class TrainArgs:
         parser.add_argument("--num-epochs", type=int)
         parser.add_argument("--lr", type=float)
         parser.add_argument("--weight-decay", type=float, help="weight decay (L2 penalty) to use during training")
+        parser.add_argument("--max-grad-norm", type=float, help="Maximum norm to use for gradient clipping (default None-> no gradient clipping)")
         parser.add_argument("--char-embedding-size", help="Set to 0 to disable char-level embeddings")
         parser.add_argument("--max-context-size", help="Trim all context values to this length during training (0 for unlimited)")
         parser.add_argument("--max-question-size", type=int, help="Trim all context values to this length during training (0 for unlimited)")

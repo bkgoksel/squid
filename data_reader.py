@@ -360,6 +360,7 @@ def train_model_with_new_dataset(
     training_config = Trainer.TrainingConfig(
         learning_rate=2e-3,
         weight_decay=1e-10,
+        max_grad_norm=5,
         num_epochs=20,
         batch_size=45,
         max_question_size=500,
