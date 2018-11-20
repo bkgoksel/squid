@@ -134,7 +134,12 @@ class Trainer:
                 print(
                     f"Saving model checkpoint to {training_config.model_checkpoint_path}"
                 )
-                t.save(model, training_config.model_checkpoint_path)
+                save_path = (
+                    training_config.model_checkpoint_path + ".pth"
+                    if not training_config.model_checkpoint_path.endswith(".pth")
+                    else training_config.model_checkpoint_path
+                )
+                t.save(model, save_path)
 
     @classmethod
     def train_model(
@@ -153,7 +158,7 @@ class Trainer:
         :param train_dataset: A TrainDataset object of training data
         :param dev_dataset: An EvalDataset object of dev data
         :param training_config: TrainingConfig object describing parameters of training run
-        :param debug: If True train on a single batch and profile performance (default False)
+        :param debug: If True profile performance (default False)
 
         :returns: A Trained PredictorModel object
         """
