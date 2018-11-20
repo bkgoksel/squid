@@ -5,6 +5,7 @@ Module that deals with preparing QA corpora
 import json
 import pickle
 from typing import Any, Optional, List, Dict, Set, Tuple, NamedTuple, cast
+from collections import defaultdict
 
 from torch.utils.data import Dataset
 
@@ -83,9 +84,8 @@ class Corpus:
         data_file: str,
         tokenizer: Tokenizer,
         processor: TextProcessor,
+        word_vectors: WordVectors,
         force_single_answer: bool = False,
-        word_vectors: Optional[WordVectors] = None,
-        token_mapping: Optional[Dict[str, int]] = None,
         char_mapping: Optional[Dict[str, int]] = None,
     ) -> "Corpus":
         """
@@ -96,17 +96,18 @@ class Corpus:
             to be applied to the text before tokenization
         :param force_single_answer: if True only include first answer span as true
             (default False)
-        :param word_vectors: WordVectors to pick OOV words from (default None)
-        :param token_mapping: Optional mapping from tokens to ints, will be computed
-            from scratch if not specified
+        :param word_vectors: WordVectors to build encoding indices from
         :param char_mapping: Optional mapping from chars to ints, will be computed
             from scratch if not specified
         """
         context_qas = cls.read_context_qas(
             data_file, tokenizer, processor, force_single_answer
         )
-        if token_mapping is None:
-            token_mapping = cls.compute_token_indices(context_qas, word_vectors)
+
+        def return_one(key: str) -> int:
+            return 1
+
+        token_mapping = defaultdict(return_one, word_vectors.word_to_idx)
         if char_mapping is None:
             char_mapping = cls.compute_char_indices(context_qas)
         stats = cls.compute_stats(context_qas, token_mapping, char_mapping)
@@ -156,30 +157,6 @@ class Corpus:
                     )
                     contexts.append(tokenized_context)
         return contexts
-
-    @staticmethod
-    def compute_token_indices(
-        context_qas: List[ContextQuestionAnswer], word_vectors: Optional[WordVectors]
-    ) -> Dict[str, int]:
-        """
-        Takes in a list of contexts and qas and returns the set of all words in them
-        :param context_qas: List[ContextQuestionAnswer] all the context qa's
-        :param word_vectors: Optional[WordVectors] if specified maps tokens not in the vectors to UNK
-        :returns: Dict[str, int] set of all strings in all the contexts and qas
-        """
-        tokens: Set[str] = set()
-        for ctx in context_qas:
-            tokens.update(set(tok.word for tok in ctx.tokens))
-            for qa in ctx.qas:
-                tokens.update(set(tok.word for tok in qa.tokens))
-
-        if word_vectors is not None:
-            tokens = set(filter(word_vectors.contains, tokens))
-
-        token_mapping: Dict[str, int] = {
-            tok: idx for idx, tok in enumerate(tokens, 2)
-        }  # idx 1 reserved for UNK
-        return token_mapping
 
     @staticmethod
     def compute_char_indices(
@@ -456,8 +433,8 @@ class TrainDataset(QADataset):
                 filename,
                 tokenizer,
                 processor,
+                vectors,
                 force_single_answer=not multi_answer,
-                word_vectors=vectors,
             )
         return cls(corpus)
 
@@ -475,7 +452,7 @@ class EvalDataset(QADataset):
     def load_dataset(
         cls,
         filename: str,
-        token_mapping: Dict[str, int],
+        vectors: WordVectors,
         char_mapping: Dict[str, int],
         tokenizer: Tokenizer,
         processor: TextProcessor,
@@ -501,8 +478,8 @@ class EvalDataset(QADataset):
                 filename,
                 tokenizer,
                 processor,
+                vectors,
                 force_single_answer=force_single_answer,
-                token_mapping=token_mapping,
                 char_mapping=char_mapping,
             )
         return cls(corpus)

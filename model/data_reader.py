@@ -445,7 +445,7 @@ def compare_datasets(
             simple_sample.span_starts == old_sample.span_starts
         ), "{} vs {}".format(simple_sample, old_sample)
         assert np.all(
-            simple_sample.span_end == old_sample.span_ends
+            simple_sample.span_ends == old_sample.span_ends
         ), "{} vs {}".format(simple_sample, old_sample)
 
     assert len(simple_dev_dataset) == len(old_dev_dataset)
@@ -475,5 +475,5 @@ def compare_datasets(
             simple_sample.span_starts == old_sample.span_starts
         ), "{} vs {}".format(simple_sample, old_sample)
         assert np.all(
-            simple_sample.span_end == old_sample.span_ends
+            simple_sample.span_ends == old_sample.span_ends
         ), "{} vs {}".format(simple_sample, old_sample)

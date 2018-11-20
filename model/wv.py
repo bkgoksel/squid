@@ -38,31 +38,6 @@ class WordVectors:
         """
         return token in self.word_to_idx
 
-    def build_embeddings_matrix_for(self, token_mapping: Dict[str, int]) -> t.Tensor:
-        """
-        Builds a compact embeddings matrix for the given token -> idx mapping.
-        The given token mapping should not contain any out-of-vocab words
-        :raises: Exception if not all tokens in token_mapping are in vocab for the vectors object
-        :param token_mapping: Mapping from tokens to would-be indices in the embedding matrix
-            - All tokens should be in vocabulary for the vectors object
-            - Indices 0 and 1 should be reserved for the padding and unk tokens
-        :returns: Embedding matrix where each index <i> has the pretrained embeddings for the token
-            that maps to that index in token_mapping.
-            - index 0 is an all-0 padding vector
-            - index 1 is a randomly initialized UNK vector
-        """
-        if not all(
-            token in self.word_to_idx
-            for token, idx in token_mapping.items()
-            if idx != 1
-        ):
-            raise Exception("Token not in word vector vocab")
-        idx_sorted_tokens = [WordVectors.PAD_TOKEN, WordVectors.UNK_TOKEN] + [
-            tok for tok, idx in sorted(token_mapping.items(), key=lambda x: x[1])
-        ]
-        vector_indices = [self.word_to_idx[tok] for tok in idx_sorted_tokens]
-        return np.take(self.vectors, vector_indices, axis=0)
-
     @classmethod
     def load_vectors(cls, file_name: str) -> "WordVectors":
         """

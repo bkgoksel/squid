@@ -10,8 +10,7 @@ from model.wv import WordVectors
 
 
 WordEmbeddorConfig = NamedTuple(
-    "WordEmbeddorConfig",
-    [("vectors", WordVectors), ("token_mapping", Dict[str, int]), ("train_vecs", bool)],
+    "WordEmbeddorConfig", [("vectors", WordVectors), ("train_vecs", bool)]
 )
 
 
@@ -61,16 +60,10 @@ class WordEmbeddor(Embeddor):
     embed: nn.Embedding
 
     def __init__(
-        self,
-        word_vectors: WordVectors,
-        token_mapping: Dict[str, int],
-        train_vecs: bool,
-        device: Any = t.device("cpu"),
+        self, word_vectors: WordVectors, train_vecs: bool, device: Any = t.device("cpu")
     ) -> None:
         super().__init__(word_vectors.dim)
-        embedding_matrix = t.Tensor(
-            word_vectors.build_embeddings_matrix_for(token_mapping)
-        ).to(device)
+        embedding_matrix = t.Tensor(word_vectors.vectors).to(device)
         self.embed = nn.Embedding.from_pretrained(
             embedding_matrix, freeze=(not train_vecs)
         )
@@ -163,10 +156,7 @@ def make_embeddor(config: EmbeddorConfig, device: Any) -> Embeddor:
     if config.word_embeddor:
         embeddors.append(
             WordEmbeddor(
-                config.word_embeddor.vectors,
-                config.word_embeddor.token_mapping,
-                config.word_embeddor.train_vecs,
-                device,
+                config.word_embeddor.vectors, config.word_embeddor.train_vecs, device
             )
         )
     if config.char_embeddor:

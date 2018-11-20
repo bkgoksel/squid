@@ -44,9 +44,7 @@ def initialize_model(
         use_self_attention=(not args.no_self_attention),
         batch_size=args.batch_size,
     )
-    word_embedding_config = WordEmbeddorConfig(
-        vectors=vectors, token_mapping=train_dataset.token_mapping, train_vecs=False
-    )
+    word_embedding_config = WordEmbeddorConfig(vectors=vectors, train_vecs=False)
     char_embedding_config: Optional[PoolingCharEmbeddorConfig]
     if args.char_embedding_size:
         char_embedding_config = PoolingCharEmbeddorConfig(
@@ -82,11 +80,7 @@ def get_model(args: TrainArgs) -> Tuple[PredictorModel, TrainDataset, EvalDatase
         args.train_file, vectors, tokenizer, processor, args.multi_answer
     )
     dev_dataset: EvalDataset = EvalDataset.load_dataset(
-        args.dev_file,
-        train_dataset.token_mapping,
-        train_dataset.char_mapping,
-        tokenizer,
-        processor,
+        args.dev_file, vectors, train_dataset.char_mapping, tokenizer, processor
     )
     try:
         print(f"Attempting to load model to train from {args.run_name}.pth")
