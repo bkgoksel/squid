@@ -241,7 +241,7 @@ class Corpus:
             space separated
         """
         start_token = self.quids_to_context_qas[qid].tokens[span_start]
-        end_token = self.quids_to_context_qas[qid].tokens[span_end + 1]
+        end_token = self.quids_to_context_qas[qid].tokens[span_end]
         text = self.quids_to_context_qas[qid].text
         # TODO: Reconstruct from original text here
         return text[start_token.span[0] : end_token.span[1]]
