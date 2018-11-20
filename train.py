@@ -77,7 +77,11 @@ def get_model(args: TrainArgs) -> Tuple[PredictorModel, TrainDataset, EvalDatase
     vectors: WordVectors = WordVectors.load_vectors(args.word_vector_file)
 
     train_dataset: TrainDataset = TrainDataset.load_dataset(
-        args.train_file, vectors, tokenizer, processor, args.multi_answer
+        args.train_file,
+        vectors,
+        tokenizer,
+        processor,
+        force_single_answer=not args.multi_answer,
     )
     dev_dataset: EvalDataset = EvalDataset.load_dataset(
         args.dev_file, vectors, train_dataset.char_mapping, tokenizer, processor

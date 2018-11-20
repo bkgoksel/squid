@@ -313,9 +313,7 @@ def get_old_style_datasets(
     processor = TextProcessor({"lowercase": True})
     vectors = OldWordVectors.load_vectors(vector_file)
 
-    train_dataset = TrainDataset.load_dataset(
-        train_file, vectors, tokenizer, processor, False
-    )
+    train_dataset = TrainDataset.load_dataset(train_file, vectors, tokenizer, processor)
     dev_dataset = EvalDataset.load_dataset(
         dev_file, vectors, train_dataset.char_mapping, tokenizer, processor
     )
