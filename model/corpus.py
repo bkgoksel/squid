@@ -240,8 +240,11 @@ class Corpus:
         :returns: All tokens (inclusive) from the tokenized context,
             space separated
         """
-        tokens = self.quids_to_context_qas[qid].tokens[span_start : span_end + 1]
-        return " ".join([tok.word for tok in tokens])
+        start_token = self.quids_to_context_qas[qid].tokens[span_start]
+        end_token = self.quids_to_context_qas[qid].tokens[span_end + 1]
+        text = self.quids_to_context_qas[qid].text
+        # TODO: Reconstruct from original text here
+        return text[start_token.span[0] : end_token.span[1]]
 
     def get_answer_texts(
         self, answer_token_idxs: Dict[QuestionId, Tuple[Any, ...]]
