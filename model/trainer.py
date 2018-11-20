@@ -136,8 +136,12 @@ class Trainer:
                         epoch_loss += batch_loss
                         batch_loop.set_postfix(loss=batch_loss)
                 epoch_loss = epoch_loss / len(loader)
-                epochs.set_postfix(loss=epoch_loss)
-                cls.validate(dev_dataset, model, evaluator, training_config, epoch)
+                dev_loss, dev_perf = cls.validate(
+                    dev_dataset, model, evaluator, training_config, epoch
+                )
+                epochs.set_postfix(
+                    loss=epoch_loss, f1=dev_perf["f1"], em=dev_perf["exact_match"]
+                )
                 print(
                     f"Saving model checkpoint to {training_config.model_checkpoint_path}"
                 )
@@ -147,6 +151,15 @@ class Trainer:
                     else training_config.model_checkpoint_path
                 )
                 t.save(model, save_path)
+                with open("run-stats.json", "w") as stats_file:
+                    run_stats_dict = {
+                        "current_epoch": epoch,
+                        "num_epochs": training_config.num_epochs,
+                        "current_epoch_loss": epoch_loss,
+                        "current_dev_loss": dev_loss,
+                        "current_dev_performance": dev_perf,
+                    }
+                    json.dump(run_stats_dict, stats_file)
 
     @classmethod
     def train_model(
@@ -229,7 +242,7 @@ class Trainer:
         evaluator: Evaluator,
         training_config: TrainingConfig,
         epoch: int = 0,
-    ) -> None:
+    ) -> Tuple[float, Dict[str, str]]:
         """
         Validates the given model over the given dataset, both using the official
         SQuAD evaluation script to obtain F1 and EM scores and using the evaluator
@@ -239,6 +252,7 @@ class Trainer:
         :param evaluator: Evaluator to compute loss
         :param epoch: Current epoch number for logging
         :param training_config: Training config to pull parameters from
+        :returns: A Tuple of average dev set loss and dict of evaluation on dev set (F1/EM)
         """
         model.eval()
         print(f"\n=== EPOCH {epoch + 1}: Measuring QA performance on the dev set\n\n")
@@ -250,6 +264,7 @@ class Trainer:
         print(f"\n=== EPOCH {epoch + 1}: Measuring loss on the dev set\n\n")
         dev_loss = cls.get_dataset_loss(dataset, model, evaluator, training_config)
         print(f"\n=== Dev set loss: {dev_loss}\n\n")
+        return (dev_loss, dev_perf)
 
     @classmethod
     def get_dataset_loss(

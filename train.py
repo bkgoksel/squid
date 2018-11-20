@@ -143,7 +143,7 @@ def main() -> None:
     )
     print(eval_results)
 
-    with open("f{args.run_name}_config.json", "w") as config_file:
+    with open(f"{args.run_name}_config.json", "w") as config_file:
         json.dump(vars(args), config_file, indent=2)
 
     print(f"Saving model to {args.run_name}.pth")
