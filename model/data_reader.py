@@ -317,11 +317,7 @@ def get_old_style_datasets(
         train_file, vectors, tokenizer, processor, False
     )
     dev_dataset = EvalDataset.load_dataset(
-        dev_file,
-        train_dataset.token_mapping,
-        train_dataset.char_mapping,
-        tokenizer,
-        processor,
+        dev_file, vectors, train_dataset.char_mapping, tokenizer, processor
     )
     return train_dataset, dev_dataset
 
