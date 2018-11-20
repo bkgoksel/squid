@@ -132,6 +132,10 @@ def main() -> None:
         dev_dataset, model, training_config
     )
     print(eval_results)
+
+    with open("{args.run_name}_config.json", "w") as config_file:
+        json.dump(vars(args), config_file, indent=2)
+
     print(f"Saving model to {args.run_name}.pth")
     t.save(model, f"{args.run_name}.pth")
 
