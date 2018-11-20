@@ -417,6 +417,7 @@ def compare_datasets(
     old_idx_to_token_mapping = {
         val: key for key, val in old_train_dataset.token_mapping.items()
     }
+    old_idx_to_token_mapping[1] = "<UNK>"
     assert len(simple_train_dataset) == len(old_train_dataset)
     for i in range(len(simple_train_dataset)):
         simple_sample = simple_train_dataset[i]
