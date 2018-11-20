@@ -391,12 +391,18 @@ def compare_datasets(
     old_idx_to_token_mapping[1] = "<UNK>"
     try:
         assert len(simple_train_dataset) == len(old_train_dataset)
-        for i in range(len(simple_train_dataset)):
-            simple_sample = simple_train_dataset[i]
-            old_sample = old_train_dataset[i]
+    except AssertionError:
+        __import__("pdb").set_trace()
+    for i in range(len(simple_train_dataset)):
+        simple_sample = simple_train_dataset[i]
+        old_sample = old_train_dataset[i]
+        try:
             assert np.all(
                 simple_sample.question_id == old_sample.question_id
             ), "{} vs {}".format(simple_sample.question_id, old_sample.question_id)
+        except AssertionError:
+            __import__("pdb").set_trace()
+        try:
             assert " ".join(
                 simple_train_dataset.corpus.idx_to_word[idx]
                 for idx in simple_sample.question_words
@@ -405,6 +411,9 @@ def compare_datasets(
             ), "{} vs {}".format(
                 simple_sample.question_words, old_sample.question_words
             )
+        except AssertionError:
+            __import__("pdb").set_trace()
+        try:
             assert " ".join(
                 simple_train_dataset.corpus.idx_to_word[idx]
                 for idx in simple_sample.context_words
@@ -413,20 +422,35 @@ def compare_datasets(
             ), "{} vs {}".format(
                 simple_sample.context_words, old_sample.context_words
             )
+        except AssertionError:
+            __import__("pdb").set_trace()
+        try:
             assert np.all(
                 simple_sample.span_starts == old_sample.span_starts
             ), "{} vs {}".format(simple_sample.span_starts, old_sample.span_start)
+        except AssertionError:
+            __import__("pdb").set_trace()
+        try:
             assert np.all(
                 simple_sample.span_ends == old_sample.span_ends
             ), "{} vs {}".format(simple_sample.span_ends, old_sample.span_ends)
 
+        except AssertionError:
+            __import__("pdb").set_trace()
+    try:
         assert len(simple_dev_dataset) == len(old_dev_dataset)
-        for i in range(len(simple_dev_dataset)):
-            simple_sample = simple_dev_dataset[i]
-            old_sample = old_dev_dataset[i]
+    except AssertionError:
+        __import__("pdb").set_trace()
+    for i in range(len(simple_dev_dataset)):
+        simple_sample = simple_dev_dataset[i]
+        old_sample = old_dev_dataset[i]
+        try:
             assert np.all(
                 simple_sample.question_id == old_sample.question_id
             ), "{} vs {}".format(simple_sample.question_id, old_sample.question_id)
+        except AssertionError:
+            __import__("pdb").set_trace()
+        try:
             assert " ".join(
                 simple_train_dataset.corpus.idx_to_word[idx]
                 for idx in simple_sample.question_words
@@ -435,6 +459,9 @@ def compare_datasets(
             ), "{} vs {}".format(
                 simple_sample.question_words, old_sample.question_words
             )
+        except AssertionError:
+            __import__("pdb").set_trace()
+        try:
             assert " ".join(
                 simple_train_dataset.corpus.idx_to_word[idx]
                 for idx in simple_sample.context_words
@@ -443,11 +470,17 @@ def compare_datasets(
             ), "{} vs {}".format(
                 simple_sample.context_words, old_sample.context_words
             )
+        except AssertionError:
+            __import__("pdb").set_trace()
+        try:
             assert np.all(
                 simple_sample.span_starts == old_sample.span_starts
             ), "{} vs {}".format(simple_sample.span_starts, old_sample.span_starts)
+        except AssertionError:
+            __import__("pdb").set_trace()
+        try:
             assert np.all(
                 simple_sample.span_ends == old_sample.span_ends
             ), "{} vs {}".format(simple_sample.span_ends, old_sample.span_ends)
-    except AssertionError:
-        __import__("pdb").set_trace()
+        except AssertionError:
+            __import__("pdb").set_trace()
