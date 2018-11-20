@@ -364,7 +364,7 @@ def train_model_with_new_dataset(
         batch_size=45,
         max_question_size=500,
         max_context_size=500,
-        device=get_device(),
+        device=get_device(False),
         loader_num_workers=2,
         model_checkpoint_path="jupyter.pth",
     )
