@@ -187,29 +187,7 @@ def read_vectors_file(vectors_file):
     )
 
 
-def encode_dataset_with_vectors(data, mapping, starting_vectors, filter_vectors=False):
-    if filter_vectors:
-        dataset_mapping_id_to_vectors_idx = {
-            idx: starting_vectors.word_to_idx.get(word, 1)
-            for idx, word in mapping.id_to_token.items()
-        }
-        dataset_mapping_id_to_vectors_idx.update({0: 0, 1: 1})  # pad->pad, unk->unk
-        used_vector_indices = list(sorted(dataset_mapping_id_to_vectors_idx.values()))
-
-        compact_vectors = np.take(starting_vectors.vectors, used_vector_indices, axis=0)
-        word_to_compact_vector_idx = {}
-        compact_vector_idx_to_word = {}
-        for new_idx, old_idx in enumerate(used_vector_indices):
-            word_to_compact_vector_idx[starting_vectors.idx_to_word[old_idx]] = new_idx
-            compact_vector_idx_to_word[new_idx] = starting_vectors.idx_to_word[old_idx]
-        vectors = WordVectors(
-            vectors=compact_vectors,
-            word_to_idx=word_to_compact_vector_idx,
-            idx_to_word=compact_vector_idx_to_word,
-        )
-    else:
-        vectors = starting_vectors
-
+def encode_dataset_with_vectors(data, mapping, vectors):
     dataset_mapping_id_to_vectors_idx = {
         idx: vectors.word_to_idx.get(word, 1)
         for idx, word in mapping.id_to_token.items()
@@ -357,11 +335,10 @@ def get_simple_datasets(
     dev_data, mapping = parse_squad(dev_file, mapping=mapping)
     glove_vectors = read_vectors_file(vector_file)
     glove_encoded_train_data = encode_dataset_with_vectors(
-        train_data, mapping, glove_vectors, filter_vectors=True
+        train_data, mapping, glove_vectors
     )
-    train_vecs = glove_encoded_train_data.vectors
     glove_encoded_dev_data = encode_dataset_with_vectors(
-        dev_data, mapping, train_vecs, filter_vectors=False
+        dev_data, mapping, glove_vectors
     )
     train_dataset = SQADataset(glove_encoded_train_data)
     dev_dataset = SQADataset(glove_encoded_dev_data)
