@@ -349,23 +349,23 @@ def train_model_with_new_dataset(
     test_model = initialize_model(
         train_dataset.corpus.encoded_data.vectors.vectors,
         use_cuda=True,
-        rnn_hidden_size=64,
-        rnn_num_layers=1,
-        dropout=0,
-        bidirectional=False,
-        use_self_attention=False,
-        batch_size=6,
+        rnn_hidden_size=200,
+        rnn_num_layers=2,
+        dropout=0.02,
+        bidirectional=True,
+        use_self_attention=True,
+        batch_size=45,
     )
 
     training_config = Trainer.TrainingConfig(
         learning_rate=2e-3,
-        weight_decay=1e-5,
+        weight_decay=1e-10,
         num_epochs=20,
-        batch_size=32,
+        batch_size=45,
         max_question_size=500,
         max_context_size=500,
-        device=get_device(False),
-        loader_num_workers=0,
+        device=get_device(),
+        loader_num_workers=2,
         model_checkpoint_path="jupyter.pth",
     )
 
@@ -447,3 +447,11 @@ def compare_datasets(
         assert np.all(
             simple_sample.span_ends == old_sample.span_ends
         ), "{} vs {}".format(simple_sample.span_ends, old_sample.span_ends)
+
+
+def main():
+    train_model_with_new_dataset()
+
+
+if __name__ == "__main__":
+    main()
