@@ -140,7 +140,9 @@ class Trainer:
                     dev_dataset, model, evaluator, training_config, epoch
                 )
                 epochs.set_postfix(
-                    loss=epoch_loss, f1=dev_perf["f1"], em=dev_perf["exact_match"]
+                    loss=epoch_loss,
+                    f1=dev_perf.get("f1", "N/A"),
+                    em=dev_perf.get("exact_match", "N/A"),
                 )
                 print(
                     f"Saving model checkpoint to {training_config.model_checkpoint_path}"
@@ -255,15 +257,16 @@ class Trainer:
         :returns: A Tuple of average dev set loss and dict of evaluation on dev set (F1/EM)
         """
         model.eval()
-        print(f"\n=== EPOCH {epoch + 1}: Measuring QA performance on the dev set\n\n")
+        print(f"\n=== EPOCH {epoch + 1}: Validating on dev set\n\n")
         try:
             dev_perf = cls.evaluate_on_squad_dataset(dataset, model, training_config)
-            print(f"\n=== Dev set performance: {json.dumps(dev_perf)}\n")
+            print(f"\nDev set performance: {json.dumps(dev_perf)}\n")
         except Exception as err:
-            print(f"\nError when trying to get full evaluation: {err}\n")
-        print(f"\n=== EPOCH {epoch + 1}: Measuring loss on the dev set\n\n")
+            error_message = f"Error when trying to get full evaluation: {err}"
+            print(error_message)
+            dev_perf = {"result": error_message}
         dev_loss = cls.get_dataset_loss(dataset, model, evaluator, training_config)
-        print(f"\n=== Dev set loss: {dev_loss}\n\n")
+        print(f"\nDev set loss: {dev_loss}\n\n")
         return (dev_loss, dev_perf)
 
     @classmethod

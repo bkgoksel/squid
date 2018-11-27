@@ -33,7 +33,7 @@ class TrainArgs:
         "dev_file": "data/original/dev.json",
         "word_vector_file": "data/word-vectors/glove/glove.6B.100d.txt",
         "batch_size": 45,
-        "num_epochs": 30,
+        "num_epochs": 50,
         "lr": 1e-3,
         "weight_decay": 0,
         "max_grad_norm": 10,
