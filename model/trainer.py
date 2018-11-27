@@ -132,7 +132,7 @@ class Trainer:
                             evaluator,
                             optimizer,
                             training_config.max_grad_norm,
-                        )
+                        ) / len(batch)
                         epoch_loss += batch_loss
                         batch_loop.set_postfix(loss=batch_loss)
                 epoch_loss = epoch_loss / len(loader)
