@@ -121,6 +121,8 @@ def main() -> None:
     args = TrainArgs.get_args()
     model, train_dataset, dev_dataset = get_model(args)
     training_config = get_training_config(args)
+    with open(f"{args.run_name}_config.json", "w") as config_file:
+        json.dump(vars(args), config_file, indent=2)
 
     Trainer.train_model(
         model, train_dataset, dev_dataset, training_config, debug=args.debug
@@ -142,9 +144,6 @@ def main() -> None:
         dev_dataset, model, training_config
     )
     print(eval_results)
-
-    with open(f"{args.run_name}_config.json", "w") as config_file:
-        json.dump(vars(args), config_file, indent=2)
 
     print(f"Saving model to {args.run_name}.pth")
     t.save(model, f"{args.run_name}.pth")
