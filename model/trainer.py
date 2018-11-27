@@ -153,14 +153,16 @@ class Trainer:
                     else training_config.model_checkpoint_path
                 )
                 t.save(model, save_path)
-                with open("run-stats.json", "w") as stats_file:
-                    run_stats_dict = {
-                        "current_epoch": epoch,
-                        "num_epochs": training_config.num_epochs,
-                        "current_epoch_loss": epoch_loss,
-                        "current_dev_loss": dev_loss,
-                        "current_dev_performance": dev_perf,
-                    }
+                run_stats_dict = {
+                    "current_epoch": epoch,
+                    "num_epochs": training_config.num_epochs,
+                    "current_epoch_loss": epoch_loss,
+                    "current_dev_loss": dev_loss,
+                    "current_dev_performance": dev_perf,
+                }
+                with open(f"run-stats-{epoch}.json", "w") as stats_file:
+                    json.dump(run_stats_dict, stats_file)
+                with open("run-stats-latest.json", "w") as stats_file:
                     json.dump(run_stats_dict, stats_file)
 
     @classmethod
