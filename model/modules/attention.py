@@ -42,7 +42,8 @@ class BaseBidirectionalAttention(nn.Module):
         self.self_attention = self_attention
         self.final_encoding_size = input_size if self.self_attention else 4 * input_size
 
-        self.dropout = nn.Dropout(p=dropout_prob)
+        self.question_dropout = nn.Dropout(p=dropout_prob)
+        self.context_dropout = nn.Dropout(p=dropout_prob)
         self.w_question = nn.Parameter(t.empty(input_size))
         self.w_context = nn.Parameter(t.empty(input_size))
         self.w_multiple = nn.Parameter(t.empty(input_size))
@@ -78,34 +79,28 @@ class BaseBidirectionalAttention(nn.Module):
 
         similarity_tensors = []
 
-        q_dropped = self.dropout(question)
-        del question
+        q_dropped = self.question_dropout(question)
         q_weighted = q_dropped @ self.w_question  # (batch_len, max_question_len)
         similarity_tensors.append(
             q_weighted.unsqueeze(1)
             .unsqueeze(3)
             .expand((batch_len, max_context_len, max_question_len, 1))
         )
-        del q_weighted
 
-        ctx_dropped = self.dropout(context)
-        del context
+        ctx_dropped = self.context_dropout(context)
         ctx_weighted = ctx_dropped @ self.w_context  # (batch_len, max_context_len)
         similarity_tensors.append(
             ctx_weighted.unsqueeze(2)
             .unsqueeze(3)
             .expand((batch_len, max_context_len, max_question_len, 1))
         )
-        del ctx_weighted
 
         multiple_weighted = t.einsum(
             "e,bqe,bce->bcq", [self.w_multiple, q_dropped, ctx_dropped]
         )
         similarity_tensors.append(multiple_weighted.unsqueeze(3))
-        del multiple_weighted
 
         similarity = t.sum(t.cat(similarity_tensors, dim=3), dim=3)
-        del similarity_tensors
 
         if self.self_attention:
             similarity = (
@@ -125,7 +120,6 @@ class BaseBidirectionalAttention(nn.Module):
                 [ctx_dropped, c2q_att, ctx_dropped * c2q_att, ctx_dropped * q2c_att],
                 dim=2,
             )
-        del similarity
 
         final_linear = self.final_linear_layer_1(attended_tensors, mask=context_mask)
         final_linear = self.final_linear_layer_2(final_linear, mask=context_mask)

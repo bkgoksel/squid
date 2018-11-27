@@ -341,7 +341,10 @@ class Trainer:
         :param model: PredictorModel to validate
         :param training_config: Training config to pull parameters from
         """
-        answer_dict = cls.answer_dataset(dataset, model, training_config)
+        try:
+            answer_dict = cls.answer_dataset(dataset, model, training_config)
+        except Exception as ex:
+            raise Exception(f"Can't answer dataset: {ex}")
         with open(dataset.source_file) as dataset_file:
             dataset_json = json.load(dataset_file)
             dataset_version = dataset_json["version"]

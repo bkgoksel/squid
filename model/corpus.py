@@ -240,11 +240,20 @@ class Corpus:
         :returns: All tokens (inclusive) from the tokenized context,
             space separated
         """
-        start_token = self.quids_to_context_qas[qid].tokens[span_start]
-        end_token = self.quids_to_context_qas[qid].tokens[span_end]
-        text = self.quids_to_context_qas[qid].text
-        # TODO: Reconstruct from original text here
-        return text[start_token.span[0] : end_token.span[1]]
+        context = self.quids_to_context_qas[qid]
+        try:
+            start_idx = context.tokens[span_start].span[0]
+            end_idx = context.tokens[span_end].span[1]
+            # TODO: Reconstruct from original text here
+            return context.text[start_idx : min(end_idx, len(context.text))]
+        except Exception as ex:
+            print(
+                f"Error while reconstructing answer. num tokens: {len(context.tokens)}, first token: {span_start}, last token: {span_end}"
+            )
+            print(
+                f"text len: {len(context.text)}, first char: {context.tokens[span_start].span[0]}, last char: {context.tokens[span_end].span[1]}"
+            )
+            return ""
 
     def get_answer_texts(
         self, answer_token_idxs: Dict[QuestionId, Tuple[Any, ...]]
