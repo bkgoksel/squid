@@ -96,6 +96,9 @@ class QABatch:
 
         return self
 
+    def __len__(self) -> int:
+        return len(self.question_ids)
+
 
 def get_collator(
     max_question_size: int = 0, max_context_size: int = 0
