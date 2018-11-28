@@ -3,7 +3,17 @@ Module that holds the training harness
 """
 
 import json
-from typing import Any, Callable, Dict, Tuple, Iterable, NamedTuple, cast, Optional
+from typing import (
+    Any,
+    Callable,
+    List,
+    Dict,
+    Tuple,
+    Iterable,
+    NamedTuple,
+    cast,
+    Optional,
+)
 
 from tqdm import tqdm, trange
 import torch as t
@@ -116,6 +126,10 @@ class Trainer:
         :param dev_dataset: EvalDataset to validate on
         :param training_config: TrainingConfig object describing parameters for training
         """
+        epoch_losses: List[float] = []
+        dev_losses: List[float] = []
+        dev_f1s: List[float] = []
+        dev_ems: List[float] = []
         with trange(training_config.num_epochs) as epochs:
             for epoch in epochs:
                 model.train()
@@ -136,14 +150,14 @@ class Trainer:
                         epoch_loss += batch_loss
                         batch_loop.set_postfix(loss=batch_loss)
                 epoch_loss = epoch_loss / len(loader)
-                dev_loss, dev_perf = cls.validate(
+                dev_loss, dev_f1, dev_em = cls.validate(
                     dev_dataset, model, evaluator, training_config, epoch
                 )
-                epochs.set_postfix(
-                    loss=epoch_loss,
-                    f1=dev_perf.get("f1", "N/A"),
-                    em=dev_perf.get("exact_match", "N/A"),
-                )
+                epoch_losses.append(epoch_loss)
+                dev_losses.append(dev_loss)
+                dev_f1s.append(dev_f1)
+                dev_ems.append(dev_em)
+                epochs.set_postfix(loss=epoch_loss, f1=dev_f1, em=dev_em)
                 print(
                     f"Saving model checkpoint to {training_config.model_checkpoint_path}"
                 )
@@ -155,14 +169,16 @@ class Trainer:
                 t.save(model, save_path)
                 run_stats_dict = {
                     "current_epoch": epoch,
-                    "num_epochs": training_config.num_epochs,
                     "current_epoch_loss": epoch_loss,
                     "current_dev_loss": dev_loss,
-                    "current_dev_performance": dev_perf,
+                    "current_dev_f1": dev_f1,
+                    "current_dev_em": dev_em,
+                    "all_epoch_losses": epoch_losses,
+                    "all_dev_losses": dev_losses,
+                    "all_dev_f1s": dev_f1s,
+                    "all_dev_ems": dev_ems,
                 }
-                with open(f"run-stats-{epoch}.json", "w") as stats_file:
-                    json.dump(run_stats_dict, stats_file)
-                with open("run-stats-latest.json", "w") as stats_file:
+                with open("run-stats.json", "w") as stats_file:
                     json.dump(run_stats_dict, stats_file)
 
     @classmethod
@@ -246,7 +262,7 @@ class Trainer:
         evaluator: Evaluator,
         training_config: TrainingConfig,
         epoch: int = 0,
-    ) -> Tuple[float, Dict[str, str]]:
+    ) -> Tuple[float, float, float]:
         """
         Validates the given model over the given dataset, both using the official
         SQuAD evaluation script to obtain F1 and EM scores and using the evaluator
@@ -256,20 +272,21 @@ class Trainer:
         :param evaluator: Evaluator to compute loss
         :param epoch: Current epoch number for logging
         :param training_config: Training config to pull parameters from
-        :returns: A Tuple of average dev set loss and dict of evaluation on dev set (F1/EM)
+        :returns: A Tuple of average dev set loss, F1 and EM performance
         """
         model.eval()
         print(f"\n=== EPOCH {epoch + 1}: Validating on dev set\n\n")
+        f1: float = 0.0
+        em: float = 0.0
         try:
             dev_perf = cls.evaluate_on_squad_dataset(dataset, model, training_config)
-            print(f"\nDev set performance: {json.dumps(dev_perf)}\n")
+            f1 = float(dev_perf.get("f1", 0.0))
+            em = float(dev_perf.get("em", 0.0))
         except Exception as err:
-            error_message = f"Error when trying to get full evaluation: {err}"
-            print(error_message)
-            dev_perf = {"result": error_message}
+            print(f"Error when trying to get full evaluation: {err}")
         dev_loss = cls.get_dataset_loss(dataset, model, evaluator, training_config)
-        print(f"\nDev set loss: {dev_loss}\n\n")
-        return (dev_loss, dev_perf)
+        print(f"\nDev set loss: {dev_loss}, F1: {f1}, EM: {em}\n\n")
+        return (dev_loss, f1, em)
 
     @classmethod
     def get_dataset_loss(
