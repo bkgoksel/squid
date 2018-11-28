@@ -23,6 +23,7 @@ PoolingCharEmbeddorConfig = NamedTuple(
 EmbeddorConfig = NamedTuple(
     "EmbeddorConfig",
     [
+        ("highway_layers", int),
         ("word_embeddor", Optional[WordEmbeddorConfig]),
         ("char_embeddor", Optional[PoolingCharEmbeddorConfig]),
     ],
@@ -142,6 +143,48 @@ class ConcatenatingEmbeddor(Embeddor):
         return t.cat([embeddor(words, chars) for embeddor in self.embeddors], dim=2)
 
 
+class HighwayEmbeddor(ConcatenatingEmbeddor):
+    """
+    Module that takes multiple Embeddors and runs a Highway network on their concatenated outputs
+    """
+
+    embeddors: List[Embeddor]
+    n_layers: int
+    normal_layer: nn.ModuleList
+    gate_layer: nn.ModuleList
+    relu: nn.ReLU
+    sigmoid: nn.Sigmoid
+
+    def __init__(self, embeddors: List[Embeddor], n_layers: int = 1) -> None:
+        super().__init__(embeddors)
+        self.n_layers = n_layers
+        self.normal_layer = nn.ModuleList(
+            [nn.Linear(self.embedding_dim, self.embedding_dim) for _ in range(n_layers)]
+        )
+        self.gate_layer = nn.ModuleList(
+            [nn.Linear(self.embedding_dim, self.embedding_dim) for _ in range(n_layers)]
+        )
+        self.relu = nn.ReLU()
+        self.sigmoid = nn.Sigmoid()
+
+    def forward(self, words: t.LongTensor, chars: t.LongTensor) -> t.Tensor:
+        """
+        :param words: Words of the batch organized in a tensor in the following shape:
+            (batch_size, max_num_words)
+        :param chars: Characters of a batch organized in a tensor in the following shape:
+            (batch_size, max_num_words, max_num_chars)
+        :returns: Concatenated and highway networked embeddings from all the given embeddors
+            (batch_size, max_num_words, embedding_dim)
+        """
+        embeddings = super().forward(words, chars)
+        for i in range(self.n_layers):
+            normal_layer_ret = self.relu(self.normal_layer[i](embeddings))
+            gate = self.sigmoid(self.gate_layer[i](embeddings))
+
+            embeddings = gate * normal_layer_ret + (1 - gate) * embeddings
+        return embeddings
+
+
 def make_embeddor(config: EmbeddorConfig, device: Any) -> Embeddor:
     """
     Makes an embeddor given an embeddor config on the given device
@@ -167,4 +210,7 @@ def make_embeddor(config: EmbeddorConfig, device: Any) -> Embeddor:
                 device,
             )
         )
-    return ConcatenatingEmbeddor(embeddors)
+    if config.highway_layers:
+        return HighwayEmbeddor(embeddors, config.highway_layers)
+    else:
+        return ConcatenatingEmbeddor(embeddors)

@@ -15,6 +15,7 @@ class TrainArgs:
     max_grad_norm: float
     char_embedding_size: int
     attention_linear_hidden_size: int
+    highway_layers: int
     rnn_hidden_size: int
     rnn_num_layers: int
     max_context_size: int
@@ -39,6 +40,7 @@ class TrainArgs:
         "max_grad_norm": 10,
         "char_embedding_size": 50,
         "attention_linear_hidden_size": 200,
+        "highway_layers": 2,
         "rnn_hidden_size": 200,
         "rnn_num_layers": 2,
         "max_context_size": 400,
@@ -67,6 +69,7 @@ class TrainArgs:
         self.max_grad_norm = arg_dict["max_grad_norm"]
         self.char_embedding_size = arg_dict["char_embedding_size"]
         self.attention_linear_hidden_size = arg_dict["attention_linear_hidden_size"]
+        self.highway_layers = arg_dict["highway_layers"]
         self.rnn_hidden_size = arg_dict["rnn_hidden_size"]
         self.rnn_num_layers = arg_dict["rnn_num_layers"]
         self.max_context_size = arg_dict["max_context_size"]

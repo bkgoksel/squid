@@ -55,7 +55,9 @@ def initialize_model(
         char_embedding_config = None
 
     embeddor_config = EmbeddorConfig(
-        word_embeddor=word_embedding_config, char_embeddor=char_embedding_config
+        word_embeddor=word_embedding_config,
+        char_embeddor=char_embedding_config,
+        highway_layers=args.highway_layers,
     )
     embeddor: Embeddor = make_embeddor(embeddor_config, device)
     predictor: PredictorModel = DocQAPredictor(embeddor, predictor_config).to(device)
