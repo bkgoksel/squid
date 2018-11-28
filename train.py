@@ -62,13 +62,12 @@ def initialize_model(
     return predictor
 
 
-def get_model(args: TrainArgs) -> Tuple[PredictorModel, TrainDataset, EvalDataset]:
+def get_datasets(args: TrainArgs) -> Tuple[TrainDataset, EvalDataset, WordVectors]:
     """
-    Given the CLI args, tries to load a model from disk if possible,
-    otherwise creates a new model.
-    Returns the model alongside the Datasets to be used for training
-    :param args: CLI args to get the model and datasets
-    :returns: a Tuple of the model, the training dataset and the dev dataset
+    Returns the Datasets to be used for training (and the word vectors used to embed them,
+     parsed form the args
+    :param args: CLI args to get the datasets
+    :returns: a Tuple of the training dataset and the dev dataset and the word vectors
     """
     device = get_device(args.disable_cuda)
 
@@ -86,14 +85,7 @@ def get_model(args: TrainArgs) -> Tuple[PredictorModel, TrainDataset, EvalDatase
     dev_dataset: EvalDataset = EvalDataset.load_dataset(
         args.dev_file, vectors, train_dataset.char_mapping, tokenizer, processor
     )
-    try:
-        print(f"Attempting to load model to train from {args.run_name}.pth")
-        model: PredictorModel = t.load(f"{args.run_name}.pth").to(device)
-    except IOError as e:
-        print(f"Can't load model: {e}, initializing from scratch")
-        model = initialize_model(args, train_dataset, vectors)
-
-    return model, train_dataset, dev_dataset
+    return train_dataset, dev_dataset, vectors
 
 
 def get_training_config(args: TrainArgs) -> Trainer.TrainingConfig:
@@ -119,10 +111,17 @@ def get_training_config(args: TrainArgs) -> Trainer.TrainingConfig:
 
 def main() -> None:
     args = TrainArgs.get_args()
-    model, train_dataset, dev_dataset = get_model(args)
+    train_dataset, dev_dataset, vectors = get_datasets(args)
     training_config = get_training_config(args)
     with open(f"{args.run_name}_config.json", "w") as config_file:
         json.dump(vars(args), config_file, indent=2)
+
+    try:
+        print(f"Attempting to load model to train from {args.run_name}.pth")
+        model = t.load(f"{args.run_name}.pth").to(training_config.device)
+    except IOError as e:
+        print(f"Can't load model: {e}, initializing from scratch")
+        model = initialize_model(args, train_dataset, vectors)
 
     Trainer.train_model(
         model, train_dataset, dev_dataset, training_config, debug=args.debug

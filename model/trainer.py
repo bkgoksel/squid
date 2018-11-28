@@ -130,15 +130,15 @@ class Trainer:
         dev_losses: List[float] = []
         dev_f1s: List[float] = []
         dev_ems: List[float] = []
-        with trange(training_config.num_epochs) as epochs:
-            for epoch in epochs:
+        with trange(training_config.num_epochs) as epoch_loop:
+            for epoch in epoch_loop:
+                epoch_loop.set_description("Epoch %d" % (epoch + 1))
                 model.train()
-                epochs.set_description("Epoch %d" % (epoch + 1))
                 epoch_loss = 0.0
                 with tqdm(loader) as batch_loop:
                     for batch_num, batch in enumerate(batch_loop):
-                        batch.to(training_config.device)
                         batch_loop.set_description("Batch %d" % (batch_num + 1))
+                        batch.to(training_config.device)
                         batch_loss = cls.one_train_iteration(
                             batch,
                             model,
@@ -157,7 +157,7 @@ class Trainer:
                 dev_losses.append(dev_loss)
                 dev_f1s.append(dev_f1)
                 dev_ems.append(dev_em)
-                epochs.set_postfix(loss=epoch_loss, f1=dev_f1, em=dev_em)
+                epoch_loop.set_postfix(loss=epoch_loss, f1=dev_f1, em=dev_em)
                 print(
                     f"Saving model checkpoint to {training_config.model_checkpoint_path}"
                 )
@@ -208,9 +208,7 @@ class Trainer:
             train_evaluator = SingleClassLossEvaluator()
         else:
             train_evaluator = MultiClassLossEvaluator()
-        trainable_parameters = filter(
-            lambda p: p.requires_grad, set(model.parameters())
-        )
+        trainable_parameters = filter(lambda p: p.requires_grad, model.parameters())
         optimizer: optim.Optimizer = optim.Adam(
             trainable_parameters,
             lr=training_config.learning_rate,

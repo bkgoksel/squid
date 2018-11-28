@@ -91,6 +91,22 @@ def get_answer_token_idxs(
     Given a ModelPredictions object and text QABatch object for the batch that the predictions
     are from, return a QuestionId -> (answer span start token idx, answe span end token idx) mapping.
     """
+    qid_to_ans: Dict[QuestionId, Tuple[Any, ...]] = {}
+    all_start_logits = model_predictions.start_logits.to(t.device("cpu")).numpy()
+    all_end_logits = model_predictions.end_logits.to(t.device("cpu")).numpy()
+    for qid, context_len, start_logits, end_logits in zip(
+        batch.question_ids, batch.context_lens, all_start_logits, all_end_logits
+    ):
+        best_score = 0.0
+        best_ans = (0, 0)
+        for start_idx in range(context_len):
+            start_logit = start_logits[start_idx]
+            for end_idx in range(start_idx, context_len):
+                end_logit = end_logits[end_idx]
+                if start_logit + end_logit >= best_score:
+                    best_ans = (start_idx, end_idx)
+        qid_to_ans[qid] = best_ans
+    """
     answer_starts = (
         t.max(model_predictions.start_logits, 1)[1].to(t.device("cpu")).numpy()
     )
@@ -100,3 +116,5 @@ def get_answer_token_idxs(
         qid: tuple(answer) for qid, answer in zip(batch.question_ids, answers)
     }
     return qid_to_answer
+    """
+    return qid_to_ans
