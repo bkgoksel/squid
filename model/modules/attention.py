@@ -123,7 +123,7 @@ class BaseBidirectionalAttention(nn.Module):
         del similarity
 
         if (
-            self.linear_layer
+            self.use_linear_layer
             and self.final_linear_layer_1
             and self.final_linear_layer_2
             and self.final_linear_activation
