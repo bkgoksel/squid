@@ -321,14 +321,6 @@ class BidafOutput(nn.Module):
         self.end_modeling_encoder = ContextualEncoder(modeled_input_size, self.config)
         self.start_predictor = MaskedLinear(attended_input_size + modeled_input_size, 1)
         self.end_predictor = MaskedLinear(self.end_modeling_encoder.output_size, 1)
-        self.no_answer_gru = nn.GRU(
-            attended_input_size + modeled_input_size,
-            self.config.single_hidden_size,
-            1,
-            batch_first=True,
-            bidirectional=self.config.bidirectional,
-        )
-        self.no_answer_predictor = nn.Linear(self.config.total_hidden_size, 1)
         self.softmax = MaskedLogSoftmax(dim=-1)
 
     def forward(
@@ -353,25 +345,10 @@ class BidafOutput(nn.Module):
 
         start_predictions = self.softmax(start_logits, mask=context_mask)
         end_predictions = self.softmax(end_logits, mask=context_mask)
-
-        context_length_sorted = modeled_context[length_idxs]
-        context_packed: PackedSequence = pack_padded_sequence(
-            context_length_sorted, lengths, batch_first=True
-        )
-
-        _, no_answer_out_len_sorted = self.no_answer_gru(context_packed)
-        no_answer_out_len_sorted = get_last_hidden_states(
-            no_answer_out_len_sorted,
-            self.config.n_directions,
-            self.config.total_hidden_size,
-        )
-        no_answer_out = no_answer_out_len_sorted[orig_idxs]
-        no_answer_predictions = self.no_answer_predictor(no_answer_out)
-
         return ModelPredictions(
             start_logits=start_predictions,
             end_logits=end_predictions,
-            no_ans_logits=no_answer_predictions,
+            no_ans_logits=None,
         )
 
 
