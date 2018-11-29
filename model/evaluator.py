@@ -31,7 +31,7 @@ class SingleClassLossEvaluator(Evaluator):
     """
     Simple Evaluator for data where there is
     a single correct answer.
-    Uses CrossEntropyLoss after masking the input logits
+    Uses NLLoss after masking the input logits, expects LogSoftmax'ed logits
     """
 
     loss_op: MaskedOp
@@ -39,7 +39,7 @@ class SingleClassLossEvaluator(Evaluator):
     def __init__(self) -> None:
         super().__init__()
         self.loss_op = MaskedOp(
-            nn.CrossEntropyLoss(), MaskMode.subtract, MaskTime.pre, mask_value=1e30
+            nn.NLLLoss(), MaskMode.subtract, MaskTime.pre, mask_value=1e30
         )
 
     def forward(self, batch: QABatch, model_predictions: ModelPredictions) -> t.Tensor:

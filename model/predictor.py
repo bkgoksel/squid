@@ -9,7 +9,7 @@ from torch.nn.utils.rnn import PackedSequence, pack_padded_sequence, pad_packed_
 from model.batcher import QABatch
 from model.util import get_last_hidden_states
 from model.modules.attention import BidirectionalAttention, SelfAttention
-from model.modules.masked import MaskedLinear
+from model.modules.masked import MaskedLinear, MaskedLogSoftmax
 from model.modules.embeddor import Embeddor
 
 ModelPredictions = NamedTuple(
@@ -166,6 +166,7 @@ class BidafOutput(nn.Module):
             bidirectional=self.config.bidirectional,
         )
         self.no_answer_predictor = nn.Linear(self.config.total_hidden_size, 1)
+        self.softmax = MaskedLogSoftmax(dim=-1)
 
     def forward(
         self,
@@ -189,11 +190,11 @@ class BidafOutput(nn.Module):
         start_predictions = self.start_predictor(
             start_modeled_ctx, mask=context_mask
         ).squeeze(2)
-        del start_modeled_ctx
+        start_predictions = self.softmax(start_predictions, mask=context_mask)
         end_predictions = self.end_predictor(
             end_modeled_ctx, mask=context_mask
         ).squeeze(2)
-        del end_modeled_ctx
+        end_predictions = self.softmax(end_predictions, mask=context_mask)
 
         context_length_sorted = context_encoding[length_idxs]
         context_packed: PackedSequence = pack_padded_sequence(
