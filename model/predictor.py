@@ -240,10 +240,20 @@ class DocQAPredictor(PredictorModel):
         self.bi_attention = BidirectionalAttention(self.config.gru.total_hidden_size)
         if self.config.use_self_attention:
             self.attended_ctx_encoder: ContextualEncoder = ContextualEncoder(
-                self.bi_attention.final_encoding_size, self.config.gru
+                self.bi_attention.final_encoding_size,
+                GRUConfig(
+                    hidden_size=self.bi_attention.final_encoding_size // 2,
+                    num_layers=1,
+                    dropout_prob=self.config.gru.dropout_prob,
+                    force_unidirectional=False,
+                ),
+            )
+            assert (
+                self.attended_ctx_encoder.output_size
+                == self.bi_attention.final_encoding_size
             )
             self.self_attention: SelfAttention = SelfAttention(
-                self.bi_attention.final_encoding_size
+                self.attended_ctx_encoder.output_size
             )
         else:
             self.self_attention = None
