@@ -242,9 +242,9 @@ class Corpus:
         """
         context = self.quids_to_context_qas[qid]
         try:
+            assert span_start <= span_end
             start_idx = context.tokens[span_start].span[0]
-            end_idx = context.tokens[span_end].span[1]
-            # TODO: Reconstruct from original text here
+            end_idx = context.tokens[min(span_end, len(context.tokens))].span[1]
             return context.text[start_idx : min(end_idx, len(context.text))]
         except Exception as ex:
             print(

@@ -30,9 +30,7 @@ class BaseBidirectionalAttention(nn.Module):
     final_linear_layer_2: MaskedLinear
     final_linear_activation: nn.ReLU
 
-    def __init__(
-        self, input_size: int, linear_hidden_size: int, self_attention: bool = False
-    ) -> None:
+    def __init__(self, input_size: int, self_attention: bool = False) -> None:
         super().__init__()
         self.self_attention = self_attention
         self.final_encoding_size = input_size if self.self_attention else 4 * input_size
@@ -49,10 +47,10 @@ class BaseBidirectionalAttention(nn.Module):
         self.q_softmax = nn.Softmax(dim=1)
 
         self.final_linear_layer_1 = MaskedLinear(
-            self.final_encoding_size, linear_hidden_size
+            self.final_encoding_size, self.final_encoding_size
         )
         self.final_linear_layer_2 = MaskedLinear(
-            linear_hidden_size, self.final_encoding_size
+            self.final_encoding_size, self.final_encoding_size
         )
         self.final_linear_activation = nn.ReLU()
 
@@ -127,8 +125,8 @@ class BidirectionalAttention(BaseBidirectionalAttention):
     Attention Flow
     """
 
-    def __init__(self, input_size: int, linear_hidden_size: int) -> None:
-        super().__init__(input_size, linear_hidden_size, self_attention=False)
+    def __init__(self, input_size: int) -> None:
+        super().__init__(input_size, self_attention=False)
 
 
 class SelfAttention(BaseBidirectionalAttention):
@@ -136,5 +134,5 @@ class SelfAttention(BaseBidirectionalAttention):
     Self Attention computations as described in DocumentQA
     """
 
-    def __init__(self, input_size: int, linear_hidden_size: int) -> None:
-        super().__init__(input_size, linear_hidden_size, self_attention=True)
+    def __init__(self, input_size: int) -> None:
+        super().__init__(input_size, self_attention=True)
