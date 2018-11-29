@@ -40,7 +40,6 @@ def initialize_model(
             args.rnn_unidirectional,
         ),
         dropout_prob=args.dropout,
-        attention_linear_hidden_size=args.attention_linear_hidden_size,
         use_self_attention=(not args.no_self_attention),
         batch_size=args.batch_size,
     )
