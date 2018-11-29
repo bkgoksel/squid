@@ -7,7 +7,13 @@ from model.trainer import Trainer
 from model.train_parser import TrainArgs
 from model.tokenizer import Tokenizer, NltkTokenizer
 from model.text_processor import TextProcessor
-from model.predictor import PredictorConfig, GRUConfig, PredictorModel, DocQAPredictor
+from model.predictor import (
+    DocQAConfig,
+    GRUConfig,
+    PredictorModel,
+    DocQAPredictor,
+    BidafPredictor,
+)
 from model.modules.embeddor import (
     Embeddor,
     EmbeddorConfig,
@@ -32,7 +38,7 @@ def initialize_model(
     :returns: A new PredictorModel
     """
     device = get_device(args.disable_cuda)
-    predictor_config = PredictorConfig(
+    predictor_config = DocQAConfig(
         gru=GRUConfig(
             args.rnn_hidden_size,
             args.rnn_num_layers,
@@ -60,7 +66,12 @@ def initialize_model(
         highway_layers=args.highway_layers,
     )
     embeddor: Embeddor = make_embeddor(embeddor_config, device)
-    predictor: PredictorModel = DocQAPredictor(embeddor, predictor_config).to(device)
+    if args.simple_bidaf:
+        predictor: PredictorModel = BidafPredictor(embeddor, predictor_config.gru).to(
+            device
+        )
+    else:
+        predictor = DocQAPredictor(embeddor, predictor_config).to(device)
     return predictor
 
 

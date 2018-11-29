@@ -3,7 +3,7 @@ Attention mechanism module
 Hold modules for various Attention mechanisms
 """
 
-from typing import ClassVar
+from typing import ClassVar, Optional
 import torch as t
 import torch.nn as nn
 
@@ -20,22 +20,27 @@ class BaseBidirectionalAttention(nn.Module):
     NEGATIVE_COEFF: ClassVar[float] = -1e30
 
     self_attention: bool
+    use_linear_layer: bool
     final_encoding_size: int
     w_question: nn.Parameter
     w_context: nn.Parameter
     w_multiple: nn.Parameter
     ctx_softmax: nn.Softmax
     q_softmax: nn.Softmax
-    final_linear_layer_1: MaskedLinear
-    final_linear_layer_2: MaskedLinear
-    final_linear_activation: nn.ReLU
+    final_linear_layer_1: Optional[MaskedLinear]
+    final_linear_layer_2: Optional[MaskedLinear]
+    final_linear_activation: Optional[nn.ReLU]
 
     def __init__(
-        self, input_size: int, linear_hidden_size: int, self_attention: bool = False
+        self,
+        input_size: int,
+        linear_layer: bool = False,
+        linear_hidden_size: int = 0,
+        self_attention: bool = False,
     ) -> None:
         super().__init__()
         self.self_attention = self_attention
-        self.final_encoding_size = input_size if self.self_attention else 4 * input_size
+        self.use_linear_layer = linear_layer
 
         self.w_question = nn.Parameter(t.empty(input_size))
         self.w_context = nn.Parameter(t.empty(input_size))
@@ -47,14 +52,16 @@ class BaseBidirectionalAttention(nn.Module):
 
         self.ctx_softmax = nn.Softmax(dim=2)
         self.q_softmax = nn.Softmax(dim=1)
+        self.final_encoding_size = input_size if self.self_attention else 4 * input_size
 
-        self.final_linear_layer_1 = MaskedLinear(
-            self.final_encoding_size, linear_hidden_size
-        )
-        self.final_linear_layer_2 = MaskedLinear(
-            linear_hidden_size, self.final_encoding_size
-        )
-        self.final_linear_activation = nn.ReLU()
+        if self.use_linear_layer and linear_hidden_size:
+            self.final_linear_layer_1 = MaskedLinear(
+                self.final_encoding_size, linear_hidden_size
+            )
+            self.final_linear_layer_2 = MaskedLinear(
+                linear_hidden_size, self.final_encoding_size
+            )
+            self.final_linear_activation = nn.ReLU()
 
     def forward(
         self, context: t.Tensor, question: t.Tensor, context_mask: t.Tensor
@@ -107,28 +114,46 @@ class BaseBidirectionalAttention(nn.Module):
 
         c2q_att = t.bmm(self.ctx_softmax(similarity), question)
         if self.self_attention:
-            attended_tensors = c2q_att
+            attended_ctx = c2q_att
         else:
             q2c_att = t.bmm(self.q_softmax(similarity.max(2)[0]).unsqueeze(1), context)
-            attended_tensors = t.cat(
+            attended_ctx = t.cat(
                 [context, c2q_att, context * c2q_att, context * q2c_att], dim=2
             )
         del similarity
 
-        final_linear = self.final_linear_layer_1(attended_tensors, mask=context_mask)
-        final_linear = self.final_linear_layer_2(final_linear, mask=context_mask)
-        attended_context = self.final_linear_activation(final_linear)
-        return attended_context
+        if (
+            self.linear_layer
+            and self.final_linear_layer_1
+            and self.final_linear_layer_2
+            and self.final_linear_activation
+        ):
+            final_linear = self.final_linear_layer_1(attended_ctx, mask=context_mask)
+            final_linear = self.final_linear_layer_2(final_linear, mask=context_mask)
+            attended_ctx = self.final_linear_activation(final_linear)
+        return attended_ctx
 
 
-class BidirectionalAttention(BaseBidirectionalAttention):
+class BidafBidirectionalAttention(BaseBidirectionalAttention):
     """
-    Bidirectional Attention computations as described in Bidirectional
-    Attention Flow
+    Basic Bidirectional Attention Flow layer as described in the
+    original paper
+    """
+
+    def __init__(self, input_size: int) -> None:
+        super().__init__(input_size)
+
+
+class DocQABidirectionalAttention(BaseBidirectionalAttention):
+    """
+    Bidirectional Attention computations as described in DocQA
+    (with linear layer at the end)
     """
 
     def __init__(self, input_size: int, linear_hidden_size: int) -> None:
-        super().__init__(input_size, linear_hidden_size, self_attention=False)
+        super().__init__(
+            input_size, linear_layer=True, linear_hidden_size=linear_hidden_size
+        )
 
 
 class SelfAttention(BaseBidirectionalAttention):
@@ -137,4 +162,9 @@ class SelfAttention(BaseBidirectionalAttention):
     """
 
     def __init__(self, input_size: int, linear_hidden_size: int) -> None:
-        super().__init__(input_size, linear_hidden_size, self_attention=True)
+        super().__init__(
+            input_size,
+            linear_layer=True,
+            linear_hidden_size=linear_hidden_size,
+            self_attention=True,
+        )

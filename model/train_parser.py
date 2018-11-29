@@ -24,6 +24,7 @@ class TrainArgs:
     dropout: float
     run_name: str
     rnn_unidirectional: bool
+    simple_bidaf: bool
     debug: bool
     multi_answer: bool
     no_self_attention: bool
@@ -50,6 +51,7 @@ class TrainArgs:
         "config_file": "train-config.json",
         "run_name": "train-run",
         "rnn_unidirectional": False,
+        "simple_bidaf": False,
         "debug": False,
         "multi_answer": False,
         "no_self_attention": False,
@@ -78,6 +80,7 @@ class TrainArgs:
         self.dropout = arg_dict["dropout"]
         self.run_name = arg_dict["run_name"]
         self.rnn_unidirectional = arg_dict["rnn_unidirectional"]
+        self.simple_bidaf = arg_dict["simple_bidaf"]
         self.debug = arg_dict["debug"]
         self.multi_answer = arg_dict["multi_answer"]
         self.no_self_attention = arg_dict["no_self_attention"]
@@ -108,6 +111,7 @@ class TrainArgs:
         parser.add_argument("--dropout", type=float)
         parser.add_argument("--loader-num-workers", type=int, help="number of worker processes to use for DataLoader")
         parser.add_argument("--rnn_unidirectional ", action="store_true", help="if specified make all RNNs unidirectional instead of bidirectional")
+        parser.add_argument("--simple-bidaf", action="store_true", help="if specified use bidaf instead of docqa")
         parser.add_argument("--debug", action="store_true", help="if specified debug by fitting a single batch and profiling")
         parser.add_argument("--multi-answer", action="store_true", help="if specified don't truncate answer spans down to one")
         parser.add_argument("--no-self-attention", action="store_true", help="if specified don't use self attention")

@@ -15,7 +15,7 @@ from torch.nn.utils.rnn import (
     pad_sequence,
 )
 
-from model.predictor import PredictorConfig
+from model.predictor import DocQAConfig
 from model.util import get_last_hidden_states
 
 
@@ -25,7 +25,7 @@ class PredictorTestCase(unittest.TestCase):
         self.seq_len = 4
         self.input_dim = 2
         self.hidden_size = 10
-        self.config = Mock(PredictorConfig)
+        self.config = Mock(DocQAConfig)
 
     def get_input(self) -> PackedSequence:
         seqs = []

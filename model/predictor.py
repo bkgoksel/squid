@@ -8,7 +8,11 @@ from torch.nn.utils.rnn import PackedSequence, pack_padded_sequence, pad_packed_
 
 from model.batcher import QABatch
 from model.util import get_last_hidden_states
-from model.modules.attention import BidirectionalAttention, SelfAttention
+from model.modules.attention import (
+    DocQABidirectionalAttention,
+    BidafBidirectionalAttention,
+    SelfAttention,
+)
 from model.modules.masked import MaskedLinear, MaskedLogSoftmax
 from model.modules.embeddor import Embeddor
 
@@ -58,7 +62,7 @@ class GRUConfig:
         self.total_hidden_size = self.n_directions * self.single_hidden_size
 
 
-class PredictorConfig:
+class DocQAConfig:
     """
     Object that holds config values for a Predictor model
     """
@@ -132,10 +136,10 @@ class ContextualEncoder(nn.Module):
         return out[orig_idxs]
 
 
-class BidafOutput(nn.Module):
+class DocQAOutput(nn.Module):
     """
     Module that produces prediction logits given a context encoding
-    as described in the BiDAF paper
+    as described in the DocumentQA paper
     """
 
     config: GRUConfig
@@ -219,45 +223,42 @@ class DocQAPredictor(PredictorModel):
     Predictor as described in the DocumentQA paper
     """
 
-    config: PredictorConfig
+    config: DocQAConfig
     embed: Embeddor
     embedding_encoder: ContextualEncoder
-    bi_attention: BidirectionalAttention
-    attended_ctx_encoder: Optional[ContextualEncoder]
-    self_attention: Optional[SelfAttention]
-    output_layer: BidafOutput
+    bi_attention: DocQABidirectionalAttention
+    attended_ctx_encoder: ContextualEncoder
+    self_attention: SelfAttention
+    output_layer: DocQAOutput
 
-    def __init__(self, embeddor: Embeddor, config: PredictorConfig) -> None:
+    def __init__(self, embeddor: Embeddor, config: DocQAConfig) -> None:
         super().__init__()
         self.config = config
         self.embed = embeddor
         self.embedding_encoder = ContextualEncoder(
             self.embed.embedding_dim, self.config.gru
         )
-        self.bi_attention = BidirectionalAttention(
+        self.bi_attention = DocQABidirectionalAttention(
             self.config.gru.total_hidden_size, self.config.attention_linear_hidden_size
         )
-        if self.config.use_self_attention:
-            self.attended_ctx_encoder: ContextualEncoder = ContextualEncoder(
-                self.bi_attention.final_encoding_size,
-                GRUConfig(
-                    hidden_size=self.bi_attention.final_encoding_size // 2,
-                    num_layers=2,
-                    dropout_prob=self.config.gru.dropout_prob,
-                    force_unidirectional=False,
-                ),
-            )
-            assert (
-                self.attended_ctx_encoder.output_size
-                == self.bi_attention.final_encoding_size
-            )
-            self.self_attention: SelfAttention = SelfAttention(
-                self.attended_ctx_encoder.output_size,
-                self.config.attention_linear_hidden_size,
-            )
-        else:
-            self.self_attention = None
-        self.output_layer = BidafOutput(
+        self.attended_ctx_encoder: ContextualEncoder = ContextualEncoder(
+            self.bi_attention.final_encoding_size,
+            GRUConfig(
+                hidden_size=self.bi_attention.final_encoding_size // 2,
+                num_layers=2,
+                dropout_prob=self.config.gru.dropout_prob,
+                force_unidirectional=False,
+            ),
+        )
+        assert (
+            self.attended_ctx_encoder.output_size
+            == self.bi_attention.final_encoding_size
+        )
+        self.self_attention: SelfAttention = SelfAttention(
+            self.attended_ctx_encoder.output_size,
+            self.config.attention_linear_hidden_size,
+        )
+        self.output_layer = DocQAOutput(
             self.config.gru, self.bi_attention.final_encoding_size
         )
 
@@ -266,48 +267,177 @@ class DocQAPredictor(PredictorModel):
         Check base class method for docs
         """
 
-        q_embedded = self.embed(batch.question_words, batch.question_chars)
-        q_processed = self.embedding_encoder(
-            q_embedded,
+        question = self.embed(batch.question_words, batch.question_chars)
+        question = self.embedding_encoder(
+            question,
             batch.question_lens,
             batch.question_len_idxs,
             batch.question_orig_idxs,
         )
-        del q_embedded
 
-        ctx_embedded = self.embed(batch.context_words, batch.context_chars)
-        ctx_processed = self.embedding_encoder(
-            ctx_embedded,
-            batch.context_lens,
-            batch.context_len_idxs,
-            batch.context_orig_idxs,
+        context = self.embed(batch.context_words, batch.context_chars)
+        context = self.embedding_encoder(
+            context, batch.context_lens, batch.context_len_idxs, batch.context_orig_idxs
         )
-        del ctx_embedded
 
-        attended_ctx = self.bi_attention(
-            ctx_processed, q_processed, context_mask=batch.context_mask
+        context = self.bi_attention(context, question, context_mask=batch.context_mask)
+
+        self_aware_context = self.attended_ctx_encoder(
+            context, batch.context_lens, batch.context_len_idxs, batch.context_orig_idxs
         )
-        del q_processed
-        del ctx_processed
-
-        if self.self_attention and self.attended_ctx_encoder:
-            contextual_attended_ctx = self.attended_ctx_encoder(
-                attended_ctx,
-                batch.context_lens,
-                batch.context_len_idxs,
-                batch.context_orig_idxs,
-            )
-            self_aware_ctx = self.self_attention(
-                contextual_attended_ctx,
-                contextual_attended_ctx,
-                context_mask=batch.context_mask,
-            )
-            attended_ctx = attended_ctx + self_aware_ctx
+        self_aware_context = self.self_attention(
+            self_aware_context, self_aware_context, context_mask=batch.context_mask
+        )
+        context = context + self_aware_context
 
         return cast(
             ModelPredictions,
             self.output_layer(
-                attended_ctx,
+                context,
+                batch.context_mask,
+                batch.context_lens,
+                batch.context_len_idxs,
+                batch.context_orig_idxs,
+            ),
+        )
+
+
+class BidafOutput(nn.Module):
+    """
+    Module that produces prediction logits given a context encoding
+    as described in the BiDAF paper
+    """
+
+    config: GRUConfig
+    end_modeling_encoder: ContextualEncoder
+    start_predictor: nn.Linear
+    end_predictor: nn.Linear
+
+    def __init__(
+        self, config: GRUConfig, attended_input_size: int, modeled_input_size: int
+    ) -> None:
+        super().__init__()
+        self.config = config
+        self.end_modeling_encoder = ContextualEncoder(modeled_input_size, self.config)
+        self.start_predictor = MaskedLinear(attended_input_size + modeled_input_size, 1)
+        self.end_predictor = MaskedLinear(self.end_modeling_encoder.output_size, 1)
+        self.no_answer_gru = nn.GRU(
+            attended_input_size + modeled_input_size,
+            self.config.single_hidden_size,
+            1,
+            batch_first=True,
+            bidirectional=self.config.bidirectional,
+        )
+        self.no_answer_predictor = nn.Linear(self.config.total_hidden_size, 1)
+        self.softmax = MaskedLogSoftmax(dim=-1)
+
+    def forward(
+        self,
+        attended_context: t.Tensor,
+        modeled_context: t.Tensor,
+        context_mask: t.LongTensor,
+        lengths: t.LongTensor,
+        length_idxs: t.LongTensor,
+        orig_idxs: t.LongTensor,
+    ) -> ModelPredictions:
+        start_logits = self.start_predictor(
+            t.cat([attended_context, modeled_context], dim=-1)
+        ).squeeze(2)
+
+        end_modeled_ctx = self.end_modeling_encoder(
+            modeled_context, lengths, length_idxs, orig_idxs
+        )
+        end_logits = self.start_predictor(
+            t.cat([attended_context, end_modeled_ctx], dim=-1)
+        ).squeeze(2)
+
+        start_predictions = self.softmax(start_logits, mask=context_mask)
+        end_predictions = self.softmax(end_logits, mask=context_mask)
+
+        context_length_sorted = modeled_context[length_idxs]
+        context_packed: PackedSequence = pack_padded_sequence(
+            context_length_sorted, lengths, batch_first=True
+        )
+
+        _, no_answer_out_len_sorted = self.no_answer_gru(context_packed)
+        no_answer_out_len_sorted = get_last_hidden_states(
+            no_answer_out_len_sorted,
+            self.config.n_directions,
+            self.config.total_hidden_size,
+        )
+        no_answer_out = no_answer_out_len_sorted[orig_idxs]
+        no_answer_predictions = self.no_answer_predictor(no_answer_out)
+
+        return ModelPredictions(
+            start_logits=start_predictions,
+            end_logits=end_predictions,
+            no_ans_logits=no_answer_predictions,
+        )
+
+
+class BidafPredictor(PredictorModel):
+    """
+    Predictor as described in the BiDAF paper
+    """
+
+    config: GRUConfig
+    embed: Embeddor
+    embedding_encoder: ContextualEncoder
+    bi_attention: BidafBidirectionalAttention
+    modeling_layer: ContextualEncoder
+    output_layer: BidafOutput
+
+    def __init__(self, embeddor: Embeddor, config: GRUConfig) -> None:
+        super().__init__()
+        self.config = config
+        self.embed = embeddor
+        self.embedding_encoder = ContextualEncoder(
+            self.embed.embedding_dim, self.config
+        )
+        self.bi_attention = BidafBidirectionalAttention(self.config.total_hidden_size)
+        self.modeling_layer = ContextualEncoder(
+            self.bi_attention.final_encoding_size, self.config
+        )
+        self.output_layer = BidafOutput(
+            self.config,
+            self.bi_attention.final_encoding_size,
+            self.modeling_layer.output_size,
+        )
+
+    def forward(self, batch: QABatch) -> ModelPredictions:
+        """
+        Check base class method for docs
+        """
+
+        question = self.embed(batch.question_words, batch.question_chars)
+        question = self.embedding_encoder(
+            question,
+            batch.question_lens,
+            batch.question_len_idxs,
+            batch.question_orig_idxs,
+        )
+
+        context = self.embed(batch.context_words, batch.context_chars)
+        context = self.embedding_encoder(
+            context, batch.context_lens, batch.context_len_idxs, batch.context_orig_idxs
+        )
+
+        attended_context = self.bi_attention(
+            context, question, context_mask=batch.context_mask
+        )
+
+        modeled_context = self.modeling_layer(
+            attended_context,
+            batch.context_lens,
+            batch.context_len_idxs,
+            batch.context_orig_idxs,
+        )
+
+        return cast(
+            ModelPredictions,
+            self.output_layer(
+                attended_context,
+                modeled_context,
                 batch.context_mask,
                 batch.context_lens,
                 batch.context_len_idxs,
