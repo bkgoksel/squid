@@ -65,6 +65,7 @@ class PredictorConfig:
 
     gru: GRUConfig
     dropout_prob: float
+    attention_linear_hidden_size: int
     use_self_attention: bool
     batch_size: int
 
@@ -72,11 +73,13 @@ class PredictorConfig:
         self,
         gru: GRUConfig,
         dropout_prob: float,
+        attention_linear_hidden_size: int,
         use_self_attention: bool,
         batch_size: int,
     ) -> None:
         self.gru = gru
         self.dropout_prob = dropout_prob
+        self.attention_linear_hidden_size = attention_linear_hidden_size
         self.batch_size = batch_size
         self.use_self_attention = use_self_attention
 
@@ -237,7 +240,9 @@ class DocQAPredictor(PredictorModel):
         self.embedding_encoder = ContextualEncoder(
             self.embed.embedding_dim, self.config.gru
         )
-        self.bi_attention = BidirectionalAttention(self.config.gru.total_hidden_size)
+        self.bi_attention = BidirectionalAttention(
+            self.config.gru.total_hidden_size, self.config.attention_linear_hidden_size
+        )
         if self.config.use_self_attention:
             self.attended_ctx_encoder: ContextualEncoder = ContextualEncoder(
                 self.bi_attention.final_encoding_size,
@@ -253,7 +258,8 @@ class DocQAPredictor(PredictorModel):
                 == self.bi_attention.final_encoding_size
             )
             self.self_attention: SelfAttention = SelfAttention(
-                self.attended_ctx_encoder.output_size
+                self.attended_ctx_encoder.output_size,
+                self.config.attention_linear_hidden_size,
             )
         else:
             self.self_attention = None
