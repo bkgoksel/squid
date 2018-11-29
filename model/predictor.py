@@ -90,13 +90,11 @@ class ContextualEncoder(nn.Module):
     """
 
     config: GRUConfig
-    dropout: nn.Dropout
     GRU: nn.GRU
 
     def __init__(self, input_dim: int, config: GRUConfig) -> None:
         super().__init__()
         self.config = config
-        self.dropout = nn.Dropout(p=self.config.dropout_prob)
         self.gru = nn.GRU(
             input_dim,
             self.config.single_hidden_size,
@@ -122,9 +120,7 @@ class ContextualEncoder(nn.Module):
         :param orig_idxs: Indices to sort the length-sorted sequences back to the original order
         :returns: Padded, encoded sequences in original order (batch_len, sequence_len, encoding_size)
         """
-        dropped_inpt = self.dropout(inpt)
-        del inpt
-        len_sorted = dropped_inpt[length_idxs]
+        len_sorted = inpt[length_idxs]
         del length_idxs
         packed: PackedSequence = pack_padded_sequence(
             len_sorted, lengths, batch_first=True
@@ -240,15 +236,12 @@ class DocQAPredictor(PredictorModel):
         self.q_encoder = ContextualEncoder(self.embed.embedding_dim, self.config.gru)
         self.ctx_encoder = ContextualEncoder(self.embed.embedding_dim, self.config.gru)
         self.bi_attention = BidirectionalAttention(
-            self.config.gru.total_hidden_size,
-            self.config.attention_linear_hidden_size,
-            self.config.dropout_prob,
+            self.config.gru.total_hidden_size, self.config.attention_linear_hidden_size
         )
         if self.config.use_self_attention:
             self.self_attention = SelfAttention(
                 self.bi_attention.final_encoding_size,
                 self.config.attention_linear_hidden_size,
-                self.config.dropout_prob,
             )
         else:
             self.self_attention = None
