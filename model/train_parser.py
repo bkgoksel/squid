@@ -14,6 +14,7 @@ class TrainArgs:
     weight_decay: float
     max_grad_norm: float
     char_embedding_size: int
+    attention_linear_hidden_size: int
     highway_layers: int
     rnn_hidden_size: int
     rnn_num_layers: int
@@ -38,6 +39,7 @@ class TrainArgs:
         "weight_decay": 0,
         "max_grad_norm": 10,
         "char_embedding_size": 20,
+        "attention_linear_hidden_size": 200,
         "highway_layers": 1,
         "rnn_hidden_size": 100,
         "rnn_num_layers": 1,
@@ -66,6 +68,7 @@ class TrainArgs:
         self.weight_decay = arg_dict["weight_decay"]
         self.max_grad_norm = arg_dict["max_grad_norm"]
         self.char_embedding_size = arg_dict["char_embedding_size"]
+        self.attention_linear_hidden_size = arg_dict["attention_linear_hidden_size"]
         self.highway_layers = arg_dict["highway_layers"]
         self.rnn_hidden_size = arg_dict["rnn_hidden_size"]
         self.rnn_num_layers = arg_dict["rnn_num_layers"]
