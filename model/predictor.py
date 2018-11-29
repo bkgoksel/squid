@@ -98,7 +98,7 @@ class ContextualEncoder(nn.Module):
             input_dim,
             self.config.single_hidden_size,
             self.config.num_layers,
-            dropout=self.config.dropout_prob if self.config.num_layers > 0 else 0,
+            dropout=self.config.dropout_prob if self.config.num_layers > 1 else 0,
             batch_first=True,
             bidirectional=self.config.bidirectional,
         )
@@ -243,7 +243,7 @@ class DocQAPredictor(PredictorModel):
                 self.bi_attention.final_encoding_size,
                 GRUConfig(
                     hidden_size=self.bi_attention.final_encoding_size // 2,
-                    num_layers=1,
+                    num_layers=2,
                     dropout_prob=self.config.gru.dropout_prob,
                     force_unidirectional=False,
                 ),
