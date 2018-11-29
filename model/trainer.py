@@ -209,7 +209,7 @@ class Trainer:
         else:
             train_evaluator = MultiClassLossEvaluator()
         trainable_parameters = filter(lambda p: p.requires_grad, model.parameters())
-        optimizer: optim.Optimizer = optim.Adam(
+        optimizer: optim.Optimizer = optim.Adadelta(
             trainable_parameters,
             lr=training_config.learning_rate,
             weight_decay=training_config.weight_decay,

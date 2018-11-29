@@ -91,12 +91,14 @@ class ContextualEncoder(nn.Module):
 
     config: GRUConfig
     output_size: int
+    dropout: nn.Dropout
     GRU: nn.GRU
 
     def __init__(self, input_dim: int, config: GRUConfig) -> None:
         super().__init__()
         self.config = config
         self.output_size = self.config.total_hidden_size
+        self.dropout = nn.Dropout(self.config.dropout_prob)
         self.gru = nn.GRU(
             input_dim,
             self.config.single_hidden_size,
@@ -122,20 +124,12 @@ class ContextualEncoder(nn.Module):
         :param orig_idxs: Indices to sort the length-sorted sequences back to the original order
         :returns: Padded, encoded sequences in original order (batch_len, sequence_len, output_size)
         """
-        len_sorted = inpt[length_idxs]
-        del length_idxs
-        packed: PackedSequence = pack_padded_sequence(
-            len_sorted, lengths, batch_first=True
-        )
-        del len_sorted
-        del lengths
-        processed_packed, _ = self.gru(packed)
-        del packed
-        processed_len_sorted, _ = pad_packed_sequence(
-            processed_packed, batch_first=True
-        )
-        del processed_packed
-        return processed_len_sorted[orig_idxs]
+        inpt = self.dropout(inpt)
+        inpt = inpt[length_idxs]
+        inpt = pack_padded_sequence(inpt, lengths, batch_first=True)
+        out, _ = self.gru(inpt)
+        out, _ = pad_packed_sequence(out, batch_first=True)
+        return out[orig_idxs]
 
 
 class BidafOutput(nn.Module):
