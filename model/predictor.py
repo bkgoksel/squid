@@ -341,14 +341,14 @@ class BidafOutput(nn.Module):
         orig_idxs: t.LongTensor,
     ) -> ModelPredictions:
         start_logits = self.start_predictor(
-            t.cat([attended_context, modeled_context], dim=-1)
+            t.cat([attended_context, modeled_context], dim=-1), mask=context_mask
         ).squeeze(2)
 
         end_modeled_ctx = self.end_modeling_encoder(
             modeled_context, lengths, length_idxs, orig_idxs
         )
         end_logits = self.start_predictor(
-            t.cat([attended_context, end_modeled_ctx], dim=-1)
+            t.cat([attended_context, end_modeled_ctx], dim=-1), mask=context_mask
         ).squeeze(2)
 
         start_predictions = self.softmax(start_logits, mask=context_mask)
