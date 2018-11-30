@@ -279,7 +279,7 @@ class Trainer:
         try:
             dev_perf = cls.evaluate_on_squad_dataset(dataset, model, training_config)
             f1 = float(dev_perf.get("f1", 0.0))
-            em = float(dev_perf.get("em", 0.0))
+            em = float(dev_perf.get("exact_match", 0.0))
         except Exception as err:
             print(f"Error when trying to get full evaluation: {err}")
         dev_loss = cls.get_dataset_loss(dataset, model, evaluator, training_config)
