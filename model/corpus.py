@@ -245,7 +245,9 @@ class Corpus:
             assert span_start <= span_end
             start_idx = context.tokens[span_start].span[0]
             end_idx = context.tokens[min(span_end, len(context.tokens))].span[1]
-            return context.text[start_idx : min(end_idx, len(context.text))]
+            return context.original_text[
+                start_idx : min(end_idx, len(context.original_text))
+            ]
         except Exception as ex:
             print(
                 f"Error while reconstructing answer. num tokens: {len(context.tokens)}, first token: {span_start}, last token: {span_end}"

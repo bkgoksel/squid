@@ -19,18 +19,25 @@ class Processed:
     """
 
     tokens: List[Token]
+    original_text: str
     text: str
 
     def __init__(
         self, text: str, tokenizer: Tokenizer, processor: TextProcessor
     ) -> None:
+        self.original_text = text
         self.text = processor.process(text)
         self.tokens = tokenizer.tokenize(self.text)
         assert len(self.text) > 0, "Textual object with empty text"
         assert len(self.tokens) > 0, "Tokenized object with no tokensj"
 
     def __eq__(self, other: Any) -> bool:
-        return cast(bool, self.text == other.text and self.tokens == other.tokens)
+        return cast(
+            bool,
+            self.original_text == other.original_text
+            and self.text == other.text
+            and self.tokens == other.tokens,
+        )
 
 
 class Answer(Processed):
