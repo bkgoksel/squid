@@ -278,7 +278,7 @@ class Corpus:
         qid_to_gold_answer = {}
         for cqa in self.context_qas:
             for qa in cqa.qas:
-                qid_to_gold_answer[qa.question_id] = list(qa.answers)[0].text
+                qid_to_gold_answer[qa.question_id] = list(qa.answers)[0].original_text
         return qid_to_gold_answer
 
     def save(self, file_name: str) -> None:
