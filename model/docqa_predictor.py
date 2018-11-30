@@ -73,13 +73,9 @@ class DocQAOutput(nn.Module):
         self.start_predictor = MaskedLinear(self.start_modeling_encoder.output_size, 1)
         self.end_predictor = MaskedLinear(self.end_modeling_encoder.output_size, 1)
         self.no_answer_gru = nn.GRU(
-            input_size,
-            self.config.single_hidden_size,
-            1,
-            batch_first=True,
-            bidirectional=self.config.bidirectional,
+            input_size, self.config.hidden_size, 1, batch_first=True, bidirectional=True
         )
-        self.no_answer_predictor = nn.Linear(self.config.total_hidden_size, 1)
+        self.no_answer_predictor = nn.Linear(self.config.hidden_size * 2, 1)
         self.softmax = MaskedLogSoftmax(dim=-1)
 
     def forward(
@@ -117,9 +113,7 @@ class DocQAOutput(nn.Module):
 
         _, no_answer_out_len_sorted = self.no_answer_gru(context_packed)
         no_answer_out_len_sorted = get_last_hidden_states(
-            no_answer_out_len_sorted,
-            self.config.n_directions,
-            self.config.total_hidden_size,
+            no_answer_out_len_sorted, 2, 2 * self.config.hidden_size
         )
         no_answer_out = no_answer_out_len_sorted[orig_idxs]
         no_answer_predictions = self.no_answer_predictor(no_answer_out)
@@ -152,8 +146,7 @@ class DocQAPredictor(PredictorModel):
             self.embed.embedding_dim, self.config.contextual_encoder_config
         )
         self.bi_attention = DocQABidirectionalAttention(
-            self.config.contextual_encoder_config.total_hidden_size,
-            self.config.attention_linear_hidden_size,
+            self.embedding_encoder.output_size, self.config.attention_linear_hidden_size
         )
         self.attended_ctx_encoder: ContextualEncoder = ContextualEncoder(
             self.bi_attention.final_encoding_size,
@@ -162,7 +155,6 @@ class DocQAPredictor(PredictorModel):
                 num_layers=2,
                 dropout_input=True,
                 dropout_prob=self.config.contextual_encoder_config.dropout_prob,
-                force_unidirectional=False,
             ),
         )
         assert (
