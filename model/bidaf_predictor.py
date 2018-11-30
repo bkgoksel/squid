@@ -42,7 +42,7 @@ class BidafConfig:
         self.output_config = output_config
 
     @classmethod
-    def get_default_bidaf_config(cls) -> BidafConfig:
+    def get_default_bidaf_config(cls) -> "BidafConfig":
         return BidafConfig(
             contextual_encoder_config=ContextualEncoderConfig(
                 hidden_size=100, num_layers=1, dropout_input=False, dropout_prob=0.2

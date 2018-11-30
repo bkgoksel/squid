@@ -97,24 +97,15 @@ def get_answer_token_idxs(
     for qid, context_len, start_logits, end_logits in zip(
         batch.question_ids, batch.context_lens, all_start_logits, all_end_logits
     ):
-        best_score = 0.0
+        best_score = None
         best_ans = (0, 0)
         for start_idx in range(context_len):
             start_logit = start_logits[start_idx]
             for end_idx in range(start_idx, context_len):
                 end_logit = end_logits[end_idx]
-                if start_logit + end_logit >= best_score:
+                score = start_logit * end_logit
+                if best_score is None or score <= best_score:
                     best_ans = (start_idx, end_idx)
+                    best_score = score
         qid_to_ans[qid] = best_ans
-    """
-    answer_starts = (
-        t.max(model_predictions.start_logits, 1)[1].to(t.device("cpu")).numpy()
-    )
-    answer_ends = t.max(model_predictions.end_logits, 1)[1].to(t.device("cpu")).numpy()
-    answers = np.column_stack([answer_starts, answer_ends]).tolist()
-    qid_to_answer = {
-        qid: tuple(answer) for qid, answer in zip(batch.question_ids, answers)
-    }
-    return qid_to_answer
-    """
     return qid_to_ans
