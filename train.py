@@ -7,13 +7,10 @@ from model.trainer import Trainer
 from model.train_parser import TrainArgs
 from model.tokenizer import Tokenizer, NltkTokenizer
 from model.text_processor import TextProcessor
-from model.predictor import (
-    DocQAConfig,
-    GRUConfig,
-    PredictorModel,
-    DocQAPredictor,
-    BidafPredictor,
-)
+from model.predictor import PredictorModel, ContextualEncoderConfig
+from model.docqa_predictor import DocQAConfig, DocQAPredictor
+from model.bidaf_predictor import BidafConfig, BidafPredictor
+
 from model.modules.embeddor import (
     Embeddor,
     EmbeddorConfig,
@@ -38,18 +35,6 @@ def initialize_model(
     :returns: A new PredictorModel
     """
     device = get_device(args.disable_cuda)
-    predictor_config = DocQAConfig(
-        gru=GRUConfig(
-            args.rnn_hidden_size,
-            args.rnn_num_layers,
-            args.dropout,
-            args.rnn_unidirectional,
-        ),
-        dropout_prob=args.dropout,
-        attention_linear_hidden_size=args.attention_linear_hidden_size,
-        use_self_attention=(not args.no_self_attention),
-        batch_size=args.batch_size,
-    )
     word_embedding_config = WordEmbeddorConfig(vectors=vectors, train_vecs=False)
     char_embedding_config: Optional[PoolingCharEmbeddorConfig]
     if args.char_embedding_size:
@@ -67,11 +52,24 @@ def initialize_model(
     )
     embeddor: Embeddor = make_embeddor(embeddor_config, device)
     if args.simple_bidaf:
-        predictor: PredictorModel = BidafPredictor(embeddor, predictor_config.gru).to(
+        bidaf_predictor_config = BidafConfig.get_default_bidaf_config()
+        predictor: PredictorModel = BidafPredictor(embeddor, bidaf_predictor_config).to(
             device
         )
     else:
-        predictor = DocQAPredictor(embeddor, predictor_config).to(device)
+        docqa_predictor_config = DocQAConfig(
+            contextual_encoder_config=ContextualEncoderConfig(
+                hidden_size=args.rnn_hidden_size,
+                num_layers=args.rnn_num_layers,
+                dropout_input=True,
+                dropout_prob=args.dropout,
+            ),
+            dropout_prob=args.dropout,
+            attention_linear_hidden_size=args.attention_linear_hidden_size,
+            use_self_attention=(not args.no_self_attention),
+            batch_size=args.batch_size,
+        )
+        predictor = DocQAPredictor(embeddor, docqa_predictor_config).to(device)
     return predictor
 
 
