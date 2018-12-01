@@ -25,6 +25,7 @@ from model.qa import QuestionId
 from model.batcher import QABatch, get_collator
 from model.predictor import PredictorModel, ModelPredictions
 from model.profiler import memory_profiled, autograd_profiled
+from model.modules.ema import EMA
 
 from model.evaluator import (
     Evaluator,
@@ -61,6 +62,7 @@ class Trainer:
             ("learning_rate", float),
             ("weight_decay", float),
             ("max_grad_norm", float),
+            ("ema_weight", float),
             ("num_epochs", int),
             ("batch_size", int),
             ("max_question_size", int),
@@ -79,6 +81,7 @@ class Trainer:
         parameters: Iterable[Any],
         evaluator: Evaluator,
         optimizer: t.optim.Optimizer,
+        ema: EMA,
         max_grad_norm: Optional[float] = None,
     ) -> float:
         """
@@ -90,6 +93,7 @@ class Trainer:
         :param parameters: Parameters of model to train
         :param evaluator: Evaluator to compute loss
         :param optimizer: Optimizer to step over model
+        :param ema: EMA module
         :param max_grad_norm: If specified clip gradients at this norm
         :returns: Total loss for batch
         """
@@ -101,6 +105,9 @@ class Trainer:
         if max_grad_norm:
             t.nn.utils.clip_grad_norm_(parameters, max_grad_norm)
         optimizer.step()
+        for name, param in model.named_parameters():
+            if param.requires_grad:
+                param.data = ema(name, param.data)
         batch_loss = loss.item()
         return cast(float, batch_loss)
 
@@ -112,6 +119,7 @@ class Trainer:
         parameters: Iterable[Any],
         evaluator: Evaluator,
         optimizer: t.optim.Optimizer,
+        ema: EMA,
         dev_dataset: EvalDataset,
         training_config: TrainingConfig,
     ) -> None:
@@ -123,6 +131,7 @@ class Trainer:
         :param parameters: Parameters of model to train
         :param evaluator: Evaluator to compute loss
         :param optimizer: Optimizer to step over model
+        :param EMA: EMA module
         :param dev_dataset: EvalDataset to validate on
         :param training_config: TrainingConfig object describing parameters for training
         """
@@ -145,6 +154,7 @@ class Trainer:
                             parameters,
                             evaluator,
                             optimizer,
+                            ema,
                             training_config.max_grad_norm,
                         ) / len(batch)
                         epoch_loss += batch_loss
@@ -214,6 +224,10 @@ class Trainer:
             lr=training_config.learning_rate,
             weight_decay=training_config.weight_decay,
         )
+        ema: EMA = EMA(training_config.ema_weight)
+        for name, param in model.named_parameters():
+            if param.requires_grad:
+                ema.register(name, param.data)
         loader: DataLoader = DataLoader(
             train_dataset,
             batch_size=training_config.batch_size,
@@ -245,6 +259,7 @@ class Trainer:
             trainable_parameters,
             train_evaluator,
             optimizer,
+            ema,
             dev_dataset,
             training_config,
         )

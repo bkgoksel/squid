@@ -13,6 +13,7 @@ class TrainArgs:
     lr: float
     weight_decay: float
     max_grad_norm: float
+    ema_weight: float
     char_embedding_size: int
     attention_linear_hidden_size: int
     highway_layers: int
@@ -39,6 +40,7 @@ class TrainArgs:
         "lr": 0.5,
         "weight_decay": 0,
         "max_grad_norm": 100,
+        "ema_weight": 0.99,
         "char_embedding_size": 20,
         "attention_linear_hidden_size": 200,
         "highway_layers": 2,
@@ -69,6 +71,7 @@ class TrainArgs:
         self.lr = arg_dict["lr"]
         self.weight_decay = arg_dict["weight_decay"]
         self.max_grad_norm = arg_dict["max_grad_norm"]
+        self.ema_weight = arg_dict["ema_weight"]
         self.char_embedding_size = arg_dict["char_embedding_size"]
         self.attention_linear_hidden_size = arg_dict["attention_linear_hidden_size"]
         self.highway_layers = arg_dict["highway_layers"]
@@ -102,6 +105,7 @@ class TrainArgs:
         parser.add_argument("--lr", type=float)
         parser.add_argument("--weight-decay", type=float, help="weight decay (L2 penalty) to use during training")
         parser.add_argument("--max-grad-norm", type=float, help="Maximum norm to use for gradient clipping (default None-> no gradient clipping)")
+        parser.add_argument("--ema-weight", type=float, help="Weight to use for exponential moving averages during training (default 0.99)")
         parser.add_argument("--char-embedding-size", help="Set to 0 to disable char-level embeddings")
         parser.add_argument("--max-context-size", help="Trim all context values to this length during training (0 for unlimited)")
         parser.add_argument("--max-question-size", type=int, help="Trim all context values to this length during training (0 for unlimited)")
